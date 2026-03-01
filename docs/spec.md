@@ -1238,7 +1238,7 @@ backfill.py:
 - [ ] **Phase 11**: シグナル的中率の自動追跡 — 完了日:
 - [ ] **Phase 12**: LINE / Slack 通知 — 完了日:
 - [ ] **Phase 13**: 信用残・為替データ追加 — 完了日:
-- [ ] **Phase 14**: バックテストエンジン — 完了日:
+- [x] **Phase 14**: バックテストエンジン — 完了日: 2026-03-01
 - [ ] **Phase 15**: ポートフォリオ連携 — 完了日:
 
 ### 現在のステータス
@@ -1248,8 +1248,13 @@ backfill.py:
 進行中Phase: -
 ブロッカー: なし
 備考:
-  - Phase 1〜10 全て完了
+  - Phase 1〜10 全て完了 (master)
+  - Phase 14 完了 (feature/phase-14-backtest)
   - CDK の CloudFront Distribution は TODO (AWSアカウント有効化待ち)
-  - テスト: 102件全通過 (moto[s3,ssm] ベース)
+  - テスト: 121件全通過
   - Phase 0 (AWS環境準備) は手動作業のため未チェック
+  - Phase 14: backtest_runs/backtest_trades/backtest_results テーブル追加、
+              backtest.py 新規 (simulate_trades/calc_metrics/run_backtest)、
+              scripts/run_backtest.py CLI 新規、
+              GET /api/backtest, /api/backtest/{run_id}, /api/backtest/{run_id}/trades 追加
 ```

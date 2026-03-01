@@ -5,7 +5,7 @@ import os
 import boto3
 from fastapi import FastAPI, Response
 
-from src.api.routers import network, prices, signals, stock, summary
+from src.api.routers import backtest, network, prices, signals, stock, summary
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ app.include_router(prices.router, prefix="/api")
 app.include_router(signals.router, prefix="/api")
 app.include_router(network.router, prefix="/api")
 app.include_router(stock.router, prefix="/api")
+app.include_router(backtest.router, prefix="/api")  # Phase 14
 
 
 @app.on_event("startup")
