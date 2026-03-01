@@ -6,6 +6,8 @@ import {
   aws_iam as iam,
   aws_apigateway as apigateway,
   aws_scheduler as scheduler,
+  aws_sns as sns,
+  aws_sns_subscriptions as snsSubscriptions,
   aws_ssm as ssm,
   Duration,
   RemovalPolicy,
@@ -39,8 +41,29 @@ export class NkflowStack extends Stack {
       stringValue: 'PLACEHOLDER_SET_MANUALLY',
     });
 
+    // Phase 12: 通知先パラメータ (枠のみ — 値は手動で SecureString に上書き)
+    new ssm.StringParameter(this, 'SlackWebhookUrlParam', {
+      parameterName: '/nkflow/slack-webhook-url',
+      stringValue: 'PLACEHOLDER_SET_MANUALLY',
+      description: 'Slack Incoming Webhook URL (Phase 12)',
+    });
+
+    new ssm.StringParameter(this, 'LineNotifyTokenParam', {
+      parameterName: '/nkflow/line-notify-token',
+      stringValue: 'PLACEHOLDER_SET_MANUALLY',
+      description: 'LINE Notify アクセストークン (Phase 12)',
+    });
+
     // ─────────────────────────────────────────────────────────────
-    // 3. IAM ロール (バッチ)
+    // 3. SNS トピック (Phase 12)
+    // ─────────────────────────────────────────────────────────────
+    const notificationTopic = new sns.Topic(this, 'NkflowNotificationTopic', {
+      topicName: 'nkflow-notifications',
+      displayName: 'nkflow 日次レポート通知',
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // 4. IAM ロール (バッチ)
     // ─────────────────────────────────────────────────────────────
     const batchRole = new iam.Role(this, 'NkflowBatchRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -53,9 +76,14 @@ export class NkflowStack extends Stack {
       actions: ['ssm:GetParameter'],
       resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/nkflow/*`],
     }));
+    // Phase 12: SNS publish 権限
+    batchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [notificationTopic.topicArn],
+    }));
 
     // ─────────────────────────────────────────────────────────────
-    // 4. IAM ロール (API)
+    // 5. IAM ロール (API)
     // ─────────────────────────────────────────────────────────────
     const apiRole = new iam.Role(this, 'NkflowApiRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -66,7 +94,24 @@ export class NkflowStack extends Stack {
     dataBucket.grantRead(apiRole);
 
     // ─────────────────────────────────────────────────────────────
-    // 5. Lambda (バッチ) — Apple Silicon 対応で linux/amd64 を指定
+    // 6. IAM ロール (通知 Lambda) — Phase 12
+    // ─────────────────────────────────────────────────────────────
+    const notificationRole = new iam.Role(this, 'NkflowNotificationRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+    notificationRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [
+        `arn:aws:ssm:${this.region}:${this.account}:parameter/nkflow/slack-webhook-url`,
+        `arn:aws:ssm:${this.region}:${this.account}:parameter/nkflow/line-notify-token`,
+      ],
+    }));
+
+    // ─────────────────────────────────────────────────────────────
+    // 7. Lambda (バッチ) — Apple Silicon 対応で linux/amd64 を指定
     // ─────────────────────────────────────────────────────────────
     const batchLambda = new lambda.DockerImageFunction(this, 'NkflowBatchLambda', {
       functionName: 'nkflow-batch',
@@ -81,11 +126,12 @@ export class NkflowStack extends Stack {
       environment: {
         S3_BUCKET: dataBucket.bucketName,
         JQUANTS_PLAN: 'free',
+        SNS_TOPIC_ARN: notificationTopic.topicArn,
       },
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 6. Lambda (API) + Function URL
+    // 8. Lambda (API) + Function URL
     // ─────────────────────────────────────────────────────────────
     const apiLambda = new lambda.DockerImageFunction(this, 'NkflowApiLambda', {
       functionName: 'nkflow-api',
@@ -110,7 +156,26 @@ export class NkflowStack extends Stack {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 7. API Gateway REST API — フロントエンド + API を1つの URL で公開
+    // 9. Lambda (通知) — Phase 12
+    // ─────────────────────────────────────────────────────────────
+    const notificationLambda = new lambda.DockerImageFunction(this, 'NkflowNotificationLambda', {
+      functionName: 'nkflow-notification',
+      code: lambda.DockerImageCode.fromImageAsset(BACKEND, {
+        file: 'Dockerfile.notification',
+        platform: Platform.LINUX_AMD64,
+      }),
+      memorySize: 256,
+      timeout: Duration.seconds(30),
+      role: notificationRole,
+    });
+
+    // SNS → Notification Lambda サブスクリプション
+    notificationTopic.addSubscription(
+      new snsSubscriptions.LambdaSubscription(notificationLambda)
+    );
+
+    // ─────────────────────────────────────────────────────────────
+    // 10. API Gateway REST API — フロントエンド + API を1つの URL で公開
     // ─────────────────────────────────────────────────────────────
     const restApi = new apigateway.LambdaRestApi(this, 'NkflowApiGateway', {
       handler: apiLambda,
@@ -121,7 +186,7 @@ export class NkflowStack extends Stack {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 8. EventBridge Scheduler (毎営業日 UTC 09:00 = JST 18:00)
+    // 11. EventBridge Scheduler (毎営業日 UTC 09:00 = JST 18:00)
     // ─────────────────────────────────────────────────────────────
     const schedulerRole = new iam.Role(this, 'NkflowSchedulerRole', {
       assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
@@ -148,6 +213,10 @@ export class NkflowStack extends Stack {
     new cdk.CfnOutput(this, 'FrontendUrl', {
       value: restApi.url,
       description: 'フロントエンド + API の公開 URL (API Gateway)',
+    });
+    new cdk.CfnOutput(this, 'NotificationTopicArn', {
+      value: notificationTopic.topicArn,
+      description: 'SNS 通知トピック ARN (Phase 12)',
     });
   }
 }

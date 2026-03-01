@@ -231,6 +231,8 @@ class TestBatchHandler:
                 "chains": [], "fund_flow_paths": [], "regime_perf": {}
             }),
             patch("src.batch.signals.generate", return_value=3),
+            patch("src.batch.tracker.run_all", return_value=0),
+            patch("src.batch.notifier.publish", return_value=True),
         ]
 
     def test_returns_200_on_trading_day(self, tmp_path, monkeypatch):
@@ -242,7 +244,8 @@ class TestBatchHandler:
         patches = self._patch_all(n_fetched=5)
         with patches[0], patches[1], patches[2], patches[3] as mock_fetch, \
              patches[4] as mock_compute, patches[5] as mock_stats, \
-             patches[6] as mock_graph, patches[7] as mock_signals:
+             patches[6] as mock_graph, patches[7] as mock_signals, \
+             patches[8], patches[9]:
 
             import importlib
             import src.batch.handler as handler_mod
@@ -268,7 +271,8 @@ class TestBatchHandler:
         patches = self._patch_all(n_fetched=0)
         with patches[0], patches[1], patches[2], patches[3], \
              patches[4] as mock_compute, patches[5] as mock_stats, \
-             patches[6] as mock_graph, patches[7] as mock_signals:
+             patches[6] as mock_graph, patches[7] as mock_signals, \
+             patches[8], patches[9]:
 
             import importlib
             import src.batch.handler as handler_mod
@@ -295,7 +299,9 @@ class TestBatchHandler:
              patch("src.batch.compute.compute_all", side_effect=RuntimeError("DuckDB crash")), \
              patch("src.batch.statistics.run_all"), \
              patch("src.batch.graph.update_and_query", return_value={}), \
-             patch("src.batch.signals.generate", return_value=0):
+             patch("src.batch.signals.generate", return_value=0), \
+             patch("src.batch.tracker.run_all", return_value=0), \
+             patch("src.batch.notifier.publish", return_value=True):
 
             import importlib
             import src.batch.handler as handler_mod

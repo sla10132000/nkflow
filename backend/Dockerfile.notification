@@ -1,0 +1,10 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+COPY pyproject.toml .
+RUN pip install uv && uv pip install --system boto3
+
+COPY src/ src/
+
+CMD ["src.notification.handler.handler"]
