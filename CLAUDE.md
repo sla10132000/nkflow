@@ -40,9 +40,24 @@ npx cdk diff NkflowStack        # 変更差分確認
 npx cdk deploy NkflowStack --require-approval never
 ```
 
+### Frontend (Vue SPA)
+
+> **重要: フロントエンドは CDK deploy と独立しており、自動デプロイされない。**
+> `frontend/` を変更したら必ず以下を手動で実行すること。
+
+```bash
+cd frontend
+
+npm run build   # dist/ を生成
+
+# S3 へアップロード (--delete で古いハッシュ付きファイルを削除)
+aws s3 sync dist/ s3://nkflow-data-268914462689/frontend/ --delete
+```
+
 ### GitHub Actions
 
 - `main` への push (cdk/ または backend/ 変更) で自動デプロイ
+- **frontend/ の変更は GitHub Actions 対象外** — 上記の手動手順が必要
 - 手動実行: GitHub Actions → Deploy CDK → Run workflow
 
 ---
