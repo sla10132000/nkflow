@@ -6,7 +6,7 @@ S3_BUCKET := nkflow-data-268914462689
         test lint \
         build build-frontend build-cdk \
         diff deploy deploy-cdk deploy-frontend \
-        pull push-db \
+        pull push push-db \
         migrate
 
 # デフォルトターゲット
@@ -36,6 +36,9 @@ help:
 	@echo "  deploy-cdk        CDK のみデプロイ (backend/Lambda/インフラ変更時)"
 	@echo "  deploy-frontend   frontend のみビルド&S3同期 (Vue変更時)"
 	@echo "  diff              cdk diff NkflowStack"
+	@echo ""
+	@echo "--- Git ---"
+	@echo "  push              git push origin main (GitHub Actions deploy をトリガー)"
 	@echo ""
 	@echo "--- DB ---"
 	@echo "  pull              S3 から /tmp/stocks.db をダウンロード"
@@ -103,6 +106,15 @@ deploy-cdk: build-cdk
 # ⚠️ GitHub Actions は frontend/ を自動デプロイしない — Vue 変更後は必ずこれを実行
 deploy-frontend: build-frontend
 	aws s3 sync frontend/dist/ s3://$(S3_BUCKET)/frontend/ --delete
+
+# -----------------------------------------------------------------------
+# Git
+# -----------------------------------------------------------------------
+
+# git push → GitHub Actions が CDK deploy を自動実行 (frontend は含まない)
+# ⚠️ frontend 変更時は push 後に make deploy-frontend も実行すること
+push:
+	git push origin main
 
 # -----------------------------------------------------------------------
 # DB (SQLite)
