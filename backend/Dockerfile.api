@@ -1,0 +1,13 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Python 依存
+COPY pyproject.toml .
+RUN pip install uv && uv pip install --system -r pyproject.toml
+
+# ソースコード
+COPY src/ src/
+
+# Lambda ハンドラ
+CMD ["src.api.handler.handler"]

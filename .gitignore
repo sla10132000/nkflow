@@ -1,0 +1,49 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+*.tmp
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Editor / tools
+.vscode/
+.idea/
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node
+node_modules/
+
+# Build outputs
+frontend/dist/
+cdk/dist/
+cdk/cdk.out/
+
+# Environment (local overrides)
+.env.local
+.env.*.local
+
+# AWS CDK
+cdk/*.d.ts
+cdk/*.js
+!cdk/jest.config.js
+
+# CDK lib compiled output
+cdk/lib/*.d.ts
+cdk/lib/*.js
+cdk/bin/*.d.ts
+cdk/bin/*.js

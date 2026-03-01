@@ -1,0 +1,189 @@
+<template>
+  <div class="space-y-6">
+    <div class="flex items-center gap-3">
+      <button @click="$router.back()" class="text-gray-400 hover:text-white">← 戻る</button>
+      <h1 class="text-2xl font-bold">{{ code }}</h1>
+      <span v-if="detail?.name" class="text-gray-400">{{ detail.name }}</span>
+      <span v-if="detail?.sector" class="badge-sector">{{ detail.sector }}</span>
+    </div>
+
+    <div v-if="loading" class="text-gray-400">読み込み中...</div>
+    <div v-else-if="error" class="text-red-400">{{ error }}</div>
+
+    <template v-else-if="detail">
+      <!-- 最新データ -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4" v-if="detail.latest">
+        <div class="card">
+          <div class="label">終値</div>
+          <div class="value">¥{{ detail.latest.close?.toLocaleString() }}</div>
+        </div>
+        <div class="card">
+          <div class="label">騰落率</div>
+          <div class="value" :class="detail.latest.return_rate >= 0 ? 'text-green-400' : 'text-red-400'">
+            {{ formatReturn(detail.latest.return_rate) }}
+          </div>
+        </div>
+        <div class="card">
+          <div class="label">値幅</div>
+          <div class="value">{{ detail.latest.price_range?.toLocaleString() }}</div>
+        </div>
+        <div class="card">
+          <div class="label">出来高</div>
+          <div class="value text-base">{{ detail.latest.volume?.toLocaleString() }}</div>
+        </div>
+      </div>
+
+      <!-- 株価チャート -->
+      <div class="card">
+        <div class="flex items-center gap-3 mb-3">
+          <h2 class="font-semibold">株価チャート</h2>
+          <div class="flex gap-1 ml-auto">
+            <button v-for="p in periods" :key="p.days" @click="loadPrices(p.days)"
+              class="btn-sm" :class="{ 'btn-sm-active': activeDays === p.days }">{{ p.label }}</button>
+          </div>
+        </div>
+        <div class="h-56">
+          <PriceChart v-if="prices.length" :prices="prices" />
+          <div v-else class="text-gray-500 text-sm">価格データなし</div>
+        </div>
+      </div>
+
+      <!-- 因果連鎖 -->
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="card">
+          <h2 class="font-semibold mb-3 text-blue-400">この銘柄が因果する銘柄</h2>
+          <div v-if="detail.causes.length" class="space-y-1">
+            <div v-for="c in detail.causes" :key="c.code" class="flex items-center gap-2 text-sm">
+              <RouterLink :to="`/stock/${c.code}`" class="text-blue-400 hover:underline">{{ c.code }}</RouterLink>
+              <span class="text-gray-400 truncate flex-1">{{ c.name }}</span>
+              <span class="text-gray-500 text-xs">lag {{ c.lag_days }}d</span>
+              <span class="text-gray-500 text-xs">p={{ c.p_value?.toFixed(3) }}</span>
+            </div>
+          </div>
+          <div v-else class="text-gray-500 text-sm">なし</div>
+        </div>
+
+        <div class="card">
+          <h2 class="font-semibold mb-3 text-purple-400">この銘柄を因果する銘柄</h2>
+          <div v-if="detail.caused_by.length" class="space-y-1">
+            <div v-for="c in detail.caused_by" :key="c.code" class="flex items-center gap-2 text-sm">
+              <RouterLink :to="`/stock/${c.code}`" class="text-blue-400 hover:underline">{{ c.code }}</RouterLink>
+              <span class="text-gray-400 truncate flex-1">{{ c.name }}</span>
+              <span class="text-gray-500 text-xs">lag {{ c.lag_days }}d</span>
+            </div>
+          </div>
+          <div v-else class="text-gray-500 text-sm">なし</div>
+        </div>
+      </div>
+
+      <!-- 相関銘柄 -->
+      <div class="card">
+        <h2 class="font-semibold mb-3">高相関銘柄</h2>
+        <div v-if="detail.correlated.length" class="flex flex-wrap gap-2">
+          <RouterLink
+            v-for="c in detail.correlated"
+            :key="c.code"
+            :to="`/stock/${c.code}`"
+            class="px-2 py-1 bg-gray-800 rounded text-sm hover:bg-gray-700 transition-colors"
+          >
+            {{ c.code }} <span class="text-gray-500 text-xs">{{ (c.coefficient * 100).toFixed(0) }}%</span>
+          </RouterLink>
+        </div>
+        <div v-else class="text-gray-500 text-sm">なし</div>
+      </div>
+
+      <!-- クラスター内銘柄 -->
+      <div class="card" v-if="detail.community_members.length">
+        <h2 class="font-semibold mb-3">同クラスター銘柄</h2>
+        <div class="flex flex-wrap gap-2">
+          <RouterLink
+            v-for="m in detail.community_members"
+            :key="m.code"
+            :to="`/stock/${m.code}`"
+            class="px-2 py-1 bg-gray-800 rounded text-sm hover:bg-gray-700 transition-colors"
+          >{{ m.code }}</RouterLink>
+        </div>
+      </div>
+
+      <!-- 関連シグナル -->
+      <div class="card" v-if="detail.signals.length">
+        <h2 class="font-semibold mb-3">関連シグナル</h2>
+        <div class="space-y-2">
+          <div v-for="s in detail.signals" :key="s.id" class="flex items-center gap-3 text-sm border-t border-gray-800 pt-2">
+            <span class="text-gray-500">{{ s.date }}</span>
+            <span class="badge" :class="s.direction === 'bullish' ? 'badge-green' : 'badge-red'">{{ s.direction }}</span>
+            <span class="text-gray-400">{{ s.signal_type }}</span>
+            <span class="ml-auto text-gray-400">{{ (s.confidence * 100).toFixed(0) }}%</span>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
+import { useApi } from '../composables/useApi'
+import PriceChart from '../components/charts/PriceChart.vue'
+import type { DailyPrice, StockDetail } from '../types'
+
+const props = defineProps<{ code: string }>()
+const api = useApi()
+const loading = ref(true)
+const error = ref('')
+const detail = ref<StockDetail | null>(null)
+const prices = ref<DailyPrice[]>([])
+const activeDays = ref(60)
+
+const periods = [
+  { label: '1M', days: 20 },
+  { label: '3M', days: 60 },
+  { label: '6M', days: 120 },
+]
+
+function formatReturn(r: number | null | undefined) {
+  if (r == null) return '—'
+  return (r >= 0 ? '+' : '') + (r * 100).toFixed(2) + '%'
+}
+
+function toDate(daysAgo: number) {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  return d.toISOString().split('T')[0]
+}
+
+async function loadPrices(days = 60) {
+  activeDays.value = days
+  try {
+    prices.value = await api.getPrices(props.code, toDate(days))
+  } catch { /* ignore */ }
+}
+
+async function loadDetail() {
+  loading.value = true
+  error.value = ''
+  try {
+    detail.value = await api.getStock(props.code)
+    await loadPrices(activeDays.value)
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'データ取得失敗'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadDetail)
+watch(() => props.code, loadDetail)
+</script>
+
+<style scoped>
+.card { @apply bg-gray-900 rounded-lg p-4 border border-gray-800; }
+.label { @apply text-gray-500 text-xs mb-1; }
+.value { @apply text-xl font-bold; }
+.badge { @apply px-2 py-0.5 rounded text-xs font-medium; }
+.badge-green { @apply bg-green-900/60 text-green-300; }
+.badge-red { @apply bg-red-900/60 text-red-300; }
+.badge-sector { @apply px-2 py-0.5 rounded text-xs bg-indigo-900/60 text-indigo-300; }
+.btn-sm { @apply px-2 py-0.5 rounded text-xs border border-gray-700 text-gray-400 hover:text-white transition-colors; }
+.btn-sm-active { @apply border-blue-500 text-blue-400; }
+</style>
