@@ -64,7 +64,7 @@ def _granger_one_pair(
 
         if best_p < GRANGER_P_THRESHOLD:
             results.append(
-                (source, target, best_lag, best_p, best_f, "60d", calc_date)
+                (source, target, int(best_lag), float(best_p), float(best_f), "60d", calc_date)
             )
 
     return results
@@ -232,9 +232,9 @@ def run_lead_lag(db_path: str, calc_date: str) -> int:
             # lag > 0: a が b より lag 日先行
             # lag < 0: b が a より |lag| 日先行
             if lag > 0:
-                source, target, actual_lag = a, b, lag
+                source, target, actual_lag = a, b, int(lag)
             else:
-                source, target, actual_lag = b, a, -lag
+                source, target, actual_lag = b, a, int(-lag)
 
             rows.append(
                 (source, target, actual_lag, float(corr), "60d", calc_date)
@@ -306,21 +306,25 @@ def run_fund_flow(db_path: str, target_date: str) -> int:
         conn.close()
         return 0
 
-    # ベースライン: 直近 FUND_FLOW_WINDOW 日の平均出来高
+    # ベースライン: 直近 FUND_FLOW_WINDOW 日の1日あたりセクター合計出来高の平均
+    # (today_df の SUM(volume) と比較するため、同じ集計単位を使う)
     baseline_df = pd.read_sql(
         f"""
-        SELECT s.sector,
-               AVG(dp.volume) AS avg_volume_base
-        FROM daily_prices dp
-        JOIN stocks s ON dp.code = s.code
-        WHERE dp.date < '{target_date}'
-          AND dp.date IN (
-              SELECT DISTINCT date FROM daily_prices
-              WHERE date < '{target_date}'
-              ORDER BY date DESC
-              LIMIT {FUND_FLOW_WINDOW}
-          )
-        GROUP BY s.sector
+        SELECT sector, AVG(daily_total) AS avg_volume_base
+        FROM (
+            SELECT s.sector, dp.date, SUM(dp.volume) AS daily_total
+            FROM daily_prices dp
+            JOIN stocks s ON dp.code = s.code
+            WHERE dp.date < '{target_date}'
+              AND dp.date IN (
+                  SELECT DISTINCT date FROM daily_prices
+                  WHERE date < '{target_date}'
+                  ORDER BY date DESC
+                  LIMIT {FUND_FLOW_WINDOW}
+              )
+            GROUP BY s.sector, dp.date
+        )
+        GROUP BY sector
         """,
         conn,
     )
