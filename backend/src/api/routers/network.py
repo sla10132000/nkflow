@@ -76,8 +76,8 @@ def _fund_flow_network(conn: Connection) -> dict:
                return_spread AS coefficient,
                sector_from AS sector_a, sector_to AS sector_b
         FROM graph_fund_flows
-        ORDER BY date DESC
-        LIMIT 200
+        WHERE date = (SELECT MAX(date) FROM graph_fund_flows)
+        ORDER BY ABS(return_spread) DESC
         """,
     ).fetchall()
 
