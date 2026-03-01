@@ -162,6 +162,48 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 active_signals  INTEGER,
                 sector_rotation TEXT
             );
+
+            -- === Phase 14: バックテスト ===
+            CREATE TABLE IF NOT EXISTS backtest_runs (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                name             TEXT NOT NULL,
+                signal_type      TEXT,
+                from_date        TEXT NOT NULL,
+                to_date          TEXT NOT NULL,
+                holding_days     INTEGER NOT NULL,
+                direction_filter TEXT,
+                min_confidence   REAL NOT NULL DEFAULT 0.0,
+                created_at       TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS backtest_trades (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id       INTEGER NOT NULL REFERENCES backtest_runs(id),
+                signal_id    INTEGER NOT NULL,
+                code         TEXT NOT NULL,
+                signal_date  TEXT NOT NULL,
+                entry_date   TEXT,
+                exit_date    TEXT,
+                entry_price  REAL,
+                exit_price   REAL,
+                return_rate  REAL,
+                direction    TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_bt_trades_run ON backtest_trades(run_id);
+            CREATE INDEX IF NOT EXISTS idx_bt_trades_code ON backtest_trades(code);
+
+            CREATE TABLE IF NOT EXISTS backtest_results (
+                run_id         INTEGER PRIMARY KEY REFERENCES backtest_runs(id),
+                total_trades   INTEGER NOT NULL,
+                winning_trades INTEGER NOT NULL,
+                win_rate       REAL NOT NULL,
+                avg_return     REAL NOT NULL,
+                total_return   REAL NOT NULL,
+                max_drawdown   REAL,
+                sharpe_ratio   REAL,
+                calc_date      TEXT NOT NULL
+            );
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")
