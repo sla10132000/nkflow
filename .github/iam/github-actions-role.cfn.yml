@@ -104,6 +104,7 @@ Resources:
                   - ecr:CompleteLayerUpload
                   - ecr:CreateRepository
                   - ecr:DescribeRepositories
+                  - ecr:DescribeImages
                   - ecr:GetDownloadUrlForLayer
                   - ecr:InitiateLayerUpload
                   - ecr:PutImage
