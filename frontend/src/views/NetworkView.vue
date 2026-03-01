@@ -4,6 +4,7 @@
 
     <!-- コントロール -->
     <div class="flex flex-wrap gap-3 items-center bg-gray-900 p-3 rounded-lg border border-gray-800">
+      <!-- モード切替 -->
       <div class="flex gap-2">
         <button
           v-for="m in modes"
@@ -14,19 +15,55 @@
         >{{ m.label }}</button>
       </div>
 
-      <div v-if="mode !== 'fund_flow'" class="flex gap-2 ml-4">
-        <button
-          v-for="p in periods"
-          :key="p"
-          @click="setPeriod(p)"
-          class="btn-tab"
-          :class="{ 'btn-tab-active': period === p }"
-        >{{ p }}</button>
-      </div>
+      <!-- 相関 / 因果: 期間 + 閾値 -->
+      <template v-if="mode !== 'fund_flow'">
+        <div class="flex gap-2 ml-4">
+          <button
+            v-for="p in periods"
+            :key="p"
+            @click="setPeriod(p)"
+            class="btn-tab"
+            :class="{ 'btn-tab-active': period === p }"
+          >{{ p }}</button>
+        </div>
+        <div class="flex items-center gap-2 ml-auto">
+          <label class="text-sm text-gray-400">閾値:</label>
+          <input
+            v-model="threshold"
+            @change="loadNetwork"
+            type="range" min="0.3" max="0.9" step="0.05"
+            class="w-24 accent-blue-500"
+          />
+          <span class="text-sm text-gray-300 w-10">{{ threshold }}</span>
+        </div>
+      </template>
 
-      <div class="flex items-center gap-2 ml-auto">
-        <template v-if="mode === 'fund_flow'">
-          <label class="text-sm text-gray-400">期間:</label>
+      <!-- 資金フロー: 絞り込み方法 + 対応する入力 -->
+      <template v-else>
+        <!-- 絞り込み方法セレクタ -->
+        <div class="flex ml-4 border border-gray-700 rounded overflow-hidden text-xs">
+          <button
+            v-for="ft in fundFlowFilters"
+            :key="ft.value"
+            @click="setFundFlowFilter(ft.value)"
+            class="px-3 py-1 transition-colors"
+            :class="fundFlowFilter === ft.value ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'"
+          >{{ ft.label }}</button>
+        </div>
+
+        <!-- 期間 -->
+        <div v-if="fundFlowFilter === 'period'" class="flex gap-2">
+          <button
+            v-for="p in periods"
+            :key="p"
+            @click="setPeriod(p)"
+            class="btn-tab"
+            :class="{ 'btn-tab-active': period === p }"
+          >{{ p }}</button>
+        </div>
+
+        <!-- 範囲 -->
+        <template v-else-if="fundFlowFilter === 'range'">
           <input
             v-model="dateFrom"
             @change="loadNetwork"
@@ -41,17 +78,17 @@
             class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-300"
           />
         </template>
-        <template v-else>
-          <label class="text-sm text-gray-400">閾値:</label>
+
+        <!-- 日付 -->
+        <template v-else-if="fundFlowFilter === 'date'">
           <input
-            v-model="threshold"
+            v-model="dateSingle"
             @change="loadNetwork"
-            type="range" min="0.3" max="0.9" step="0.05"
-            class="w-24 accent-blue-500"
+            type="date"
+            class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-300"
           />
-          <span class="text-sm text-gray-300 w-10">{{ threshold }}</span>
         </template>
-      </div>
+      </template>
     </div>
 
     <!-- サイドパネル + グラフ -->
@@ -106,8 +143,10 @@ const selectedNode = ref<string | null>(null)
 const mode = ref('correlation')
 const period = ref('20d')
 const threshold = ref(0.5)
+const fundFlowFilter = ref<'period' | 'range' | 'date'>('period')
 const dateFrom = ref('')
 const dateTo = ref('')
+const dateSingle = ref('')
 
 const modes = [
   { value: 'correlation', label: '相関' },
@@ -115,6 +154,21 @@ const modes = [
   { value: 'fund_flow',   label: '資金フロー' },
 ]
 const periods = ['20d', '60d', '120d']
+const fundFlowFilters = [
+  { value: 'period', label: '期間' },
+  { value: 'range',  label: '範囲' },
+  { value: 'date',   label: '日付' },
+]
+
+/** "20d" → { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' } (カレンダー日で近似) */
+function periodToDateRange(p: string): { from: string; to: string } {
+  const days = parseInt(p) * 1.5  // 営業日→カレンダー日の近似
+  const to = new Date()
+  const from = new Date()
+  from.setDate(to.getDate() - Math.ceil(days))
+  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  return { from: fmt(from), to: fmt(to) }
+}
 
 const connectedEdges = computed(() => {
   if (!networkData.value || !selectedNode.value) return 0
@@ -128,8 +182,21 @@ async function loadNetwork() {
   error.value = ''
   selectedNode.value = null
   try {
-    const df = dateFrom.value || undefined
-    const dt = dateTo.value || undefined
+    let df: string | undefined
+    let dt: string | undefined
+    if (mode.value === 'fund_flow') {
+      if (fundFlowFilter.value === 'period') {
+        const range = periodToDateRange(period.value)
+        df = range.from
+        dt = range.to
+      } else if (fundFlowFilter.value === 'range') {
+        df = dateFrom.value || undefined
+        dt = dateTo.value || undefined
+      } else {
+        df = dateSingle.value || undefined
+        dt = dateSingle.value || undefined
+      }
+    }
     networkData.value = await api.getNetwork(mode.value, period.value, String(threshold.value), df, dt)
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'データ取得失敗'
@@ -140,11 +207,17 @@ async function loadNetwork() {
 
 function setMode(m: string) {
   mode.value = m
+  fundFlowFilter.value = 'period'
   loadNetwork()
 }
 
 function setPeriod(p: string) {
   period.value = p
+  loadNetwork()
+}
+
+function setFundFlowFilter(f: string) {
+  fundFlowFilter.value = f as 'period' | 'range' | 'date'
   loadNetwork()
 }
 
