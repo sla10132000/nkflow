@@ -5,7 +5,7 @@ import os
 import boto3
 from fastapi import FastAPI, Response
 
-from src.api.routers import accuracy, network, prices, signals, stock, summary
+from src.api.routers import accuracy, forex, margin, network, prices, signals, stock, summary
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,8 @@ app.include_router(accuracy.router, prefix="/api")  # /api/signals/accuracy (Pha
 app.include_router(signals.router, prefix="/api")
 app.include_router(network.router, prefix="/api")
 app.include_router(stock.router, prefix="/api")
+app.include_router(forex.router, prefix="/api")    # Phase 13
+app.include_router(margin.router, prefix="/api")   # Phase 13
 
 
 @app.on_event("startup")

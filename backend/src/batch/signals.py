@@ -12,6 +12,16 @@ logger = logging.getLogger(__name__)
 TRIGGER_RETURN_THRESHOLD = 0.02   # causality_chain 起点の最小騰落率 (絶対値)
 CLUSTER_DEVIATION_THRESHOLD = 0.01  # cluster_breakout の最小乖離幅
 
+# Phase 13: 信用残・為替シグナルのしきい値
+MARGIN_RATIO_HIGH = 8.0           # 信用倍率がこれ以上 → 追証リスク高
+MARGIN_RATIO_DANGER = 15.0        # 信用倍率がこれ以上 → 高リスク
+FX_CHANGE_THRESHOLD = 0.005       # 為替変動率がこれ以上 → シグナル対象 (0.5%)
+
+# 円安受益セクター (セクター名の部分一致で判定)
+YEN_WEAK_BENEFIT_SECTORS = ["輸送用機器", "機械", "電気機器", "精密機器", "ガラス・土石製品"]
+# 円高受益セクター
+YEN_STRONG_BENEFIT_SECTORS = ["空運業", "陸運業", "小売業", "食料品", "水産・農林業"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. causality_chain
@@ -346,6 +356,177 @@ def generate_cluster_breakout_signals(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 5. margin_squeeze (Phase 13)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def generate_margin_squeeze_signals(
+    conn: sqlite3.Connection,
+    target_date: str,
+) -> int:
+    """
+    信用追証リスクシグナルを生成する。
+
+    信用倍率が高い (買い残が売り残を大きく上回る) 銘柄が当日下落した場合、
+    追証による強制売りの連鎖が起きやすい → bearish シグナル。
+
+    confidence:
+      ratio >= MARGIN_RATIO_DANGER: 0.8 + return_factor
+      ratio >= MARGIN_RATIO_HIGH:   0.5 + return_factor
+      return_factor = min(0.2, abs(return_rate) * 4)
+
+    Args:
+        conn: SQLite 接続
+        target_date: 'YYYY-MM-DD'
+    Returns:
+        生成したシグナル数
+    """
+    # 最新の信用残高データがある週を取得
+    latest_week = conn.execute(
+        "SELECT MAX(week_date) FROM margin_balances WHERE week_date <= ?",
+        (target_date,),
+    ).fetchone()[0]
+
+    if not latest_week:
+        logger.info("margin_squeeze: 信用残高データなし — スキップ")
+        return 0
+
+    # 信用倍率が高く当日下落した銘柄を抽出
+    rows = conn.execute(
+        """
+        SELECT mb.code, mb.margin_ratio, mb.margin_buy, mb.margin_sell,
+               dp.return_rate, s.name
+        FROM margin_balances mb
+        JOIN daily_prices dp ON mb.code = dp.code AND dp.date = ?
+        JOIN stocks s ON mb.code = s.code
+        WHERE mb.week_date = ?
+          AND mb.margin_ratio >= ?
+          AND dp.return_rate < -0.01
+        ORDER BY mb.margin_ratio DESC
+        """,
+        (target_date, latest_week, MARGIN_RATIO_HIGH),
+    ).fetchall()
+
+    if not rows:
+        return 0
+
+    signals = []
+    for code, margin_ratio, margin_buy, margin_sell, return_rate, name in rows:
+        return_factor = min(0.2, abs(float(return_rate)) * 4)
+        if float(margin_ratio) >= MARGIN_RATIO_DANGER:
+            base_conf = 0.8
+        else:
+            base_conf = 0.5
+        confidence = round(min(1.0, base_conf + return_factor), 4)
+
+        reasoning = json.dumps(
+            {
+                "margin_ratio": round(float(margin_ratio), 2),
+                "margin_buy": float(margin_buy) if margin_buy else None,
+                "margin_sell": float(margin_sell) if margin_sell else None,
+                "return_rate": round(float(return_rate), 4),
+                "week_date": latest_week,
+            },
+            ensure_ascii=False,
+        )
+        signals.append(
+            (target_date, "margin_squeeze", code, None, "bearish", confidence, reasoning)
+        )
+
+    if signals:
+        conn.executemany(
+            "INSERT INTO signals (date, signal_type, code, sector, direction, confidence, reasoning) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            signals,
+        )
+        conn.commit()
+
+    logger.info(f"margin_squeeze シグナル: {len(signals)} 件")
+    return len(signals)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. yen_sensitivity (Phase 13)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def generate_yen_sensitivity_signals(
+    conn: sqlite3.Connection,
+    target_date: str,
+) -> int:
+    """
+    為替感応度シグナルを生成する。
+
+    当日 USDJPY の変動率が FX_CHANGE_THRESHOLD を超えた場合、
+    セクター別の受益方向でシグナルを生成する。
+
+    - 円安 (USDJPY 上昇): YEN_WEAK_BENEFIT_SECTORS → bullish
+    - 円高 (USDJPY 下落): YEN_STRONG_BENEFIT_SECTORS → bullish
+
+    confidence = min(1.0, abs(change_rate) * 40)
+
+    Args:
+        conn: SQLite 接続
+        target_date: 'YYYY-MM-DD'
+    Returns:
+        生成したシグナル数
+    """
+    row = conn.execute(
+        "SELECT change_rate, close FROM exchange_rates WHERE date = ? AND pair = 'USDJPY'",
+        (target_date,),
+    ).fetchone()
+
+    if not row or row[0] is None:
+        logger.info("yen_sensitivity: 当日 USDJPY データなし — スキップ")
+        return 0
+
+    change_rate, usdjpy_close = float(row[0]), float(row[1])
+
+    if abs(change_rate) < FX_CHANGE_THRESHOLD:
+        logger.info(f"yen_sensitivity: 変動率 {change_rate:.4f} < 閾値 — スキップ")
+        return 0
+
+    yen_weakening = change_rate > 0  # True=円安, False=円高
+    target_sectors = YEN_WEAK_BENEFIT_SECTORS if yen_weakening else YEN_STRONG_BENEFIT_SECTORS
+    direction = "bullish"  # 受益セクターに対して常に bullish
+
+    confidence = round(min(1.0, abs(change_rate) * 40), 4)
+    fx_label = f"円安 ({change_rate:+.2%})" if yen_weakening else f"円高 ({change_rate:+.2%})"
+
+    signals = []
+    for sector_keyword in target_sectors:
+        # セクター名の部分一致で銘柄を抽出
+        stock_rows = conn.execute(
+            "SELECT code FROM stocks WHERE sector LIKE ?",
+            (f"%{sector_keyword}%",),
+        ).fetchall()
+
+        for (code,) in stock_rows:
+            reasoning = json.dumps(
+                {
+                    "fx_event": fx_label,
+                    "usdjpy": round(usdjpy_close, 2),
+                    "change_rate": round(change_rate, 4),
+                    "benefit_type": "yen_weak" if yen_weakening else "yen_strong",
+                    "sector_keyword": sector_keyword,
+                },
+                ensure_ascii=False,
+            )
+            signals.append(
+                (target_date, "yen_sensitivity", code, sector_keyword, direction, confidence, reasoning)
+            )
+
+    if signals:
+        conn.executemany(
+            "INSERT INTO signals (date, signal_type, code, sector, direction, confidence, reasoning) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            signals,
+        )
+        conn.commit()
+
+    logger.info(f"yen_sensitivity シグナル: {len(signals)} 件 ({fx_label})")
+    return len(signals)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # daily_summary 更新
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -442,6 +623,8 @@ def generate(
         total += generate_fund_flow_signals(conn, target_date)
         total += generate_regime_shift_signals(conn, target_date, regime_perf)
         total += generate_cluster_breakout_signals(conn, target_date)
+        total += generate_margin_squeeze_signals(conn, target_date)    # Phase 13
+        total += generate_yen_sensitivity_signals(conn, target_date)   # Phase 13
         update_daily_summary(conn, target_date)
     finally:
         conn.close()
