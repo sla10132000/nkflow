@@ -15,8 +15,8 @@ export const useApi = () => ({
   getSignals: (params?: Record<string, string>) =>
     api.get('/api/signals', { params }).then(r => r.data),
 
-  getNetwork: (type: string, period?: string, threshold?: string) =>
-    api.get(`/api/network/${type}`, { params: { period, threshold } }).then(r => r.data),
+  getNetwork: (type: string, period?: string, threshold?: string, dateFrom?: string, dateTo?: string) =>
+    api.get(`/api/network/${type}`, { params: { period, threshold, date_from: dateFrom, date_to: dateTo } }).then(r => r.data),
 
   getStock: (code: string) =>
     api.get(`/api/stock/${code}`).then(r => r.data),

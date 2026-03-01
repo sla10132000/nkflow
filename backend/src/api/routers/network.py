@@ -14,19 +14,22 @@ def get_network(
     type: str,
     period: str = "60d",
     threshold: float = 0.7,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     conn: Connection = Depends(get_connection),
 ):
     """
     ネットワークデータを vis-network 互換フォーマットで返す。
 
     type: "correlation" | "causality" | "fund_flow"
+    fund_flow の場合: date_from / date_to で期間を絞る (省略時は最新日)
     """
     if type == "correlation":
         return _correlation_network(conn, period, threshold)
     elif type == "causality":
         return _causality_network(conn, period, threshold)
     elif type == "fund_flow":
-        return _fund_flow_network(conn)
+        return _fund_flow_network(conn, date_from, date_to)
     else:
         raise HTTPException(status_code=400, detail=f"不明なタイプ: {type}")
 
@@ -69,17 +72,37 @@ def _causality_network(conn: Connection, period: str, threshold: float) -> dict:
     return _build_vis_network(rows, edge_value_col="coefficient", directed=True)
 
 
-def _fund_flow_network(conn: Connection) -> dict:
-    rows = conn.execute(
-        """
-        SELECT sector_from AS stock_a, sector_to AS stock_b,
-               return_spread AS coefficient,
-               sector_from AS sector_a, sector_to AS sector_b
-        FROM graph_fund_flows
-        WHERE date = (SELECT MAX(date) FROM graph_fund_flows)
-        ORDER BY ABS(return_spread) DESC
-        """,
-    ).fetchall()
+def _fund_flow_network(
+    conn: Connection,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+) -> dict:
+    if date_from and date_to:
+        # 期間指定: sector ペアごとに平均 return_spread を集計
+        rows = conn.execute(
+            """
+            SELECT sector_from AS stock_a, sector_to AS stock_b,
+                   AVG(return_spread) AS coefficient,
+                   sector_from AS sector_a, sector_to AS sector_b
+            FROM graph_fund_flows
+            WHERE date BETWEEN ? AND ?
+            GROUP BY sector_from, sector_to
+            ORDER BY ABS(AVG(return_spread)) DESC
+            """,
+            (date_from, date_to),
+        ).fetchall()
+    else:
+        # デフォルト: 最新日のみ
+        rows = conn.execute(
+            """
+            SELECT sector_from AS stock_a, sector_to AS stock_b,
+                   return_spread AS coefficient,
+                   sector_from AS sector_a, sector_to AS sector_b
+            FROM graph_fund_flows
+            WHERE date = (SELECT MAX(date) FROM graph_fund_flows)
+            ORDER BY ABS(return_spread) DESC
+            """,
+        ).fetchall()
 
     return _build_vis_network(rows, edge_value_col="coefficient", directed=True)
 

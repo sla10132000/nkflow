@@ -25,14 +25,32 @@
       </div>
 
       <div class="flex items-center gap-2 ml-auto">
-        <label class="text-sm text-gray-400">閾値:</label>
-        <input
-          v-model="threshold"
-          @change="loadNetwork"
-          type="range" min="0.3" max="0.9" step="0.05"
-          class="w-24 accent-blue-500"
-        />
-        <span class="text-sm text-gray-300 w-10">{{ threshold }}</span>
+        <template v-if="mode === 'fund_flow'">
+          <label class="text-sm text-gray-400">期間:</label>
+          <input
+            v-model="dateFrom"
+            @change="loadNetwork"
+            type="date"
+            class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-300"
+          />
+          <span class="text-gray-500 text-sm">〜</span>
+          <input
+            v-model="dateTo"
+            @change="loadNetwork"
+            type="date"
+            class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-300"
+          />
+        </template>
+        <template v-else>
+          <label class="text-sm text-gray-400">閾値:</label>
+          <input
+            v-model="threshold"
+            @change="loadNetwork"
+            type="range" min="0.3" max="0.9" step="0.05"
+            class="w-24 accent-blue-500"
+          />
+          <span class="text-sm text-gray-300 w-10">{{ threshold }}</span>
+        </template>
       </div>
     </div>
 
@@ -83,6 +101,8 @@ const selectedNode = ref<string | null>(null)
 const mode = ref('correlation')
 const period = ref('20d')
 const threshold = ref(0.5)
+const dateFrom = ref('')
+const dateTo = ref('')
 
 const modes = [
   { value: 'correlation', label: '相関' },
@@ -103,7 +123,9 @@ async function loadNetwork() {
   error.value = ''
   selectedNode.value = null
   try {
-    networkData.value = await api.getNetwork(mode.value, period.value, String(threshold.value))
+    const df = dateFrom.value || undefined
+    const dt = dateTo.value || undefined
+    networkData.value = await api.getNetwork(mode.value, period.value, String(threshold.value), df, dt)
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'データ取得失敗'
   } finally {
