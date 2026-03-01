@@ -1225,13 +1225,13 @@ backfill.py:
 
 ### Phase 0: 事前準備 (手動)
 
-- [ ] AWS アカウント作成
-- [ ] IAM ユーザー作成 + AWS CLI 設定
-- [ ] Node.js + CDK CLI インストール
-- [ ] CDK ブートストラップ実行
-- [ ] J-Quants API アカウント登録
-- [ ] SSM Parameter Store にクレデンシャル登録
-- [ ] Docker Desktop インストール
+- [x] AWS アカウント作成
+- [x] IAM ユーザー作成 + AWS CLI 設定
+- [x] Node.js + CDK CLI インストール
+- [x] CDK ブートストラップ実行
+- [x] J-Quants API アカウント登録
+- [x] SSM Parameter Store にクレデンシャル登録
+- [x] Docker Desktop インストール
 
 ### Phase 1〜10: 実装
 
@@ -1252,7 +1252,7 @@ backfill.py:
 - [x] **Phase 12**: LINE / Slack 通知 — 完了日: 2026-03-01
 - [x] **Phase 13**: 信用残・為替データ追加 — 完了日: 2026-03-01
 - [x] **Phase 14**: バックテストエンジン — 完了日: 2026-03-01
-- [ ] **Phase 15**: ポートフォリオ連携 — 完了日:
+- [x] **Phase 15**: ポートフォリオ連携 — 完了日: 2026-03-01
 
 ### 現在のステータス
 
@@ -1261,7 +1261,7 @@ backfill.py:
 進行中Phase: -
 ブロッカー: なし
 備考:
-  - Phase 1〜14 全て完了
+  - Phase 1〜15 全て完了
   - CDK の CloudFront Distribution は TODO (AWSアカウント有効化待ち)
   - テスト: 155件全通過 (moto[s3,ssm,sns] ベース)
   - Phase 0 (AWS環境準備) は手動作業のため未チェック
@@ -1278,4 +1278,11 @@ backfill.py:
               backtest.py 新規 (simulate_trades/calc_metrics/run_backtest)、
               scripts/run_backtest.py CLI 新規、
               GET /api/backtest, /api/backtest/{run_id}, /api/backtest/{run_id}/trades 追加
+  - Phase 15: data/portfolio.db (S3独立ファイル) 追加、
+              portfolio_holdings/portfolio_transactions/portfolio_snapshots テーブル、
+              scripts/migrate_phase15.py 新規、
+              src/api/portfolio_storage.py 新規 (writable_portfolio_connection)、
+              GET/POST/DELETE /api/portfolio/holdings、
+              GET/POST /api/portfolio/transactions、
+              GET /api/portfolio/performance、GET /api/portfolio/signals 追加
 ```
