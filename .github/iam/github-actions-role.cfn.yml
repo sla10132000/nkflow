@@ -157,6 +157,7 @@ Resources:
                 Resource:
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/NkflowStack-*
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/github-actions-nkflow-deploy
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/cdk-hnb659fds-*
 
               # SSM Parameter Store
               - Sid: SsmAccess
