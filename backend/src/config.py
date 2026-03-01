@@ -19,6 +19,9 @@ JQUANTS_RATE_LIMIT_SEC: float = 25.0 if JQUANTS_PLAN == "free" else 0.0
 SQLITE_PATH = os.environ.get("SQLITE_PATH", "/tmp/stocks.db")
 KUZU_PATH = os.environ.get("KUZU_PATH", "/tmp/kuzu_db")
 
+# SNS (Phase 12)
+SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
+
 # 分析パラメータ
 CORRELATION_PERIODS = [20, 60, 120]
 GRANGER_MAX_LAG = 5

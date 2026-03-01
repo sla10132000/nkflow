@@ -41,7 +41,7 @@ def handler(event: dict, context: Any) -> dict:
         Lambda レスポンス dict
     """
     from src.config import JQUANTS_PLAN, KUZU_PATH, SQLITE_PATH
-    from src.batch import compute, fetch, graph, signals, statistics, storage, tracker
+    from src.batch import compute, fetch, graph, notifier, signals, statistics, storage, tracker
 
     # 処理対象日の決定
     target_date: str | None = event.get("target_date") or os.environ.get("TARGET_DATE")
@@ -151,6 +151,21 @@ def handler(event: dict, context: Any) -> dict:
         except Exception as e:
             logger.error(f"upload 失敗: {e}")
             errors.append(f"upload: {e}")
+
+        # ── 9. SNS に日次レポートを通知 (Phase 12) ───────────────
+        try:
+            notifier.publish(
+                SQLITE_PATH,
+                target_date,
+                {
+                    "stocks_updated": stocks_updated,
+                    "signals_generated": signals_generated,
+                    "errors": errors,
+                },
+            )
+        except Exception as e:
+            logger.error(f"notifier.publish 失敗 (処理は継続): {e}")
+            errors.append(f"notifier: {e}")
 
     logger.info(f"{'=' * 60}")
     logger.info(f"バッチ処理完了: {target_date}")
