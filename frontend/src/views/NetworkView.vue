@@ -14,7 +14,7 @@
         >{{ m.label }}</button>
       </div>
 
-      <div class="flex gap-2 ml-4">
+      <div v-if="mode !== 'fund_flow'" class="flex gap-2 ml-4">
         <button
           v-for="p in periods"
           :key="p"
@@ -60,13 +60,18 @@
         <div v-if="loading" class="flex items-center justify-center h-full text-gray-400">読み込み中...</div>
         <div v-else-if="error" class="flex items-center justify-center h-full text-red-400">{{ error }}</div>
         <GraphView
-          v-else-if="networkData"
+          v-else-if="networkData && networkData.nodes.length > 0"
           :data="networkData"
-          :directed="mode === 'causality'"
+          :directed="mode === 'causality' || mode === 'fund_flow'"
           @node-click="onNodeClick"
           class="w-full h-full"
         />
-        <div v-else class="flex items-center justify-center h-full text-gray-500">データなし</div>
+        <div v-else class="flex items-center justify-center h-full text-gray-500">
+          <span v-if="mode === 'fund_flow'">
+            該当期間に資金フローなし（セクター間で出来高・騰落率の乖離が条件未満）
+          </span>
+          <span v-else>データなし</span>
+        </div>
       </div>
 
       <!-- 詳細サイドパネル -->
