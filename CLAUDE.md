@@ -8,6 +8,19 @@ Agent behavior policy is defined in `.claude/CLAUDE.md` — read it first.
 
 ## Commands
 
+### Makefile (推奨: 全コマンドはここから実行)
+
+```bash
+make help            # 利用可能なコマンド一覧
+make deploy          # CDK + frontend を両方デプロイ (通常はこれ)
+make deploy-cdk      # CDK のみ (backend/Lambda/インフラ変更時)
+make deploy-frontend # Vue frontend のみビルド&S3同期
+make pull            # S3 → /tmp/stocks.db ダウンロード
+make push-db         # /tmp/stocks.db → S3 アップロード
+make test            # pytest
+make lint            # ruff
+```
+
 ### Backend (Python)
 
 ```bash
@@ -43,21 +56,16 @@ npx cdk deploy NkflowStack --require-approval never
 ### Frontend (Vue SPA)
 
 > **重要: フロントエンドは CDK deploy と独立しており、自動デプロイされない。**
-> `frontend/` を変更したら必ず以下を手動で実行すること。
+> `frontend/` を変更したら必ず `make deploy-frontend` を実行すること。
 
 ```bash
-cd frontend
-
-npm run build   # dist/ を生成
-
-# S3 へアップロード (--delete で古いハッシュ付きファイルを削除)
-aws s3 sync dist/ s3://nkflow-data-268914462689/frontend/ --delete
+make deploy-frontend   # ビルド + S3 sync (これだけでOK)
 ```
 
 ### GitHub Actions
 
 - `main` への push (cdk/ または backend/ 変更) で自動デプロイ
-- **frontend/ の変更は GitHub Actions 対象外** — 上記の手動手順が必要
+- **frontend/ の変更は GitHub Actions 対象外** — `make deploy-frontend` が必要
 - 手動実行: GitHub Actions → Deploy CDK → Run workflow
 
 ---
