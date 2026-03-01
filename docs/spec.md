@@ -1015,6 +1015,19 @@ Lambda /tmp 制限: 最大 10,240MB (設定で拡張)
 
 ## 15. 実装順序 (Claude Code CLI への指示順)
 
+> **Git ブランチ運用ルール (全 Phase 共通)**
+>
+> - 各 Phase の実装を開始する前に、必ず専用ブランチを作成してください。
+>   ```
+>   git checkout -b phase/{N}   # 例: git checkout -b phase/11
+>   ```
+> - Phase の実装が完了したら、変更内容を 1 コミットにまとめてください。
+>   ```
+>   git add -A
+>   git commit -m "feat: Phase {N} — {Phase名}"
+>   ```
+> - コミット後、必要に応じて main へのマージを検討してください。
+
 ### Phase 1: プロジェクト初期化 + CDK
 
 ```
@@ -1235,7 +1248,7 @@ backfill.py:
 
 ### Phase 11〜15: 拡張 (Phase 10 完了後)
 
-- [ ] **Phase 11**: シグナル的中率の自動追跡 — 完了日:
+- [x] **Phase 11**: シグナル的中率の自動追跡 — 完了日: 2026-03-01
 - [ ] **Phase 12**: LINE / Slack 通知 — 完了日:
 - [ ] **Phase 13**: 信用残・為替データ追加 — 完了日:
 - [ ] **Phase 14**: バックテストエンジン — 完了日:
@@ -1248,8 +1261,10 @@ backfill.py:
 進行中Phase: -
 ブロッカー: なし
 備考:
-  - Phase 1〜10 全て完了
+  - Phase 1〜11 全て完了
   - CDK の CloudFront Distribution は TODO (AWSアカウント有効化待ち)
-  - テスト: 102件全通過 (moto[s3,ssm] ベース)
+  - テスト: 121件全通過 (moto[s3,ssm] ベース + tracker 19件)
   - Phase 0 (AWS環境準備) は手動作業のため未チェック
+  - Phase 11: signal_results/signal_accuracy テーブル追加、tracker.py 新規、
+              GET /api/signals/accuracy エンドポイント追加、SignalsView.vue 的中率サマリ追加
 ```

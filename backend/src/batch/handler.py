@@ -41,7 +41,7 @@ def handler(event: dict, context: Any) -> dict:
         Lambda レスポンス dict
     """
     from src.config import JQUANTS_PLAN, KUZU_PATH, SQLITE_PATH
-    from src.batch import compute, fetch, graph, signals, statistics, storage
+    from src.batch import compute, fetch, graph, signals, statistics, storage, tracker
 
     # 処理対象日の決定
     target_date: str | None = event.get("target_date") or os.environ.get("TARGET_DATE")
@@ -133,6 +133,14 @@ def handler(event: dict, context: Any) -> dict:
         except Exception as e:
             logger.error(f"signals.generate 失敗 (処理は継続): {e}")
             errors.append(f"signals: {e}")
+
+        # ── 7.5. シグナル的中率追跡 (Phase 11) ───────────────────
+        try:
+            tracked = tracker.run_all(SQLITE_PATH, target_date)
+            logger.info(f"tracker.run_all: {tracked} 件評価")
+        except Exception as e:
+            logger.error(f"tracker.run_all 失敗 (処理は継続): {e}")
+            errors.append(f"tracker: {e}")
 
     finally:
         conn.close()

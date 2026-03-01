@@ -94,6 +94,32 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
             CREATE INDEX IF NOT EXISTS idx_signals_date ON signals(date DESC);
             CREATE INDEX IF NOT EXISTS idx_signals_code ON signals(code, date DESC);
 
+            -- === Phase 11: シグナル判定結果 ===
+            CREATE TABLE IF NOT EXISTS signal_results (
+                signal_id       INTEGER NOT NULL,
+                horizon_days    INTEGER NOT NULL,
+                eval_date       TEXT NOT NULL,
+                actual_return   REAL,
+                result          TEXT NOT NULL,
+                created_at      TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (signal_id, horizon_days),
+                FOREIGN KEY (signal_id) REFERENCES signals(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_sr_eval_date ON signal_results(eval_date DESC);
+
+            -- === Phase 11: シグナルタイプ別的中率集計 ===
+            CREATE TABLE IF NOT EXISTS signal_accuracy (
+                signal_type     TEXT NOT NULL,
+                horizon_days    INTEGER NOT NULL,
+                calc_date       TEXT NOT NULL,
+                total_signals   INTEGER NOT NULL,
+                hits            INTEGER NOT NULL,
+                hit_rate        REAL NOT NULL,
+                avg_return      REAL,
+                PRIMARY KEY (signal_type, horizon_days, calc_date)
+            );
+
             -- === 日次サマリ ===
             CREATE TABLE IF NOT EXISTS daily_summary (
                 date            TEXT PRIMARY KEY,

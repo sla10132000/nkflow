@@ -23,4 +23,7 @@ export const useApi = () => ({
 
   getStocks: () =>
     api.get('/api/stocks').then(r => r.data),
+
+  getAccuracy: (params?: { signal_type?: string; horizon_days?: number }) =>
+    api.get('/api/signals/accuracy', { params }).then(r => r.data),
 })
