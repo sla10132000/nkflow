@@ -120,6 +120,37 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 PRIMARY KEY (signal_type, horizon_days, calc_date)
             );
 
+            -- === Phase 13: 信用残高 (週次) ===
+            CREATE TABLE IF NOT EXISTS margin_balances (
+                code            TEXT NOT NULL REFERENCES stocks(code),
+                week_date       TEXT NOT NULL,
+                margin_buy      REAL,
+                margin_sell     REAL,
+                margin_ratio    REAL,
+                buy_change      REAL,
+                sell_change     REAL,
+                created_at      TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (code, week_date)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_mb_week ON margin_balances(week_date DESC);
+            CREATE INDEX IF NOT EXISTS idx_mb_code ON margin_balances(code, week_date DESC);
+
+            -- === Phase 13: 為替レート (日次) ===
+            CREATE TABLE IF NOT EXISTS exchange_rates (
+                date            TEXT NOT NULL,
+                pair            TEXT NOT NULL,
+                open            REAL,
+                high            REAL,
+                low             REAL,
+                close           REAL,
+                change_rate     REAL,
+                ma20            REAL,
+                PRIMARY KEY (date, pair)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_er_date ON exchange_rates(date DESC);
+
             -- === 日次サマリ ===
             CREATE TABLE IF NOT EXISTS daily_summary (
                 date            TEXT PRIMARY KEY,

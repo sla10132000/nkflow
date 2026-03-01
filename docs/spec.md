@@ -1250,7 +1250,7 @@ backfill.py:
 
 - [x] **Phase 11**: シグナル的中率の自動追跡 — 完了日: 2026-03-01
 - [x] **Phase 12**: LINE / Slack 通知 — 完了日: 2026-03-01
-- [ ] **Phase 13**: 信用残・為替データ追加 — 完了日:
+- [x] **Phase 13**: 信用残・為替データ追加 — 完了日: 2026-03-01
 - [ ] **Phase 14**: バックテストエンジン — 完了日:
 - [ ] **Phase 15**: ポートフォリオ連携 — 完了日:
 
@@ -1261,13 +1261,17 @@ backfill.py:
 進行中Phase: -
 ブロッカー: なし
 備考:
-  - Phase 1〜12 全て完了
+  - Phase 1〜13 全て完了
   - CDK の CloudFront Distribution は TODO (AWSアカウント有効化待ち)
-  - テスト: 138件全通過 (moto[s3,ssm,sns] ベース)
+  - テスト: 155件全通過 (moto[s3,ssm,sns] ベース)
   - Phase 0 (AWS環境準備) は手動作業のため未チェック
   - Phase 11: signal_results/signal_accuracy テーブル追加、tracker.py 新規、
               GET /api/signals/accuracy エンドポイント追加、SignalsView.vue 的中率サマリ追加
   - Phase 12: SNS通知トピック追加、notifier.py 新規、notification/handler.py 新規、
               Dockerfile.notification 新規、SSM /nkflow/slack-webhook-url + /nkflow/line-notify-token 追加
               CDKにSNSトピック・通知Lambda・サブスクリプション追加
+  - Phase 13: margin_balances/exchange_rates テーブル追加、migrate_phase13.py 新規、
+              fetch_external.py 新規 (J-Quants get_mkt_margin_interest + Yahoo Finance FX API)、
+              signals.py に margin_squeeze/yen_sensitivity シグナル追加、
+              GET /api/forex・/api/forex/latest・/api/margin/{code}・/api/margin/risk/high 追加
 ```

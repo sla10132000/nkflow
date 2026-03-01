@@ -41,7 +41,7 @@ def handler(event: dict, context: Any) -> dict:
         Lambda レスポンス dict
     """
     from src.config import JQUANTS_PLAN, KUZU_PATH, SQLITE_PATH
-    from src.batch import compute, fetch, graph, notifier, signals, statistics, storage, tracker
+    from src.batch import compute, fetch, fetch_external, graph, notifier, signals, statistics, storage, tracker
 
     # 処理対象日の決定
     target_date: str | None = event.get("target_date") or os.environ.get("TARGET_DATE")
@@ -103,6 +103,21 @@ def handler(event: dict, context: Any) -> dict:
             }
 
         logger.info(f"fetch_daily: {stocks_updated} 件取得")
+
+        # ── 3.5. 外部データ取得 (Phase 13) ───────────────────────
+        try:
+            fx_rows = fetch_external.fetch_exchange_rates(conn, target_date)
+            logger.info(f"fetch_exchange_rates: {fx_rows} 行")
+        except Exception as e:
+            logger.error(f"fetch_exchange_rates 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_exchange_rates: {e}")
+
+        try:
+            margin_rows = fetch_external.fetch_margin_balance(conn, target_date)
+            logger.info(f"fetch_margin_balance: {margin_rows} 行")
+        except Exception as e:
+            logger.error(f"fetch_margin_balance 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_margin_balance: {e}")
 
         # ── 4. DuckDB 計算 ────────────────────────────────────────
         try:
