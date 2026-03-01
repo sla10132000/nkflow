@@ -1,0 +1,56 @@
+name: Deploy CDK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cdk/**'
+      - 'backend/**'
+      - '.github/workflows/deploy-cdk.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC トークン取得に必要
+  contents: read
+
+jobs:
+  deploy:
+    name: CDK Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: cdk/package-lock.json
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Install CDK dependencies
+        working-directory: cdk
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: cdk
+        run: npm run build
+
+      - name: CDK Bootstrap (初回のみ冪等実行)
+        working-directory: cdk
+        run: npx cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/ap-northeast-1
+
+      - name: CDK Deploy
+        working-directory: cdk
+        run: npx cdk deploy NkflowStack --require-approval never --outputs-file /tmp/cdk-outputs.json
+
+      - name: Show stack outputs
+        run: cat /tmp/cdk-outputs.json

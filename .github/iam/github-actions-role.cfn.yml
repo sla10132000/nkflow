@@ -1,0 +1,211 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  GitHub Actions OIDC 認証用 IAM ロール (nkflow CDK deploy)
+  使い方: aws cloudformation deploy --template-file github-actions-role.cfn.yml \
+            --stack-name github-actions-nkflow-role \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides GitHubOrg=<org> GitHubRepo=<repo>
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: "GitHub organization or username (例: myorg)"
+  GitHubRepo:
+    Type: String
+    Description: "GitHub repository name (例: nkflow)"
+
+Resources:
+  # ─────────────────────────────────────────────────────────────
+  # OIDC プロバイダー (アカウントに1つだけ作成)
+  # すでに存在する場合は このリソースを削除して実行
+  # ─────────────────────────────────────────────────────────────
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+  # ─────────────────────────────────────────────────────────────
+  # GitHub Actions 用 IAM ロール
+  # ─────────────────────────────────────────────────────────────
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: github-actions-nkflow-deploy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                # main ブランチからのデプロイのみ許可
+                token.actions.githubusercontent.com:sub:
+                  !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/main
+      Policies:
+        - PolicyName: CdkDeployPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CDK bootstrap バケット + nkflow データバケット
+              - Sid: S3Access
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                  - s3:CreateBucket
+                  - s3:PutBucketVersioning
+                  - s3:PutBucketPolicy
+                Resource:
+                  - !Sub arn:aws:s3:::cdk-*-assets-${AWS::AccountId}-ap-northeast-1
+                  - !Sub arn:aws:s3:::cdk-*-assets-${AWS::AccountId}-ap-northeast-1/*
+                  - !Sub arn:aws:s3:::nkflow-data-${AWS::AccountId}
+                  - !Sub arn:aws:s3:::nkflow-data-${AWS::AccountId}/*
+
+              # CloudFormation
+              - Sid: CloudFormationAccess
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:GetTemplate
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:SetStackPolicy
+                Resource:
+                  - !Sub arn:aws:cloudformation:ap-northeast-1:${AWS::AccountId}:stack/NkflowStack/*
+                  - !Sub arn:aws:cloudformation:ap-northeast-1:${AWS::AccountId}:stack/CDKToolkit/*
+
+              # ECR (Docker イメージ Lambda アセット用)
+              - Sid: EcrAccess
+                Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:CompleteLayerUpload
+                  - ecr:CreateRepository
+                  - ecr:DescribeRepositories
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                  - ecr:SetRepositoryPolicy
+                  - ecr:GetRepositoryPolicy
+                  - ecr:ListImages
+                  - ecr:DeleteRepository
+                Resource: '*'
+
+              # Lambda
+              - Sid: LambdaAccess
+                Effect: Allow
+                Action:
+                  - lambda:CreateFunction
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:DeleteFunction
+                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:ListFunctions
+                  - lambda:AddPermission
+                  - lambda:RemovePermission
+                  - lambda:CreateFunctionUrlConfig
+                  - lambda:UpdateFunctionUrlConfig
+                  - lambda:DeleteFunctionUrlConfig
+                  - lambda:GetFunctionUrlConfig
+                  - lambda:TagResource
+                Resource: !Sub arn:aws:lambda:ap-northeast-1:${AWS::AccountId}:function:nkflow-*
+
+              # IAM (CDK がロール・ポリシーを作成するために必要)
+              - Sid: IamAccess
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:UpdateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:PassRole
+                  - iam:TagRole
+                  - iam:CreateInstanceProfile
+                  - iam:DeleteInstanceProfile
+                  - iam:AddRoleToInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/NkflowStack-*
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/github-actions-nkflow-deploy
+
+              # SSM Parameter Store
+              - Sid: SsmAccess
+                Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:DeleteParameter
+                  - ssm:DescribeParameters
+                Resource:
+                  - !Sub arn:aws:ssm:ap-northeast-1:${AWS::AccountId}:parameter/nkflow/*
+                  - !Sub arn:aws:ssm:ap-northeast-1:${AWS::AccountId}:parameter/cdk-bootstrap/*
+
+              # EventBridge Scheduler
+              - Sid: SchedulerAccess
+                Effect: Allow
+                Action:
+                  - scheduler:CreateSchedule
+                  - scheduler:UpdateSchedule
+                  - scheduler:DeleteSchedule
+                  - scheduler:GetSchedule
+                  - scheduler:ListSchedules
+                Resource: !Sub arn:aws:scheduler:ap-northeast-1:${AWS::AccountId}:schedule/default/nkflow-*
+
+              # API Gateway
+              - Sid: ApiGatewayAccess
+                Effect: Allow
+                Action:
+                  - apigateway:GET
+                  - apigateway:POST
+                  - apigateway:PUT
+                  - apigateway:PATCH
+                  - apigateway:DELETE
+                Resource:
+                  - !Sub arn:aws:apigateway:ap-northeast-1::/restapis
+                  - !Sub arn:aws:apigateway:ap-northeast-1::/restapis/*
+
+              # CDK bootstrap 用 SSM / ECR
+              - Sid: CdkBootstrapMisc
+                Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:PutParameter
+                Resource:
+                  - !Sub arn:aws:ssm:ap-northeast-1:${AWS::AccountId}:parameter/cdk-bootstrap/*
+
+Outputs:
+  RoleArn:
+    Description: GitHub Actions に設定する IAM ロール ARN
+    Value: !GetAtt GitHubActionsRole.Arn
+    Export:
+      Name: GitHubActionsNkflowRoleArn
