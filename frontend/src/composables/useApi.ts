@@ -32,4 +32,7 @@ export const useApi = () => ({
 
   getFundFlowCumulative: (baseDate: string, granularity: 'week' | 'month' = 'week') =>
     api.get('/api/fund-flow/cumulative', { params: { base_date: baseDate, granularity } }).then(r => r.data),
+
+  getMarketPressureTimeseries: (days = 90) =>
+    api.get('/api/market-pressure/timeseries', { params: { days } }).then(r => r.data),
 })
