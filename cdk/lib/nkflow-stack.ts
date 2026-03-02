@@ -144,6 +144,9 @@ export class NkflowStack extends Stack {
       role: apiRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
+        // CACHE_BUST: Lambda 環境変数を手動更新する際に S3_BUCKET が消えるのを防ぐためここで管理する。
+        // キャッシュを強制破棄したい場合はこの値を変更して cdk deploy する。
+        CACHE_BUST: '1',
       },
     });
 
