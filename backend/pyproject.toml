@@ -34,6 +34,7 @@ dev = [
     "moto[s3,ssm,sns]",
     "httpx",
     "ruff",
+    "uvicorn>=0.30",
 ]
 
 [build-system]

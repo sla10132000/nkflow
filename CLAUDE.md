@@ -154,3 +154,35 @@ backend/src/
 
 `backend/scripts/migrate_phaseXX.py` を作成して冪等なマイグレーションを実装する。
 `_download_sqlite` / `_init_sqlite_schema` が初回実行時に `scripts/init_sqlite.py` を呼ぶ。
+
+---
+
+## Design Documents
+
+`docs/` 配下に機能ごとの設計書がある。
+
+| ファイル | 対象機能 |
+|---|---|
+| `docs/spec.md` | プロジェクト全体設計 (Source of truth) |
+| `docs/migration_plan.md` | GCP→AWS 移行計画 |
+| `docs/fund_flow_dashboard.md` | 資金フローダッシュボード (NetworkView / FundFlowTimeline / FundFlowSankey) |
+
+### 設計書の更新ルール
+
+**以下のファイルを変更したとき、必ず対応する設計書も更新すること。**
+
+| 変更ファイル | 更新すべき設計書 |
+|---|---|
+| `backend/src/batch/statistics.py` (資金フロー部分) | `docs/fund_flow_dashboard.md` § 3.1 |
+| `backend/src/api/routers/network.py` | `docs/fund_flow_dashboard.md` § 3.2 |
+| `frontend/src/views/NetworkView.vue` | `docs/fund_flow_dashboard.md` § 4.1 |
+| `frontend/src/components/charts/FundFlowTimeline.vue` | `docs/fund_flow_dashboard.md` § 4.2 |
+| `frontend/src/components/charts/FundFlowSankey.vue` | `docs/fund_flow_dashboard.md` § 4.3 |
+| `frontend/src/types/index.ts` (FundFlow系型) | `docs/fund_flow_dashboard.md` § 5 |
+| `frontend/src/composables/useApi.ts` (FundFlow系) | `docs/fund_flow_dashboard.md` § 8 |
+
+**更新手順**:
+1. 変更内容を実装する
+2. 対応する設計書の該当セクションを修正する
+3. 設計書末尾の「最終更新」日付を更新する
+4. 両方をまとめて1コミットにする (レイヤー分離の原則は守りつつ、ドキュメントは実装と同一コミットで可)

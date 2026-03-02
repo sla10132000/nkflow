@@ -20,7 +20,9 @@ help:
 	@echo "  install-cdk       cdk: npm ci"
 	@echo ""
 	@echo "--- Dev ---"
-	@echo "  dev               フロントエンド開発サーバー起動 (vite)"
+	@echo "  dev               フロントエンド開発サーバー起動 (vite, :5173)"
+	@echo "  dev-api           バックエンド開発サーバー起動 (uvicorn, :8001)"
+	@echo "                    ※ 事前に make pull で /tmp/stocks.db を取得すること"
 	@echo ""
 	@echo "--- Test / Lint ---"
 	@echo "  test              backend pytest"
@@ -65,6 +67,11 @@ install-cdk:
 
 dev:
 	cd frontend && npm run dev
+
+# バックエンド開発サーバー (S3_BUCKET 未設定 = ローカルファイルモード)
+# 事前に: make pull  (/tmp/stocks.db をS3からダウンロード)
+dev-api:
+	cd backend && SQLITE_PATH=/tmp/stocks.db .venv/bin/uvicorn src.api.main:app --host 127.0.0.1 --port 8001 --reload
 
 # -----------------------------------------------------------------------
 # Test / Lint
