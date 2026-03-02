@@ -259,6 +259,8 @@ def backfill(
     run_graph: bool = True,
     plan: str = "free",
     days: int = 0,
+    start_date_str: str = "",
+    end_date_str: str = "",
 ) -> None:
     """
     過去 `years` 年分のデータをバックフィルして全パイプラインを実行する。
@@ -279,6 +281,7 @@ def backfill(
       - API レート: 5 req/min → APIコール間に 12 秒スリープ
 
     days > 0 の場合: years を無視し、end_date から遡った N 平日分のみ取得する。
+    start_date_str / end_date_str (YYYY-MM-DD): 指定時は自動計算を上書きする。
     """
     from scripts.init_sqlite import init_sqlite
     from scripts.init_kuzu import init_kuzu
@@ -318,6 +321,14 @@ def backfill(
         cal_days = int(days * 7 / 5) + 3
         start_date = end_date - timedelta(days=cal_days)
         logger.info(f"--days {days}: start_date を {start_date} に短縮 (約 {days} 平日分)")
+
+    # --start-date / --end-date が指定された場合は自動計算を上書きする
+    if start_date_str:
+        start_date = date.fromisoformat(start_date_str)
+        logger.info(f"--start-date 指定: start_date = {start_date}")
+    if end_date_str:
+        end_date = date.fromisoformat(end_date_str)
+        logger.info(f"--end-date 指定: end_date = {end_date}")
 
     logger.info("=" * 60)
     logger.info(f"バックフィル開始: {start_date} 〜 {end_date}")
@@ -373,6 +384,7 @@ def backfill(
     for i, d in enumerate(trading_dates, 1):
         compute.compute_relative_strength(sqlite_path, d)
         compute.compute_sector_summary(sqlite_path, d)
+        statistics.run_fund_flow(sqlite_path, d)
         if i % 50 == 0 or i == n_days:
             logger.info(f"  {i}/{n_days} 日完了 (最新: {d})")
 
@@ -462,6 +474,16 @@ def main() -> None:
         action="store_true",
         help="KùzuDB グラフ構築・探索をスキップする",
     )
+    parser.add_argument(
+        "--start-date",
+        default="",
+        help="取得開始日 (YYYY-MM-DD)。指定時は --years / --days を上書き",
+    )
+    parser.add_argument(
+        "--end-date",
+        default="",
+        help="取得終了日 (YYYY-MM-DD)。指定時はfreeプランの自動調整を上書き",
+    )
     args = parser.parse_args()
 
     # パスの解決 (引数 > 環境変数 > デフォルト)
@@ -478,6 +500,8 @@ def main() -> None:
         run_graph=not args.skip_graph,
         plan=plan,
         days=args.days,
+        start_date_str=args.start_date,
+        end_date_str=args.end_date,
     )
 
 

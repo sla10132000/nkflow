@@ -15,8 +15,8 @@ export const useApi = () => ({
   getSignals: (params?: Record<string, string>) =>
     api.get('/api/signals', { params }).then(r => r.data),
 
-  getNetwork: (type: string, period?: string, threshold?: string) =>
-    api.get(`/api/network/${type}`, { params: { period, threshold } }).then(r => r.data),
+  getNetwork: (type: string, period?: string, threshold?: string, dateFrom?: string, dateTo?: string) =>
+    api.get(`/api/network/${type}`, { params: { period, threshold, date_from: dateFrom, date_to: dateTo } }).then(r => r.data),
 
   getStock: (code: string) =>
     api.get(`/api/stock/${code}`).then(r => r.data),
@@ -26,4 +26,10 @@ export const useApi = () => ({
 
   getAccuracy: (params?: { signal_type?: string; horizon_days?: number }) =>
     api.get('/api/signals/accuracy', { params }).then(r => r.data),
+
+  getFundFlowTimeseries: (granularity: 'week' | 'month' = 'week', limit = 12) =>
+    api.get('/api/fund-flow/timeseries', { params: { granularity, limit } }).then(r => r.data),
+
+  getFundFlowCumulative: (baseDate: string, granularity: 'week' | 'month' = 'week') =>
+    api.get('/api/fund-flow/cumulative', { params: { base_date: baseDate, granularity } }).then(r => r.data),
 })
