@@ -26,4 +26,10 @@ export const useApi = () => ({
 
   getAccuracy: (params?: { signal_type?: string; horizon_days?: number }) =>
     api.get('/api/signals/accuracy', { params }).then(r => r.data),
+
+  getFundFlowTimeseries: (granularity: 'week' | 'month' = 'week', limit = 12) =>
+    api.get('/api/fund-flow/timeseries', { params: { granularity, limit } }).then(r => r.data),
+
+  getFundFlowCumulative: (baseDate: string, granularity: 'week' | 'month' = 'week') =>
+    api.get('/api/fund-flow/cumulative', { params: { base_date: baseDate, granularity } }).then(r => r.data),
 })
