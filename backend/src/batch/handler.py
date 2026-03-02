@@ -41,7 +41,7 @@ def handler(event: dict, context: Any) -> dict:
         Lambda レスポンス dict
     """
     from src.config import JQUANTS_PLAN, KUZU_PATH, SQLITE_PATH
-    from src.batch import compute, fetch, fetch_external, graph, notifier, signals, statistics, storage, tracker
+    from src.batch import compute, fetch, fetch_external, graph, notifier, sector_rotation, signals, statistics, storage, tracker
 
     # 処理対象日の決定
     target_date: str | None = event.get("target_date") or os.environ.get("TARGET_DATE")
@@ -156,6 +156,13 @@ def handler(event: dict, context: Any) -> dict:
         except Exception as e:
             logger.error(f"tracker.run_all 失敗 (処理は継続): {e}")
             errors.append(f"tracker: {e}")
+
+        # ── 7.7. セクターローテーション分析 (Phase 17) ────────────
+        try:
+            sector_rotation.run_all(SQLITE_PATH, target_date)
+        except Exception as e:
+            logger.error(f"sector_rotation.run_all 失敗 (処理は継続): {e}")
+            errors.append(f"sector_rotation: {e}")
 
     finally:
         conn.close()
