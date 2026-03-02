@@ -30,7 +30,15 @@ export class NkflowStack extends Stack {
       bucketName: `nkflow-data-${this.account}`,
       removalPolicy: RemovalPolicy.RETAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      versioned: false,
+      versioned: true,
+      lifecycleRules: [
+        {
+          // SQLite バックアップ: 非最新バージョンを7世代まで保持し、それ以上は削除
+          prefix: 'data/stocks.db',
+          noncurrentVersionExpiration: Duration.days(1),
+          noncurrentVersionsToRetain: 7,
+        },
+      ],
     });
 
     // ─────────────────────────────────────────────────────────────
