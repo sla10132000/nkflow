@@ -1,4 +1,5 @@
-"""GET /api/network/{type}"""
+"""GET /api/network/{type}, /api/market-pressure/timeseries"""
+import json
 from typing import Optional
 from sqlite3 import Connection
 
@@ -16,6 +17,7 @@ def get_network(
     threshold: float = 0.7,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    include_pressure: bool = False,
     conn: Connection = Depends(get_connection),
 ):
     """
@@ -23,13 +25,17 @@ def get_network(
 
     type: "correlation" | "causality" | "fund_flow"
     fund_flow の場合: date_from / date_to で期間を絞る (省略時は最新日)
+    include_pressure=true の場合: 市場圧力ノードを nodes に追加 (後方互換)
     """
     if type == "correlation":
         return _correlation_network(conn, period, threshold)
     elif type == "causality":
         return _causality_network(conn, period, threshold)
     elif type == "fund_flow":
-        return _fund_flow_network(conn, date_from, date_to)
+        result = _fund_flow_network(conn, date_from, date_to)
+        if include_pressure:
+            _inject_pressure_nodes(conn, result)
+        return result
     else:
         raise HTTPException(status_code=400, detail=f"不明なタイプ: {type}")
 
@@ -331,6 +337,96 @@ def get_fund_flow_cumulative(
     ]
 
     return {"base_date": base_date, "periods": periods_out, "series": series}
+
+
+@router.get("/market-pressure/timeseries")
+def get_market_pressure_timeseries(
+    days: int = 90,
+    conn: Connection = Depends(get_connection),
+):
+    """
+    市場圧力指標の時系列を返す。
+
+    params:
+      days: 取得日数 (デフォルト 90)
+
+    レスポンス:
+      dates, pl_ratio, pl_zone, buy_growth_4w, margin_ratio,
+      margin_ratio_trend, signal_flags の配列
+    """
+    rows = conn.execute(
+        """
+        SELECT date, pl_ratio, pl_zone, buy_growth_4w, margin_ratio,
+               margin_ratio_trend, signal_flags
+        FROM market_pressure_daily
+        ORDER BY date DESC
+        LIMIT ?
+        """,
+        (days,),
+    ).fetchall()
+
+    if not rows:
+        return {
+            "dates": [],
+            "pl_ratio": [],
+            "pl_zone": [],
+            "buy_growth_4w": [],
+            "margin_ratio": [],
+            "margin_ratio_trend": [],
+            "signal_flags": [],
+        }
+
+    # 昇順に並び替えて返す
+    rows = list(reversed(rows))
+
+    def _parse_flags(raw: Optional[str]) -> dict:
+        if not raw:
+            return {"credit_overheating": False}
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {"credit_overheating": False}
+
+    return {
+        "dates":               [r["date"] for r in rows],
+        "pl_ratio":            [r["pl_ratio"] for r in rows],
+        "pl_zone":             [r["pl_zone"] or "neutral" for r in rows],
+        "buy_growth_4w":       [r["buy_growth_4w"] for r in rows],
+        "margin_ratio":        [r["margin_ratio"] for r in rows],
+        "margin_ratio_trend":  [r["margin_ratio_trend"] for r in rows],
+        "signal_flags":        [_parse_flags(r["signal_flags"]) for r in rows],
+    }
+
+
+def _inject_pressure_nodes(conn: Connection, result: dict) -> None:
+    """
+    市場圧力ノード (__pressure_bullish__ / __pressure_bearish__) を
+    vis-network の nodes リストに追加する。
+
+    最新の market_pressure_daily から pl_zone を取得して判定。
+    """
+    row = conn.execute(
+        "SELECT pl_zone FROM market_pressure_daily ORDER BY date DESC LIMIT 1"
+    ).fetchone()
+
+    if not row:
+        return
+
+    pl_zone = row["pl_zone"] or "neutral"
+    bearish_zones = {"ceiling", "overheat"}
+
+    if pl_zone in bearish_zones:
+        result["nodes"].append({
+            "id": "__pressure_bearish__",
+            "label": f"市場圧力\n({pl_zone})",
+            "group": "market_pressure",
+        })
+    else:
+        result["nodes"].append({
+            "id": "__pressure_bullish__",
+            "label": f"市場圧力\n({pl_zone})",
+            "group": "market_pressure",
+        })
 
 
 def _parse_period(period: str) -> int:

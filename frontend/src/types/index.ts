@@ -81,6 +81,16 @@ export interface FundFlowCumulative {
   series: FundFlowCumulativeSeries[]
 }
 
+export interface MarketPressureTimeseries {
+  dates: string[]
+  pl_ratio: (number | null)[]
+  pl_zone: string[]
+  buy_growth_4w: (number | null)[]
+  margin_ratio: (number | null)[]
+  margin_ratio_trend: (number | null)[]
+  signal_flags: Array<{ credit_overheating?: boolean }>
+}
+
 export interface StockDetail {
   code: string
   name: string

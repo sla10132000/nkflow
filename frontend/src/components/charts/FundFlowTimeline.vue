@@ -142,7 +142,7 @@ const loadingCumulative = ref(false)
 const granularity       = ref<'week' | 'month'>('week')
 const metric            = ref<'count' | 'spread'>('count')
 const anchorMetric      = ref<'spread' | 'return'>('spread')
-const groupBy           = ref<'pair' | 'destination'>('pair')
+const groupBy           = ref<'pair' | 'destination'>('destination')
 const anchorDate        = ref<string | null>(null)
 const anchorPeriodLabel = ref('')
 const data              = ref<FundFlowTimeseries | null>(null)
@@ -387,7 +387,7 @@ async function setAnchor(date: string, label: string) {
   anchorDate.value = date
   anchorPeriodLabel.value = label
   cumulativeData.value = null
-  groupBy.value = 'pair'
+  groupBy.value = 'destination'
   emit('anchor-changed', date)
   loadingCumulative.value = true
   try {

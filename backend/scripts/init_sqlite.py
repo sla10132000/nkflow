@@ -163,6 +163,29 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 sector_rotation TEXT
             );
 
+            -- === Phase 16: 市場圧力指標 ===
+            CREATE TABLE IF NOT EXISTS margin_trading_weekly (
+                week_date            TEXT NOT NULL,
+                market_code          TEXT NOT NULL DEFAULT 'ALL',
+                margin_buy_balance   REAL,
+                margin_sell_balance  REAL,
+                margin_ratio         REAL,
+                lending_buy_balance  REAL,
+                lending_sell_balance REAL,
+                pl_ratio_proxy       REAL,
+                PRIMARY KEY (week_date, market_code)
+            );
+
+            CREATE TABLE IF NOT EXISTS market_pressure_daily (
+                date                TEXT PRIMARY KEY,
+                pl_ratio            REAL,
+                pl_zone             TEXT,
+                buy_growth_4w       REAL,
+                margin_ratio        REAL,
+                margin_ratio_trend  REAL,
+                signal_flags        TEXT
+            );
+
             -- === Phase 14: バックテスト ===
             CREATE TABLE IF NOT EXISTS backtest_runs (
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,

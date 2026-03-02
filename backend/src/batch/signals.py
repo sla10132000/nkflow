@@ -527,6 +527,96 @@ def generate_yen_sensitivity_signals(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 7. credit_overheating (Phase 16)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 信用過熱シグナルのしきい値
+CREDIT_PL_RATIO_THRESHOLD = 0.12    # 評価損益率がこれ以上
+CREDIT_BUY_GROWTH_THRESHOLD = 0.08  # 信用買残4週増加率がこれ以上
+
+
+def generate_credit_overheating_signal(
+    conn: sqlite3.Connection,
+    target_date: str,
+) -> int:
+    """
+    信用過熱警報シグナルを生成する。
+
+    発動条件: pl_ratio > 0.12 AND buy_growth_4w > 0.08
+    direction: 'bearish' (天井圏警告)
+    confidence: 0.5 + min(0.4, (pl_ratio - 0.12) * 4 + (buy_growth_4w - 0.08) * 2)
+
+    発動時: market_pressure_daily.signal_flags を {"credit_overheating": true} に更新する。
+
+    Args:
+        conn: SQLite 接続
+        target_date: 'YYYY-MM-DD'
+    Returns:
+        生成したシグナル数 (0 または 1)
+    """
+    row = conn.execute(
+        """
+        SELECT pl_ratio, buy_growth_4w, pl_zone
+        FROM market_pressure_daily
+        WHERE date = ?
+        """,
+        (target_date,),
+    ).fetchone()
+
+    if not row or row[0] is None or row[1] is None:
+        logger.info("credit_overheating: market_pressure_daily データなし — スキップ")
+        return 0
+
+    pl_ratio = float(row[0])
+    buy_growth_4w = float(row[1])
+    pl_zone = row[2] or "neutral"
+
+    if pl_ratio <= CREDIT_PL_RATIO_THRESHOLD or buy_growth_4w <= CREDIT_BUY_GROWTH_THRESHOLD:
+        logger.info(
+            f"credit_overheating: 条件未達 (pl_ratio={pl_ratio:.3f}, buy_growth_4w={buy_growth_4w:.3f})"
+        )
+        return 0
+
+    confidence = round(
+        min(1.0, 0.5 + min(0.4, (pl_ratio - CREDIT_PL_RATIO_THRESHOLD) * 4
+                               + (buy_growth_4w - CREDIT_BUY_GROWTH_THRESHOLD) * 2)),
+        4,
+    )
+
+    reasoning = json.dumps(
+        {
+            "pl_ratio": round(pl_ratio, 4),
+            "buy_growth_4w": round(buy_growth_4w, 4),
+            "pl_zone": pl_zone,
+            "condition": "credit_overheating",
+        },
+        ensure_ascii=False,
+    )
+
+    conn.execute(
+        "INSERT INTO signals (date, signal_type, code, sector, direction, confidence, reasoning) "
+        "VALUES (?, 'credit_overheating', NULL, NULL, 'bearish', ?, ?)",
+        (target_date, confidence, reasoning),
+    )
+
+    # signal_flags を更新
+    conn.execute(
+        """
+        UPDATE market_pressure_daily
+        SET signal_flags = ?
+        WHERE date = ?
+        """,
+        (json.dumps({"credit_overheating": True}), target_date),
+    )
+
+    conn.commit()
+    logger.info(
+        f"credit_overheating シグナル: 発動 (confidence={confidence}, pl_zone={pl_zone})"
+    )
+    return 1
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # daily_summary 更新
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -623,8 +713,9 @@ def generate(
         total += generate_fund_flow_signals(conn, target_date)
         total += generate_regime_shift_signals(conn, target_date, regime_perf)
         total += generate_cluster_breakout_signals(conn, target_date)
-        total += generate_margin_squeeze_signals(conn, target_date)    # Phase 13
+        total += generate_margin_squeeze_signals(conn, target_date)      # Phase 13
         total += generate_yen_sensitivity_signals(conn, target_date)   # Phase 13
+        total += generate_credit_overheating_signal(conn, target_date) # Phase 16
         update_daily_summary(conn, target_date)
     finally:
         conn.close()

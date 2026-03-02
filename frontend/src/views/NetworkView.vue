@@ -1,10 +1,25 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-2xl font-bold">資金フロー</h1>
+    <div class="flex items-center gap-3 flex-wrap">
+      <h1 class="text-2xl font-bold">資金フロー</h1>
+      <span v-if="currentRegime"
+        :class="regimeBadgeClass"
+        class="px-2 py-1 rounded border text-xs font-medium">
+        {{ regimeLabel }}
+      </span>
+      <span v-if="anchorDate"
+        class="bg-indigo-950 text-indigo-300 px-2 py-1 rounded border border-indigo-700 text-xs">
+        📍 {{ anchorDate }} 以降
+      </span>
+      <!-- 信用過熱警報バッジ -->
+      <span v-if="isCreditOverheating"
+        class="animate-pulse bg-red-950 text-red-300 px-2 py-1 rounded border border-red-700 text-xs font-bold">
+        ⚠ 信用過熱警報
+      </span>
+    </div>
 
     <!-- コントロール -->
     <div class="flex flex-wrap gap-3 items-center bg-gray-900 p-3 rounded-lg border border-gray-800">
-      <!-- フィルター切替 -->
       <div class="flex rounded-lg overflow-hidden border border-gray-600 text-xs font-medium">
         <button
           v-for="ft in fundFlowFilters" :key="ft.value"
@@ -54,67 +69,92 @@
           <input v-model="dateSingle" @change="loadNetwork" type="date" class="date-input" />
         </div>
       </template>
-
-      <!-- アンカーバッジ + レジームインジケーター -->
-      <div v-if="anchorDate || currentRegime" class="flex items-center gap-2 ml-auto text-xs">
-        <span v-if="anchorDate"
-          class="bg-indigo-950 text-indigo-300 px-2 py-1 rounded border border-indigo-700">
-          📍 {{ anchorDate }} 以降
-        </span>
-        <span v-if="currentRegime"
-          :class="regimeBadgeClass"
-          class="px-2 py-1 rounded border font-medium">
-          {{ regimeLabel }}
-        </span>
-      </div>
     </div>
 
-    <!-- ネットワークグラフ -->
-    <div class="flex gap-4 h-[600px]">
-      <div class="flex-1 bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
-        <div v-if="loading" class="flex items-center justify-center h-full text-gray-400">読み込み中...</div>
-        <div v-else-if="error" class="flex items-center justify-center h-full text-red-400">{{ error }}</div>
-        <GraphView
-          v-else-if="networkData && networkData.nodes.length > 0"
-          :data="networkData"
-          :directed="true"
-          :anchor-mode="!!anchorDate"
-          @node-click="onNodeClick"
-          class="w-full h-full"
-        />
-        <div v-else class="flex items-center justify-center h-full text-gray-500">
-          該当期間に資金フローなし（セクター間で出来高・騰落率の乖離が条件未満）
-        </div>
-      </div>
-
-      <!-- 選択セクターのサイドパネル -->
-      <div v-if="selectedNode" class="w-52 bg-gray-900 rounded-lg border border-gray-800 p-4 overflow-y-auto">
-        <h3 class="font-semibold mb-3 text-sm">{{ selectedNode }}</h3>
-        <div class="text-xs text-gray-400 space-y-1">
-          <p>接続エッジ数: {{ connectedEdges }}</p>
-          <p>流入: {{ inflowCount }}本</p>
-          <p>流出: {{ outflowCount }}本</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- サンキー図 -->
-    <div v-if="networkData && networkData.edges.length > 0"
-         class="bg-gray-900 rounded-lg border border-gray-800 p-4">
-      <h2 class="text-sm font-semibold text-gray-300 mb-1">資金の合流 — サンキー図</h2>
-      <p class="text-xs text-gray-600 mb-3">帯の幅 = フロー発生回数（太いほど強い流れ）</p>
-      <FundFlowSankey :edges="networkData.edges" />
-    </div>
-
-    <!-- 時系列トレンド -->
+    <!-- ① 市場圧力ゲージ -->
     <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
-      <h2 class="text-sm font-semibold text-gray-300 mb-3">時系列トレンド — セクター間資金フロー</h2>
+      <h2 class="text-sm font-semibold text-gray-300 mb-3">市場圧力 (信用評価損益)</h2>
+      <div v-if="latestPressure" class="flex items-start gap-6 flex-wrap">
+        <MarketPressureGauge
+          :pl-ratio="latestPressure.pl_ratio"
+          :pl-zone="latestPressure.pl_zone"
+          :buy-growth-4w="latestPressure.buy_growth_4w"
+        />
+        <div class="text-xs text-gray-500 space-y-1 mt-2">
+          <p>信用倍率: <span class="text-gray-300">{{ fmtNum(latestPressure.margin_ratio) }}</span></p>
+          <p>倍率トレンド: <span :class="trendClass">{{ fmtNum(latestPressure.margin_ratio_trend, 3) }}</span></p>
+        </div>
+      </div>
+      <div v-else class="text-xs text-gray-600 py-4">信用残高データなし</div>
+    </div>
+
+    <!-- ② メイン: 時系列フロー -->
+    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+      <h2 class="text-sm font-semibold text-gray-300 mb-3">時系列フロー</h2>
       <FundFlowTimeline @anchor-changed="onAnchorChanged" />
     </div>
 
-    <!-- 凡例 -->
-    <div class="text-xs text-gray-500">
-      ノード: セクター (色=セクター) / エッジ太さ: 出現頻度 (日数) / 矢印: 資金フロー方向
+    <!-- ③ 市場圧力タイムライン (折りたたみ) -->
+    <div class="bg-gray-900 rounded-lg border border-gray-800">
+      <button
+        @click="showPressureTimeline = !showPressureTimeline"
+        class="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-400 hover:text-white transition-colors"
+      >
+        <span class="font-medium">信用圧力タイムライン <span class="text-xs text-gray-600 ml-1">90日間</span></span>
+        <span class="text-gray-600">{{ showPressureTimeline ? '▲' : '▼' }}</span>
+      </button>
+      <div v-if="showPressureTimeline" class="border-t border-gray-800 p-4">
+        <MarketPressureTimeline :days="90" />
+      </div>
+    </div>
+
+    <!-- ⑤ メイン: サンキー図 -->
+    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+      <h2 class="text-sm font-semibold text-gray-300 mb-1">資金の合流 — サンキー図</h2>
+      <p class="text-xs text-gray-600 mb-3">帯の幅 = フロー発生回数（太いほど強い流れ）</p>
+      <div v-if="loading" class="flex items-center justify-center h-32 text-gray-400 text-sm">読み込み中...</div>
+      <div v-else-if="error" class="flex items-center justify-center h-32 text-red-400 text-sm">{{ error }}</div>
+      <FundFlowSankey v-else-if="networkData" :edges="networkData.edges" />
+    </div>
+
+    <!-- ⑥ サブ: ネットワーク（折りたたみ） -->
+    <div class="bg-gray-900 rounded-lg border border-gray-800">
+      <button
+        @click="showNetwork = !showNetwork"
+        class="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-400 hover:text-white transition-colors"
+      >
+        <span class="font-medium">ネットワーク <span class="text-xs text-gray-600 ml-1">解析用</span></span>
+        <span class="text-gray-600">{{ showNetwork ? '▲' : '▼' }}</span>
+      </button>
+
+      <div v-if="showNetwork" class="border-t border-gray-800">
+        <div class="flex gap-4 h-[520px] p-3">
+          <div class="flex-1 overflow-hidden rounded">
+            <GraphView
+              v-if="networkData && networkData.nodes.length > 0"
+              :data="networkData"
+              :directed="true"
+              :anchor-mode="!!anchorDate"
+              @node-click="onNodeClick"
+              class="w-full h-full"
+            />
+            <div v-else class="flex items-center justify-center h-full text-gray-500 text-sm">
+              {{ loading ? '読み込み中...' : '該当期間に資金フローなし' }}
+            </div>
+          </div>
+
+          <!-- 選択セクター詳細 -->
+          <div v-if="selectedNode" class="w-48 bg-gray-800 rounded p-3 text-xs text-gray-400 space-y-1 shrink-0">
+            <p class="font-semibold text-gray-200 mb-2">{{ selectedNode }}</p>
+            <p>接続: {{ connectedEdges }}本</p>
+            <p>流入: {{ inflowCount }}本</p>
+            <p>流出: {{ outflowCount }}本</p>
+          </div>
+        </div>
+        <div class="px-4 pb-3 text-xs text-gray-600">
+          エッジ太さ: 出現頻度 / 矢印: 資金フロー方向 / ノード枠: 流入集中度
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -125,13 +165,17 @@ import { useApi } from '../composables/useApi'
 import GraphView from '../components/network/GraphView.vue'
 import FundFlowTimeline from '../components/charts/FundFlowTimeline.vue'
 import FundFlowSankey from '../components/charts/FundFlowSankey.vue'
-import type { NetworkData } from '../types'
+import MarketPressureGauge from '../components/charts/MarketPressureGauge.vue'
+import MarketPressureTimeline from '../components/charts/MarketPressureTimeline.vue'
+import type { NetworkData, MarketPressureTimeseries } from '../types'
 
 const api = useApi()
 const loading = ref(false)
 const error = ref('')
 const networkData = ref<NetworkData | null>(null)
 const selectedNode = ref<string | null>(null)
+const showNetwork = ref(false)
+const showPressureTimeline = ref(false)
 const period = ref('20d')
 const fundFlowFilter = ref<'period' | 'range' | 'date'>('range')
 const dateFrom = ref('')
@@ -139,6 +183,7 @@ const dateTo = ref('')
 const dateSingle = ref('')
 const anchorDate = ref<string | null>(null)
 const currentRegime = ref<string | null>(null)
+const pressureData = ref<MarketPressureTimeseries | null>(null)
 
 const periods = ['20d', '60d', '120d']
 const fundFlowFilters = [
@@ -157,6 +202,34 @@ const datePresets = [
   { label: '先週末', offsetDays: -1 },
 ]
 
+const latestPressure = computed(() => {
+  if (!pressureData.value || pressureData.value.dates.length === 0) return null
+  const last = pressureData.value.dates.length - 1
+  return {
+    pl_ratio: pressureData.value.pl_ratio[last] ?? null,
+    pl_zone:  pressureData.value.pl_zone[last] ?? 'neutral',
+    buy_growth_4w: pressureData.value.buy_growth_4w[last] ?? null,
+    margin_ratio: pressureData.value.margin_ratio[last] ?? null,
+    margin_ratio_trend: pressureData.value.margin_ratio_trend[last] ?? null,
+  }
+})
+
+const isCreditOverheating = computed(() => {
+  if (!pressureData.value || pressureData.value.signal_flags.length === 0) return false
+  const last = pressureData.value.signal_flags.length - 1
+  return pressureData.value.signal_flags[last]?.credit_overheating === true
+})
+
+const trendClass = computed(() => {
+  const t = latestPressure.value?.margin_ratio_trend ?? 0
+  return t > 0 ? 'text-red-400' : t < 0 ? 'text-green-400' : 'text-gray-400'
+})
+
+function fmtNum(v: number | null, decimals = 2): string {
+  if (v == null) return '—'
+  return v.toFixed(decimals)
+}
+
 const regimeBadgeClass = computed(() => {
   if (currentRegime.value === 'risk_on')  return 'bg-green-950 text-green-300 border-green-700'
   if (currentRegime.value === 'risk_off') return 'bg-red-950 text-red-300 border-red-700'
@@ -166,6 +239,21 @@ const regimeLabel = computed(() => {
   if (currentRegime.value === 'risk_on')  return '🟢 Risk-on'
   if (currentRegime.value === 'risk_off') return '🔴 Risk-off'
   return '⚪ Neutral'
+})
+
+const connectedEdges = computed(() => {
+  if (!networkData.value || !selectedNode.value) return 0
+  return networkData.value.edges.filter(
+    e => e.from === selectedNode.value || e.to === selectedNode.value
+  ).length
+})
+const inflowCount = computed(() => {
+  if (!networkData.value || !selectedNode.value) return 0
+  return networkData.value.edges.filter(e => e.to === selectedNode.value).length
+})
+const outflowCount = computed(() => {
+  if (!networkData.value || !selectedNode.value) return 0
+  return networkData.value.edges.filter(e => e.from === selectedNode.value).length
 })
 
 const fmt = (d: Date) => d.toISOString().slice(0, 10)
@@ -210,21 +298,6 @@ function applyDatePreset(pr: { label: string; offsetDays: number }) {
   loadNetwork()
 }
 
-const connectedEdges = computed(() => {
-  if (!networkData.value || !selectedNode.value) return 0
-  return networkData.value.edges.filter(
-    e => e.from === selectedNode.value || e.to === selectedNode.value
-  ).length
-})
-const inflowCount = computed(() => {
-  if (!networkData.value || !selectedNode.value) return 0
-  return networkData.value.edges.filter(e => e.to === selectedNode.value).length
-})
-const outflowCount = computed(() => {
-  if (!networkData.value || !selectedNode.value) return 0
-  return networkData.value.edges.filter(e => e.from === selectedNode.value).length
-})
-
 function onAnchorChanged(date: string | null) {
   anchorDate.value = date
 }
@@ -235,6 +308,14 @@ async function loadRegime() {
     currentRegime.value = summary?.regime ?? null
   } catch {
     currentRegime.value = null
+  }
+}
+
+async function loadPressure() {
+  try {
+    pressureData.value = await api.getMarketPressureTimeseries(7)
+  } catch {
+    pressureData.value = null
   }
 }
 
@@ -281,6 +362,7 @@ function onNodeClick(id: string) {
 onMounted(() => {
   applyRangePreset({ days: 7 })
   loadRegime()
+  loadPressure()
 })
 </script>
 

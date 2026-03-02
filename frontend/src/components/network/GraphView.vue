@@ -38,6 +38,12 @@ function buildNetwork() {
 
   const nodeColor = (group: string) => SECTOR_COLORS[group] ?? '#60a5fa'
 
+  // 市場圧力ノードの判定
+  const isPressureNode = (id: string) =>
+    id === '__pressure_bullish__' || id === '__pressure_bearish__'
+  const pressureNodeColor = (id: string) =>
+    id === '__pressure_bullish__' ? '#065f46' : '#7f1d1d'
+
   // アンカーモード: 流入先ノードの累積流入数を集計
   const inflow: Record<string, number> = {}
   if (props.anchorMode) {
@@ -49,6 +55,23 @@ function buildNetwork() {
 
   const nodes = new DataSet(
     props.data.nodes.map(n => {
+      if (isPressureNode(n.id)) {
+        return {
+          id: n.id,
+          label: n.label || n.id,
+          title: n.label || n.id,
+          shape: 'diamond',
+          color: {
+            background: pressureNodeColor(n.id),
+            border: '#f3f4f6',
+            highlight: { background: pressureNodeColor(n.id), border: '#fbbf24' },
+          },
+          size: 20,
+          borderWidth: 2,
+          font: { color: '#f3f4f6', size: 10 },
+        }
+      }
+
       const baseSize = 10 + (n.size || 1) * 2
       const size = props.anchorMode && inflow[n.id]
         ? baseSize + (inflow[n.id] / maxInflow) * 20
