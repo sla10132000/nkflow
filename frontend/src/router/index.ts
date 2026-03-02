@@ -8,5 +8,6 @@ export default createRouter({
     { path: '/network',     component: () => import('../views/NetworkView.vue') },
     { path: '/signals',     component: () => import('../views/SignalsView.vue') },
     { path: '/stock/:code', component: () => import('../views/StockView.vue'), props: true },
+    { path: '/sector-rotation', component: () => import('../views/SectorRotationView.vue') },
   ],
 })

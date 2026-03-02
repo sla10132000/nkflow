@@ -35,4 +35,17 @@ export const useApi = () => ({
 
   getMarketPressureTimeseries: (days = 90) =>
     api.get('/api/market-pressure/timeseries', { params: { days } }).then(r => r.data),
+
+  // Phase 17: セクターローテーション
+  getSectorRotationHeatmap: (periods = 12, periodType: 'weekly' | 'monthly' = 'weekly') =>
+    api.get('/api/sector-rotation/heatmap', { params: { periods, period_type: periodType } }).then(r => r.data),
+
+  getSectorRotationStates: (clusterMethod = 'kmeans', limit = 52) =>
+    api.get('/api/sector-rotation/states', { params: { cluster_method: clusterMethod, limit } }).then(r => r.data),
+
+  getSectorRotationTransitions: (clusterMethod = 'kmeans') =>
+    api.get('/api/sector-rotation/transitions', { params: { cluster_method: clusterMethod } }).then(r => r.data),
+
+  getSectorRotationPrediction: () =>
+    api.get('/api/sector-rotation/prediction').then(r => r.data),
 })
