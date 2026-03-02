@@ -5,7 +5,7 @@
         <RouterLink to="/" class="text-lg font-bold text-white">nkflow</RouterLink>
         <RouterLink to="/" class="nav-link">概要</RouterLink>
         <RouterLink to="/timeseries" class="nav-link">時系列</RouterLink>
-        <RouterLink to="/network" class="nav-link">ネットワーク</RouterLink>
+        <RouterLink to="/network" class="nav-link">資金フロー</RouterLink>
         <RouterLink to="/signals" class="nav-link">シグナル</RouterLink>
       </div>
     </nav>
