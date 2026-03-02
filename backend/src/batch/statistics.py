@@ -22,6 +22,7 @@ LEAD_LAG_THRESHOLD = 0.3  # クロス相関の最低閾値
 FUND_FLOW_WINDOW = 20   # 資金フローの比較ベースライン日数
 REGIME_SHORT_WINDOW = 5  # レジーム判定: 直近ボラ
 REGIME_LONG_WINDOW = 20  # レジーム判定: 比較ベースボラ
+MAX_GRANGER_STOCKS = 300  # 直近出来高上位 N 銘柄に限定 (ペア数 ≈ 45,000 → タイムアウト防止)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -111,6 +112,23 @@ def run_granger(db_path: str, calc_date: str, n_jobs: int = -1) -> int:
     if len(codes) < 2:
         logger.warning("グレンジャー検定: 銘柄数が不足しています")
         return 0
+
+    # 直近出来高上位 MAX_GRANGER_STOCKS 銘柄に絞る (タイムアウト防止)
+    if len(codes) > MAX_GRANGER_STOCKS:
+        conn2 = sqlite3.connect(db_path)
+        vol_df = pd.read_sql(
+            f"""
+            SELECT code, SUM(volume) AS total_vol FROM daily_prices
+            WHERE date IN ({",".join(f"'{d}'" for d in dates)}) AND code IN ({",".join(f"'{c}'" for c in codes)})
+            GROUP BY code ORDER BY total_vol DESC LIMIT {MAX_GRANGER_STOCKS}
+            """,
+            conn2,
+        )
+        conn2.close()
+        top_codes = set(vol_df["code"].tolist())
+        codes = [c for c in codes if c in top_codes]
+        pivot = pivot[codes]
+        logger.info(f"グレンジャー検定: {MAX_GRANGER_STOCKS} 銘柄に絞り込み")
 
     # 全ペアを生成
     pairs = [
@@ -220,6 +238,23 @@ def run_lead_lag(db_path: str, calc_date: str) -> int:
 
     if len(codes) < 2:
         return 0
+
+    # 直近出来高上位 MAX_GRANGER_STOCKS 銘柄に絞る (タイムアウト防止)
+    if len(codes) > MAX_GRANGER_STOCKS:
+        conn2 = sqlite3.connect(db_path)
+        vol_df = pd.read_sql(
+            f"""
+            SELECT code, SUM(volume) AS total_vol FROM daily_prices
+            WHERE date IN ({",".join(f"'{d}'" for d in dates)}) AND code IN ({",".join(f"'{c}'" for c in codes)})
+            GROUP BY code ORDER BY total_vol DESC LIMIT {MAX_GRANGER_STOCKS}
+            """,
+            conn2,
+        )
+        conn2.close()
+        top_codes = set(vol_df["code"].tolist())
+        codes = [c for c in codes if c in top_codes]
+        pivot = pivot[codes]
+        logger.info(f"リードラグ: {MAX_GRANGER_STOCKS} 銘柄に絞り込み")
 
     rows = []
     for i in range(len(codes)):
