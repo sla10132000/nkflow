@@ -190,10 +190,10 @@ def fetch_margin_balance(
     try:
         import jquantsapi as _jq
         if isinstance(client, _jq.ClientV2):
-            # v2 API: get_mkt_margin_interest
-            df = client.get_mkt_margin_interest(
-                from_yyyymmdd=from_str,
-                to_yyyymmdd=to_str,
+            # v2 API: get_mkt_margin_interest_range (from/to パラメータは400エラーになるため range メソッドを使う)
+            df = client.get_mkt_margin_interest_range(
+                start_dt=from_str,
+                end_dt=to_str,
             )
         else:
             # v1 API: get_weekly_margin_interest (名称が異なる)
@@ -212,13 +212,12 @@ def fetch_margin_balance(
         logger.info("信用残高データなし")
         return 0
 
-    # カラム名の正規化 (v1/v2 で異なる場合あり)
+    # カラム名の正規化 (v2 実際のカラム名: LongVol/ShrtVol)
     col_map = {
-        # v2 のカラム名
         "Code": "code",
         "Date": "week_date",
-        "LongMarginTradeVolume": "margin_buy",
-        "ShortMarginTradeVolume": "margin_sell",
+        "LongVol": "margin_buy",    # 信用買残高
+        "ShrtVol": "margin_sell",   # 信用売残高
         # v1 のカラム名 (fallback)
         "StockCode": "code",
         "WeekDate": "week_date",

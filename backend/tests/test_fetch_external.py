@@ -145,7 +145,7 @@ class TestFetchMarginBalance:
         """J-Quants v2 クライアントのモックを作成する"""
         import jquantsapi
         client = MagicMock(spec=jquantsapi.ClientV2)
-        client.get_mkt_margin_interest.return_value = df
+        client.get_mkt_margin_interest_range.return_value = df
         return client
 
     def test_inserts_rows(self, db_conn):
@@ -155,8 +155,8 @@ class TestFetchMarginBalance:
         df = pd.DataFrame({
             "Code": ["72030", "67580"],
             "Date": ["20250110", "20250110"],
-            "LongMarginTradeVolume": [1000000, 500000],
-            "ShortMarginTradeVolume": [100000, 80000],
+            "LongVol": [1000000, 500000],
+            "ShrtVol": [100000, 80000],
         })
         client = self._make_client(df)
 
@@ -173,8 +173,8 @@ class TestFetchMarginBalance:
         df = pd.DataFrame({
             "Code": ["72030"],
             "Date": ["20250110"],
-            "LongMarginTradeVolume": [1000000],
-            "ShortMarginTradeVolume": [100000],
+            "LongVol": [1000000],
+            "ShrtVol": [100000],
         })
         client = self._make_client(df)
 
@@ -193,8 +193,8 @@ class TestFetchMarginBalance:
         df = pd.DataFrame({
             "Code": ["72030", "99990"],  # 9999は未登録
             "Date": ["20250110", "20250110"],
-            "LongMarginTradeVolume": [1000000, 200000],
-            "ShortMarginTradeVolume": [100000, 50000],
+            "LongVol": [1000000, 200000],
+            "ShrtVol": [100000, 50000],
         })
         client = self._make_client(df)
 
@@ -208,7 +208,7 @@ class TestFetchMarginBalance:
 
         import jquantsapi
         client = MagicMock(spec=jquantsapi.ClientV2)
-        client.get_mkt_margin_interest.side_effect = AttributeError("not available")
+        client.get_mkt_margin_interest_range.side_effect = AttributeError("not available")
 
         rows = fetch_margin_balance(db_conn, target_date="2025-01-10", client=client)
 
