@@ -227,6 +227,65 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 sharpe_ratio   REAL,
                 calc_date      TEXT NOT NULL
             );
+
+            -- === Phase 17: セクターローテーション分析 ===
+            CREATE TABLE IF NOT EXISTS sector_daily_returns (
+                date         TEXT NOT NULL,
+                sector       TEXT NOT NULL,
+                return_rate  REAL,
+                stock_count  INTEGER,
+                PRIMARY KEY (date, sector)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_weekly_returns (
+                week_date    TEXT NOT NULL,
+                sector       TEXT NOT NULL,
+                return_rate  REAL,
+                rank         INTEGER,
+                PRIMARY KEY (week_date, sector)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_monthly_returns (
+                month_date   TEXT NOT NULL,
+                sector       TEXT NOT NULL,
+                return_rate  REAL,
+                rank         INTEGER,
+                PRIMARY KEY (month_date, sector)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_rotation_states (
+                period_date          TEXT NOT NULL,
+                period_type          TEXT NOT NULL DEFAULT 'weekly',
+                cluster_method       TEXT NOT NULL DEFAULT 'kmeans',
+                state_id             INTEGER NOT NULL,
+                state_name           TEXT,
+                centroid_top_sectors TEXT,
+                PRIMARY KEY (period_date, period_type, cluster_method)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_rotation_transitions (
+                from_state     INTEGER NOT NULL,
+                to_state       INTEGER NOT NULL,
+                probability    REAL,
+                count          INTEGER,
+                period_type    TEXT NOT NULL DEFAULT 'weekly',
+                cluster_method TEXT NOT NULL DEFAULT 'kmeans',
+                calc_date      TEXT,
+                PRIMARY KEY (from_state, to_state, period_type, cluster_method)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_rotation_predictions (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                calc_date            TEXT NOT NULL,
+                current_state_id     INTEGER,
+                current_state_name   TEXT,
+                predicted_state_id   INTEGER,
+                predicted_state_name TEXT,
+                confidence           REAL,
+                top_sectors          TEXT,
+                all_probabilities    TEXT,
+                model_accuracy       REAL
+            );
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")

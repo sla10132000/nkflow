@@ -91,6 +91,57 @@ export interface MarketPressureTimeseries {
   signal_flags: Array<{ credit_overheating?: boolean }>
 }
 
+// ─── Phase 17: セクターローテーション ───────────────────────────────────────
+
+export interface SectorReturnEntry {
+  period: string
+  sector: string
+  return_rate: number
+  rank: number
+}
+
+export interface SectorRotationHeatmap {
+  periods: string[]
+  sectors: string[]
+  data: SectorReturnEntry[]
+}
+
+export interface SectorRotationState {
+  period: string
+  state_id: number
+  state_name: string
+  top_sectors: { sector: string; avg_return: number }[]
+}
+
+export interface SectorRotationStates {
+  states: SectorRotationState[]
+}
+
+export interface SectorRotationTransition {
+  from_state: number
+  to_state: number
+  probability: number
+  count: number
+}
+
+export interface SectorRotationTransitions {
+  transitions: SectorRotationTransition[]
+  state_names: Record<number, string>
+  avg_durations: Record<number, number>
+}
+
+export interface SectorRotationPrediction {
+  available: boolean
+  calc_date?: string
+  current?: { state_id: number; state_name: string }
+  prediction?: { state_id: number; state_name: string; confidence: number }
+  top_sectors?: { sector: string; avg_return: number }[]
+  all_probabilities?: { state_id: number; state_name: string; probability: number }[]
+  model_accuracy?: number
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface StockDetail {
   code: string
   name: string
