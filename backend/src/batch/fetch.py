@@ -11,10 +11,7 @@ logger = logging.getLogger(__name__)
 
 def _get_client():
     """
-    J-Quants APIクライアントを生成する。
-
-    - free プラン: リフレッシュトークンで v1 Client
-    - 有料プラン: API キーで v2 ClientV2
+    J-Quants APIクライアントを生成する (v2 ClientV2)。
     """
     import os
     import jquantsapi
