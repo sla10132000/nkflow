@@ -125,7 +125,7 @@ export class NkflowStack extends Stack {
       role: batchRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
-        JQUANTS_PLAN: 'free',
+        JQUANTS_PLAN: 'standard',
         SNS_TOPIC_ARN: notificationTopic.topicArn,
       },
     });
