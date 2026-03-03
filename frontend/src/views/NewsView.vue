@@ -53,7 +53,7 @@
                 rel="noopener noreferrer"
                 class="text-sm font-medium text-blue-400 hover:text-blue-300 line-clamp-2"
               >
-                {{ article.title }}
+                {{ article.title_ja ?? article.title }}
               </a>
               <div class="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
                 <span>{{ article.source_name || article.source }}</span>

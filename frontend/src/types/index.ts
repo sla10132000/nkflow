@@ -163,6 +163,7 @@ export interface NewsArticle {
 	source: string;
 	source_name: string | null;
 	title: string;
+	title_ja: string | null;
 	url: string;
 	language: string;
 	image_url: string | null;
