@@ -71,7 +71,7 @@ class TestGetApiKey:
 class TestDownloadSQLite:
     @mock_aws
     def test_downloads_existing_sqlite_from_s3(self, tmp_path, monkeypatch):
-        """S3 に SQLite が存在する場合はダウンロードする。"""
+        """S3 に SQLite が存在する場合はダウンロードし、スキーマを適用する (冪等)。"""
         # S3 にダミー SQLite を配置
         s3 = boto3.client("s3", region_name="ap-northeast-1")
         s3.create_bucket(
@@ -83,10 +83,14 @@ class TestDownloadSQLite:
         s3.upload_file(str(dummy_db), BUCKET, "data/stocks.db")
 
         dest_path = str(tmp_path / "stocks.db")
-        from src.batch import storage
-        storage._download_sqlite(dest_path)
+
+        with patch("src.batch.storage._init_sqlite_schema") as mock_init:
+            from src.batch import storage
+            storage._download_sqlite(dest_path)
 
         assert os.path.exists(dest_path)
+        # 既存 DB でも _init_sqlite_schema を呼び出してマイグレーションを適用する
+        mock_init.assert_called_once_with(dest_path)
 
     @mock_aws
     def test_initializes_schema_when_not_in_s3(self, tmp_path):

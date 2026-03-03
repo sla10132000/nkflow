@@ -3,6 +3,10 @@
     <div v-if="loading" class="flex items-center justify-center h-48 text-gray-400 text-sm">
       読み込み中...
     </div>
+    <div v-else-if="error"
+         class="flex items-center justify-center h-48 text-red-500 text-sm">
+      データ取得エラー
+    </div>
     <div v-else-if="!data || data.periods.length === 0"
          class="flex items-center justify-center h-48 text-gray-500 text-sm">
       データなし
@@ -70,6 +74,7 @@ const props = defineProps<{
 const api = useApi()
 const loading = ref(false)
 const data = ref<SectorRotationHeatmap | null>(null)
+const error = ref(false)
 
 // (sector, period) → entry の高速ルックアップ
 const entryMap = computed(() => {
@@ -114,11 +119,14 @@ function returnToColor(v: number): string {
 
 async function load() {
   loading.value = true
+  error.value = false
   try {
     data.value = await api.getSectorRotationHeatmap(
       props.periods ?? 12,
       props.periodType ?? 'weekly',
     )
+  } catch (_) {
+    error.value = true
   } finally {
     loading.value = false
   }
