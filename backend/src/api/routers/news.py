@@ -27,7 +27,7 @@ def get_news(
         rows = conn.execute(
             """
             SELECT a.id, a.published_at, a.source, a.source_name,
-                   a.title, a.url, a.language, a.image_url, a.sentiment
+                   a.title, a.title_ja, a.url, a.language, a.image_url, a.sentiment
             FROM news_articles a
             JOIN news_ticker_map m ON a.id = m.article_id
             WHERE m.ticker = ?
@@ -41,7 +41,7 @@ def get_news(
         rows = conn.execute(
             """
             SELECT id, published_at, source, source_name,
-                   title, url, language, image_url, sentiment
+                   title, title_ja, url, language, image_url, sentiment
             FROM news_articles
             WHERE (? IS NULL OR date(published_at) = ?)
             ORDER BY published_at DESC
