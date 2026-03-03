@@ -3,6 +3,10 @@
     <div v-if="loading" class="flex items-center justify-center h-32 text-gray-500 text-sm">
       読み込み中...
     </div>
+    <div v-else-if="error"
+         class="flex items-center justify-center h-32 text-red-500 text-sm">
+      データ取得エラー
+    </div>
     <div v-else-if="!states.length"
          class="flex items-center justify-center h-32 text-gray-500 text-sm">
       データなし
@@ -73,6 +77,7 @@ const props = defineProps<{ limit?: number; clusterMethod?: string }>()
 const api = useApi()
 const loading = ref(false)
 const states = ref<SectorRotationState[]>([])
+const error = ref(false)
 const selectedState = ref<SectorRotationState | null>(null)
 
 // 状態ID → 状態名 (最新の代表名)
@@ -98,6 +103,7 @@ function stateColor(id: number): string {
 
 async function load() {
   loading.value = true
+  error.value = false
   try {
     const res = await api.getSectorRotationStates(
       props.clusterMethod ?? 'kmeans',
@@ -107,6 +113,8 @@ async function load() {
     if (states.value.length > 0) {
       selectedState.value = states.value[states.value.length - 1]
     }
+  } catch (_) {
+    error.value = true
   } finally {
     loading.value = false
   }
