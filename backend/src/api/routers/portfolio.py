@@ -16,10 +16,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from src.api.auth import require_auth
 from src.api.portfolio_storage import get_portfolio_connection, writable_portfolio_connection
 from src.api.storage import get_connection as get_stocks_connection
 
-router = APIRouter()
+# ポートフォリオ全エンドポイントに認証を必須化
+router = APIRouter(dependencies=[Depends(require_auth)])
 
 
 # ─────────────────────────────────────────────
