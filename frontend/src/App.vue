@@ -8,6 +8,7 @@
         <RouterLink to="/network" class="nav-link">資金フロー</RouterLink>
         <RouterLink to="/signals" class="nav-link">シグナル</RouterLink>
         <RouterLink to="/sector-rotation" class="nav-link">ローテーション</RouterLink>
+        <RouterLink to="/news" class="nav-link">ニュース</RouterLink>
       </div>
     </nav>
     <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
