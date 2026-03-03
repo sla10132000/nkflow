@@ -286,6 +286,30 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 all_probabilities    TEXT,
                 model_accuracy       REAL
             );
+
+            -- === Phase 18: ニュース記事 ===
+            CREATE TABLE IF NOT EXISTS news_articles (
+                id            TEXT PRIMARY KEY,
+                published_at  TEXT NOT NULL,
+                source        TEXT NOT NULL,
+                source_name   TEXT,
+                title         TEXT NOT NULL,
+                url           TEXT NOT NULL UNIQUE,
+                language      TEXT DEFAULT 'en',
+                image_url     TEXT,
+                tickers_json  TEXT DEFAULT '[]',
+                sentiment     REAL,
+                created_at    TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_news_published ON news_articles(published_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_news_source ON news_articles(source);
+
+            CREATE TABLE IF NOT EXISTS news_ticker_map (
+                article_id  TEXT NOT NULL REFERENCES news_articles(id),
+                ticker      TEXT NOT NULL,
+                PRIMARY KEY (article_id, ticker)
+            );
+            CREATE INDEX IF NOT EXISTS idx_ntm_ticker ON news_ticker_map(ticker);
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")
