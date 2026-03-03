@@ -58,7 +58,7 @@ def fetch_articles(
         url = f"{GDELT_BASE}?{urlencode(params)}"
 
         try:
-            resp = requests.get(url, timeout=15)
+            resp = requests.get(url, timeout=10)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:

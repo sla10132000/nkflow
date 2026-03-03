@@ -186,6 +186,11 @@ export class NkflowStack extends Stack {
       actions: ['s3:PutObject', 's3:GetObject'],
       resources: [`${dataBucket.bucketArn}/news/raw/*`],
     }));
+    // 全クエリ失敗時の SNS 通知
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [notificationTopic.topicArn],
+    }));
 
     const newsFetchLambda = new lambda.DockerImageFunction(this, 'NkflowNewsFetchLambda', {
       functionName: 'nkflow-news-fetch',
@@ -194,10 +199,11 @@ export class NkflowStack extends Stack {
         platform: Platform.LINUX_AMD64,
       }),
       memorySize: 256,
-      timeout: Duration.seconds(60),
+      timeout: Duration.seconds(120),
       role: newsFetchRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
+        SNS_TOPIC_ARN: notificationTopic.topicArn,
       },
     });
 
