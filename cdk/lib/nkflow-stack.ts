@@ -207,7 +207,7 @@ export class NkflowStack extends Stack {
       },
     });
 
-    // EventBridge Scheduler: 毎営業日 UTC 08:50 = JST 17:50 (バッチの 10 分前)
+    // EventBridge Scheduler: 毎時 0 分 (1時間ごと)
     const newsFetchSchedulerRole = new iam.Role(this, 'NkflowNewsFetchSchedulerRole', {
       assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
     });
@@ -215,7 +215,7 @@ export class NkflowStack extends Stack {
 
     new scheduler.CfnSchedule(this, 'NkflowNewsFetchSchedule', {
       name: 'nkflow-news-fetch',
-      scheduleExpression: 'cron(50 8 ? * MON-FRI *)',
+      scheduleExpression: 'rate(1 hour)',
       scheduleExpressionTimezone: 'UTC',
       flexibleTimeWindow: { mode: 'OFF' },
       target: {
