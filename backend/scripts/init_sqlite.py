@@ -311,6 +311,22 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 PRIMARY KEY (article_id, ticker)
             );
             CREATE INDEX IF NOT EXISTS idx_ntm_ticker ON news_ticker_map(ticker);
+
+            -- === Phase 20: 米国主要株価指数 ===
+            CREATE TABLE IF NOT EXISTS us_indices (
+                date      TEXT    NOT NULL,
+                ticker    TEXT    NOT NULL,
+                name      TEXT    NOT NULL,
+                open      REAL,
+                high      REAL,
+                low       REAL,
+                close     REAL    NOT NULL,
+                volume    INTEGER,
+                PRIMARY KEY (date, ticker)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_us_indices_ticker ON us_indices(ticker);
+            CREATE INDEX IF NOT EXISTS idx_us_indices_date ON us_indices(date DESC);
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")
