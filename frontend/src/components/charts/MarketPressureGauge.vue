@@ -54,9 +54,9 @@ const props = defineProps<{
 }>();
 
 const svgW = 200;
-const svgH = 110;
+const svgH = 140;
 const cx = svgW / 2;
-const cy = svgH - 10;
+const cy = 95;
 const R = 80;
 
 // ゾーン定義: [開始率, 終了率, カラー]
