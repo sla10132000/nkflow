@@ -109,7 +109,14 @@ function clearFilter() {
 
 function formatDate(dt: string) {
 	if (!dt) return "";
-	return dt.replace("T", " ").slice(0, 16);
+	return new Date(dt).toLocaleString("ja-JP", {
+		timeZone: "Asia/Tokyo",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
 }
 
 function sentimentClass(s: number) {
