@@ -36,7 +36,6 @@ import {
 	Tooltip,
 } from "chart.js";
 import { computed, onMounted, ref, watch } from "vue";
-// biome-ignore lint/correctness/noUnusedImports: vue-chartjs components used in template
 import { Line } from "vue-chartjs";
 import { useApi } from "../../composables/useApi";
 import type { MarketPressureTimeseries } from "../../types";

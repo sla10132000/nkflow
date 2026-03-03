@@ -130,7 +130,6 @@ import {
 	Tooltip,
 } from "chart.js";
 import { computed, onMounted, ref } from "vue";
-// biome-ignore lint/correctness/noUnusedImports: vue-chartjs components used in template
 import { Bar, Line } from "vue-chartjs";
 import { useApi } from "../../composables/useApi";
 import type { FundFlowCumulative, FundFlowTimeseries } from "../../types";
