@@ -8,7 +8,7 @@
         v-model="codeInput"
         @keyup.enter="loadPrices"
         placeholder="銘柄コード (例: 7203)"
-        class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm w-36 focus:outline-none focus:border-blue-500"
+        class="bg-white border border-gray-300 rounded px-3 py-1.5 text-sm w-36 focus:outline-none focus:border-blue-500"
       />
       <button @click="loadPrices" class="btn-primary">表示</button>
 
@@ -23,8 +23,8 @@
       </div>
     </div>
 
-    <div v-if="loading" class="text-gray-400">読み込み中...</div>
-    <div v-else-if="error" class="text-red-400">{{ error }}</div>
+    <div v-if="loading" class="text-gray-500">読み込み中...</div>
+    <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
     <template v-else-if="prices.length">
       <!-- 株価チャート -->
@@ -48,7 +48,7 @@
         <h2 class="font-semibold mb-3">価格データ</h2>
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-gray-500 text-left border-b border-gray-800">
+            <tr class="text-gray-500 text-left border-b border-gray-200">
               <th class="pb-2">日付</th>
               <th class="pb-2 text-right">始値</th>
               <th class="pb-2 text-right">高値</th>
@@ -62,17 +62,17 @@
             <tr
               v-for="p in prices.slice().reverse().slice(0, 30)"
               :key="p.date"
-              class="border-t border-gray-800"
+              class="border-t border-gray-100"
             >
-              <td class="py-1 text-gray-300">{{ p.date }}</td>
+              <td class="py-1 text-gray-700">{{ p.date }}</td>
               <td class="py-1 text-right">{{ p.open?.toLocaleString() }}</td>
               <td class="py-1 text-right">{{ p.high?.toLocaleString() }}</td>
               <td class="py-1 text-right">{{ p.low?.toLocaleString() }}</td>
               <td class="py-1 text-right">{{ p.close?.toLocaleString() }}</td>
-              <td class="py-1 text-right" :class="p.return_rate >= 0 ? 'text-green-400' : 'text-red-400'">
+              <td class="py-1 text-right" :class="p.return_rate >= 0 ? 'text-green-600' : 'text-red-600'">
                 {{ p.return_rate != null ? ((p.return_rate >= 0 ? '+' : '') + (p.return_rate * 100).toFixed(2) + '%') : '—' }}
               </td>
-              <td class="py-1 text-right text-gray-400">{{ p.volume?.toLocaleString() }}</td>
+              <td class="py-1 text-right text-gray-500">{{ p.volume?.toLocaleString() }}</td>
             </tr>
           </tbody>
         </table>
@@ -131,8 +131,8 @@ async function setPeriod(days: number) {
 </script>
 
 <style scoped>
-.card { @apply bg-gray-900 rounded-lg p-4 border border-gray-800; }
+.card { @apply bg-white rounded-lg p-4 border border-gray-200 shadow-sm; }
 .btn-primary { @apply bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm transition-colors; }
-.btn-period { @apply px-3 py-1 rounded text-sm border border-gray-700 text-gray-400 hover:border-blue-500 hover:text-blue-400 transition-colors; }
-.btn-period-active { @apply border-blue-500 text-blue-400 bg-blue-500/10; }
+.btn-period { @apply px-3 py-1 rounded text-sm border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors; }
+.btn-period-active { @apply border-blue-500 text-blue-600 bg-blue-50; }
 </style>

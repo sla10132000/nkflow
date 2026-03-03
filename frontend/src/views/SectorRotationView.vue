@@ -15,12 +15,12 @@
     <div v-if="prediction?.available" class="grid grid-cols-1 md:grid-cols-3 gap-3">
 
       <!-- 現在の状態 -->
-      <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
         <div class="text-xs text-gray-500 mb-1">現在のローテーション状態</div>
         <div class="flex items-center gap-2 mb-2">
           <span class="inline-block w-3 h-3 rounded-sm"
             :style="{ background: stateColor(prediction.current!.state_id) }"></span>
-          <span class="text-sm font-medium text-gray-200">{{ prediction.current!.state_name }}</span>
+          <span class="text-sm font-medium text-gray-800">{{ prediction.current!.state_name }}</span>
         </div>
         <div class="text-xs text-gray-500">
           上位セクター
@@ -28,8 +28,8 @@
         <div class="mt-1 space-y-1">
           <div v-for="sec in (prediction.top_sectors ?? []).slice(0, 3)" :key="sec.sector"
                class="flex items-center justify-between text-xs">
-            <span class="text-gray-400">{{ sec.sector }}</span>
-            <span :class="sec.avg_return >= 0 ? 'text-green-400' : 'text-red-400'">
+            <span class="text-gray-600">{{ sec.sector }}</span>
+            <span :class="sec.avg_return >= 0 ? 'text-green-600' : 'text-red-600'">
               {{ (sec.avg_return * 100).toFixed(2) }}%
             </span>
           </div>
@@ -37,36 +37,36 @@
       </div>
 
       <!-- 次期予測 -->
-      <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
         <div class="text-xs text-gray-500 mb-1">次期予測状態</div>
         <div class="flex items-center gap-2 mb-2">
           <span class="inline-block w-3 h-3 rounded-sm"
             :style="{ background: stateColor(prediction.prediction!.state_id) }"></span>
-          <span class="text-sm font-medium text-gray-200">{{ prediction.prediction!.state_name }}</span>
+          <span class="text-sm font-medium text-gray-800">{{ prediction.prediction!.state_name }}</span>
         </div>
         <div class="flex items-center gap-2 mb-3">
           <!-- 確率バー -->
-          <div class="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+          <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div class="h-full rounded-full bg-blue-500"
               :style="{ width: `${(prediction.prediction!.confidence * 100).toFixed(0)}%` }"></div>
           </div>
-          <span class="text-xs text-blue-400 font-mono">{{ (prediction.prediction!.confidence * 100).toFixed(0) }}%</span>
+          <span class="text-xs text-blue-600 font-mono">{{ (prediction.prediction!.confidence * 100).toFixed(0) }}%</span>
         </div>
-        <div class="text-[10px] text-gray-600">
+        <div class="text-[10px] text-gray-400">
           モデル精度: {{ prediction.model_accuracy != null ? (prediction.model_accuracy * 100).toFixed(0) + '%' : '—' }}
           (Walk-Forward)
         </div>
       </div>
 
       <!-- 全状態確率 -->
-      <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
         <div class="text-xs text-gray-500 mb-2">状態別確率</div>
         <div class="space-y-1.5">
           <div v-for="p in sortedProba" :key="p.state_id" class="flex items-center gap-2 text-xs">
             <span class="inline-block w-2 h-2 rounded-sm flex-shrink-0"
               :style="{ background: stateColor(p.state_id) }"></span>
-            <span class="text-gray-400 truncate flex-1 min-w-0 text-[10px]">{{ p.state_name }}</span>
-            <div class="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden flex-shrink-0">
+            <span class="text-gray-600 truncate flex-1 min-w-0 text-[10px]">{{ p.state_name }}</span>
+            <div class="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
               <div class="h-full rounded-full"
                 :style="{ width: `${(p.probability * 100).toFixed(0)}%`, background: stateColor(p.state_id) }"></div>
             </div>
@@ -77,36 +77,36 @@
     </div>
 
     <!-- タブコントロール -->
-    <div class="flex gap-1 border-b border-gray-800">
+    <div class="flex gap-1 border-b border-gray-200">
       <button
         v-for="t in tabs" :key="t.value"
         @click="activeTab = t.value"
         class="px-4 py-2 text-sm transition-colors border-b-2 -mb-px"
         :class="activeTab === t.value
-          ? 'border-blue-500 text-blue-400'
-          : 'border-transparent text-gray-500 hover:text-gray-300'"
+          ? 'border-blue-500 text-blue-600'
+          : 'border-transparent text-gray-500 hover:text-gray-700'"
       >{{ t.label }}</button>
     </div>
 
     <!-- ヒートマップタブ -->
-    <div v-if="activeTab === 'heatmap'" class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <div v-if="activeTab === 'heatmap'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
       <div class="flex items-center gap-3 mb-3">
-        <span class="text-sm text-gray-300 font-medium">セクター別リターン</span>
+        <span class="text-sm text-gray-700 font-medium">セクター別リターン</span>
         <!-- 期間タイプ -->
-        <div class="flex rounded overflow-hidden border border-gray-700 text-xs ml-auto">
+        <div class="flex rounded overflow-hidden border border-gray-300 text-xs ml-auto">
           <button v-for="pt in periodTypes" :key="pt.value"
             @click="periodType = pt.value"
             class="px-3 py-1 transition-colors"
-            :class="periodType === pt.value ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'">
+            :class="periodType === pt.value ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
             {{ pt.label }}
           </button>
         </div>
         <!-- 期間数 -->
-        <div class="flex rounded overflow-hidden border border-gray-700 text-xs">
+        <div class="flex rounded overflow-hidden border border-gray-300 text-xs">
           <button v-for="n in [8, 12, 24]" :key="n"
             @click="heatmapPeriods = n"
             class="px-3 py-1 transition-colors"
-            :class="heatmapPeriods === n ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'">
+            :class="heatmapPeriods === n ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
             {{ n }}
           </button>
         </div>
@@ -115,14 +115,14 @@
     </div>
 
     <!-- タイムラインタブ -->
-    <div v-if="activeTab === 'timeline'" class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <div v-if="activeTab === 'timeline'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
       <div class="flex items-center gap-3 mb-3">
-        <span class="text-sm text-gray-300 font-medium">ローテーション状態タイムライン</span>
-        <div class="flex rounded overflow-hidden border border-gray-700 text-xs ml-auto">
+        <span class="text-sm text-gray-700 font-medium">ローテーション状態タイムライン</span>
+        <div class="flex rounded overflow-hidden border border-gray-300 text-xs ml-auto">
           <button v-for="n in [26, 52, 104]" :key="n"
             @click="timelineWeeks = n"
             class="px-3 py-1 transition-colors"
-            :class="timelineWeeks === n ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'">
+            :class="timelineWeeks === n ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
             {{ n }}週
           </button>
         </div>
@@ -131,8 +131,8 @@
     </div>
 
     <!-- 遷移行列タブ -->
-    <div v-if="activeTab === 'transitions'" class="bg-gray-900 rounded-lg border border-gray-800 p-4">
-      <div class="text-sm text-gray-300 font-medium mb-3">遷移確率行列</div>
+    <div v-if="activeTab === 'transitions'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+      <div class="text-sm text-gray-700 font-medium mb-3">遷移確率行列</div>
       <div v-if="loadingTransitions" class="text-gray-500 text-sm">読み込み中...</div>
       <div v-else-if="transitions" class="overflow-x-auto">
         <table class="text-xs border-collapse">
@@ -140,7 +140,7 @@
             <tr>
               <th class="text-left text-gray-500 font-normal px-2 py-1">現在 → 次</th>
               <th v-for="(name, id) in transitions.state_names" :key="id"
-                class="text-center text-gray-400 font-normal px-2 py-1 max-w-[6rem] truncate"
+                class="text-center text-gray-600 font-normal px-2 py-1 max-w-[6rem] truncate"
                 :title="name">
                 <span class="inline-block w-2 h-2 rounded-sm mr-1"
                   :style="{ background: stateColor(Number(id)) }"></span>
@@ -151,8 +151,8 @@
           </thead>
           <tbody>
             <tr v-for="(fromName, fromId) in transitions.state_names" :key="fromId"
-                class="hover:bg-gray-800/40">
-              <td class="text-gray-400 px-2 py-1 whitespace-nowrap">
+                class="hover:bg-gray-50">
+              <td class="text-gray-600 px-2 py-1 whitespace-nowrap">
                 <span class="inline-block w-2 h-2 rounded-sm mr-1"
                   :style="{ background: stateColor(Number(fromId)) }"></span>
                 {{ fromName }}
@@ -168,7 +168,7 @@
             </tr>
           </tbody>
         </table>
-        <p class="text-[10px] text-gray-600 mt-2">
+        <p class="text-[10px] text-gray-400 mt-2">
           対角線 = 自己遷移確率 (同状態継続)。値は過去の実績に基づく推定値。
         </p>
       </div>
@@ -240,10 +240,10 @@ function transitionCellStyle(from: number, to: number): Record<string, string> {
   )
   const prob = entry?.probability ?? 0
   const isDiag = from === to
-  if (prob < 0.001) return { color: '#374151' }
+  if (prob < 0.001) return { color: '#d1d5db' }
   const alpha = Math.min(1, prob * 3).toFixed(2)
   const color = isDiag ? `rgba(59,130,246,${alpha})` : `rgba(107,114,128,${alpha})`
-  return { background: color, color: prob > 0.25 ? '#f9fafb' : '#9ca3af' }
+  return { background: color, color: prob > 0.25 ? '#ffffff' : '#6b7280' }
 }
 
 // ── データ読み込み ──────────────────────────────────────────────────

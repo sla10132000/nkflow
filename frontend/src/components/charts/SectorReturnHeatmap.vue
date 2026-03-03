@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="loading" class="flex items-center justify-center h-48 text-gray-400 text-sm">
+    <div v-if="loading" class="flex items-center justify-center h-48 text-gray-500 text-sm">
       読み込み中...
     </div>
     <div v-else-if="!data || data.periods.length === 0"
@@ -11,7 +11,7 @@
       <table class="text-xs w-full border-collapse">
         <thead>
           <tr>
-            <th class="text-left text-gray-500 font-normal px-1 py-0.5 sticky left-0 bg-gray-950 z-10 min-w-[7rem]">
+            <th class="text-left text-gray-500 font-normal px-1 py-0.5 sticky left-0 bg-white z-10 min-w-[7rem]">
               業種
             </th>
             <th
@@ -23,8 +23,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="sector in data.sectors" :key="sector" class="hover:bg-gray-900/40">
-            <td class="text-gray-300 px-1 py-0.5 sticky left-0 bg-gray-950 z-10 whitespace-nowrap">
+          <tr v-for="sector in data.sectors" :key="sector" class="hover:bg-gray-50">
+            <td class="text-gray-700 px-1 py-0.5 sticky left-0 bg-white z-10 whitespace-nowrap">
               {{ sector }}
             </td>
             <td
@@ -47,7 +47,7 @@
         <div class="flex h-2 rounded overflow-hidden" style="width:120px">
           <div class="flex-1" style="background:#7f1d1d"></div>
           <div class="flex-1" style="background:#991b1b"></div>
-          <div class="flex-1" style="background:#374151"></div>
+          <div class="flex-1" style="background:#d1d5db"></div>
           <div class="flex-1" style="background:#14532d"></div>
           <div class="flex-1" style="background:#166534"></div>
         </div>
@@ -96,17 +96,17 @@ function formatPeriod(p: string): string {
 
 function cellStyle(sector: string, period: string): Record<string, string> {
   const entry = getEntry(sector, period)
-  if (!entry) return { background: '#111827' }
+  if (!entry) return { background: '#f9fafb' }
   const v = entry.return_rate
   const bg = returnToColor(v)
-  return { background: bg, color: Math.abs(v) > 0.02 ? '#f9fafb' : '#9ca3af' }
+  return { background: bg, color: Math.abs(v) > 0.02 ? '#f9fafb' : '#6b7280' }
 }
 
 function returnToColor(v: number): string {
   if (v >= 0.04)  return '#166534'  // very green
   if (v >= 0.02)  return '#14532d'  // green
   if (v >= 0.005) return '#052e16'  // light green
-  if (v >= -0.005) return '#111827' // neutral
+  if (v >= -0.005) return '#f3f4f6' // neutral (light gray)
   if (v >= -0.02) return '#450a0a'  // light red
   if (v >= -0.04) return '#991b1b'  // red
   return '#7f1d1d'                   // very red
