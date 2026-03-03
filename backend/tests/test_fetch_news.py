@@ -35,17 +35,32 @@ FAKE_ARTICLES = [
         "language": "English",
         "socialimage": None,
     },
+    {
+        "url": "https://nhk.or.jp/article3",
+        "title": "日経平均が上昇",
+        "seendate": "2026-03-03T09:00:00+00:00",
+        "domain": "nhk_biz",
+        "sourcename": "NHK",
+        "language": "Japanese",
+        "socialimage": None,
+    },
 ]
 
 
 @pytest.fixture
 def db_conn(tmp_path):
-    """Phase 18 スキーマ込みの SQLite 接続"""
+    """Phase 19 スキーマ込みの SQLite 接続"""
     db_path = str(tmp_path / "test.db")
     init_sqlite(db_path)
     conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
     yield conn
     conn.close()
+
+
+def _fake_translate(titles: list) -> list:
+    """_translate_titles のモック: 各タイトルに「（翻訳）」を付ける"""
+    return [f"{t}（翻訳）" for t in titles]
 
 
 @mock_aws
@@ -66,22 +81,53 @@ class TestNormalizeNews:
 
     def test_inserts_articles(self, db_conn):
         self._setup_s3(FAKE_ARTICLES)
-        from src.batch.fetch_news import normalize_news
-        count = normalize_news(db_conn, TARGET_DATE)
-        assert count == 2
-        rows = db_conn.execute("SELECT id, title, source FROM news_articles ORDER BY source").fetchall()
+        with patch("src.batch.fetch_news._translate_titles", side_effect=_fake_translate):
+            from src.batch.fetch_news import normalize_news
+            count = normalize_news(db_conn, TARGET_DATE)
+        assert count == 3
+        rows = db_conn.execute(
+            "SELECT title, title_ja, language FROM news_articles ORDER BY title"
+        ).fetchall()
+        assert len(rows) == 3
+
+    def test_japanese_article_title_ja_equals_title(self, db_conn):
+        """日本語記事は title_ja = title になること"""
+        self._setup_s3(FAKE_ARTICLES)
+        with patch("src.batch.fetch_news._translate_titles", side_effect=_fake_translate):
+            from src.batch.fetch_news import normalize_news
+            normalize_news(db_conn, TARGET_DATE)
+
+        row = db_conn.execute(
+            "SELECT title, title_ja FROM news_articles WHERE language = 'Japanese'"
+        ).fetchone()
+        assert row is not None
+        assert row["title"] == "日経平均が上昇"
+        assert row["title_ja"] == "日経平均が上昇"
+
+    def test_english_article_gets_translated_title_ja(self, db_conn):
+        """英語記事は _translate_titles の結果が title_ja に設定されること"""
+        self._setup_s3(FAKE_ARTICLES)
+        with patch("src.batch.fetch_news._translate_titles", side_effect=_fake_translate):
+            from src.batch.fetch_news import normalize_news
+            normalize_news(db_conn, TARGET_DATE)
+
+        rows = db_conn.execute(
+            "SELECT title, title_ja FROM news_articles WHERE language = 'English' ORDER BY title"
+        ).fetchall()
         assert len(rows) == 2
-        assert rows[1][1] == "Nikkei rises on positive data"
+        for row in rows:
+            assert row["title_ja"] == f"{row['title']}（翻訳）"
 
     def test_idempotent(self, db_conn):
         """同じ raw データを 2 回処理しても件数は増えない"""
         self._setup_s3(FAKE_ARTICLES)
-        from src.batch.fetch_news import normalize_news
-        normalize_news(db_conn, TARGET_DATE)
-        count = normalize_news(db_conn, TARGET_DATE)
-        assert count == 2
+        with patch("src.batch.fetch_news._translate_titles", side_effect=_fake_translate):
+            from src.batch.fetch_news import normalize_news
+            normalize_news(db_conn, TARGET_DATE)
+            count = normalize_news(db_conn, TARGET_DATE)
+        assert count == 3
         total = db_conn.execute("SELECT COUNT(*) FROM news_articles").fetchone()[0]
-        assert total == 2
+        assert total == 3
 
     def test_returns_zero_when_no_raw(self, db_conn):
         """S3 に raw がない場合は 0 を返す"""
