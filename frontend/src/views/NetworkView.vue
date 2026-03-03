@@ -96,15 +96,25 @@
 
     <!-- ③ 市場圧力タイムライン (折りたたみ) -->
     <div class="bg-gray-900 rounded-lg border border-gray-800">
-      <button
-        @click="showPressureTimeline = !showPressureTimeline"
-        class="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-400 hover:text-white transition-colors"
-      >
-        <span class="font-medium">信用圧力タイムライン <span class="text-xs text-gray-600 ml-1">90日間</span></span>
-        <span class="text-gray-600">{{ showPressureTimeline ? '▲' : '▼' }}</span>
-      </button>
+      <div class="flex items-center justify-between px-4 py-3">
+        <div class="flex items-center gap-3 flex-wrap">
+          <button
+            @click="showPressureTimeline = !showPressureTimeline"
+            class="text-sm font-medium text-gray-400 hover:text-white transition-colors"
+          >信用圧力タイムライン {{ showPressureTimeline ? '▲' : '▼' }}</button>
+          <div class="flex gap-1">
+            <button v-for="d in [30, 60, 90, 180]" :key="d"
+              @click="pressureDays = d; loadPressure()"
+              class="px-2 py-0.5 text-xs rounded border transition-colors"
+              :class="pressureDays === d
+                ? 'border-blue-500 text-blue-400 bg-blue-500/10'
+                : 'border-gray-700 text-gray-400 hover:border-blue-500 hover:text-blue-400'"
+            >{{ d }}日</button>
+          </div>
+        </div>
+      </div>
       <div v-if="showPressureTimeline" class="border-t border-gray-800 p-4">
-        <MarketPressureTimeline :days="90" />
+        <MarketPressureTimeline :days="pressureDays" />
       </div>
     </div>
 
@@ -175,7 +185,8 @@ const error = ref('')
 const networkData = ref<NetworkData | null>(null)
 const selectedNode = ref<string | null>(null)
 const showNetwork = ref(false)
-const showPressureTimeline = ref(false)
+const showPressureTimeline = ref(true)
+const pressureDays = ref(90)
 const period = ref('20d')
 const fundFlowFilter = ref<'period' | 'range' | 'date'>('range')
 const dateFrom = ref('')
@@ -313,7 +324,7 @@ async function loadRegime() {
 
 async function loadPressure() {
   try {
-    pressureData.value = await api.getMarketPressureTimeseries(7)
+    pressureData.value = await api.getMarketPressureTimeseries(pressureDays.value)
   } catch {
     pressureData.value = null
   }

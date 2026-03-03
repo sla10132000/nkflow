@@ -6,7 +6,6 @@ Phase 13: 外部データ取得モジュール
 """
 import logging
 import sqlite3
-import time
 from datetime import date, datetime, timedelta
 from typing import Optional
 
@@ -180,8 +179,14 @@ def fetch_margin_balance(
 
     # 直近の月曜〜対象日の範囲で取得 (週次データは発表週の金曜が基準)
     target_dt = date.fromisoformat(target_date)
-    # 直近2週分を取得してカバー
-    from_dt = target_dt - timedelta(days=14)
+
+    # 既存データが少ない場合は過去180日分を遡及取得 (初回バックフィル)
+    existing_weeks = conn.execute(
+        "SELECT COUNT(DISTINCT week_date) FROM margin_balances"
+    ).fetchone()[0]
+    lookback_days = 180 if existing_weeks < 8 else 14
+
+    from_dt = target_dt - timedelta(days=lookback_days)
     from_str = from_dt.strftime("%Y%m%d")
     to_str = target_dt.strftime("%Y%m%d")
 
