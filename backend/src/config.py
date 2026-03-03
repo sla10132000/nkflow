@@ -27,7 +27,7 @@ US_INDEX_TICKERS: dict[str, str] = {
     "^DJI": "Dow Jones",
     "^IXIC": "NASDAQ Composite",
 }
-US_INDEX_INITIAL_PERIOD = "5y"
+US_INDEX_INITIAL_PERIOD = "10y"
 
 # 分析パラメータ
 CORRELATION_PERIODS = [20, 60, 120]

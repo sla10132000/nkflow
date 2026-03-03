@@ -157,14 +157,15 @@ def _fetch_index_ohlcv(symbol: str, start_date: Optional[str] = None) -> pd.Data
 
     Args:
         symbol: Yahoo Finance シンボル (例: "^GSPC")
-        start_date: 'YYYY-MM-DD'。省略時は直近5年分を取得
+        start_date: 'YYYY-MM-DD'。省略時は US_INDEX_INITIAL_PERIOD 分を取得
 
     Returns:
         columns=[date, open, high, low, close, volume] の DataFrame。取得失敗時は空
     """
+    from src.config import US_INDEX_INITIAL_PERIOD
     url = _YAHOO_CHART_URL.format(symbol=symbol)
     if start_date is None:
-        params: dict = {"interval": "1d", "range": "5y"}
+        params: dict = {"interval": "1d", "range": US_INDEX_INITIAL_PERIOD}
     else:
         start_ts = int(datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
         end_ts = int(datetime.now(timezone.utc).timestamp())
