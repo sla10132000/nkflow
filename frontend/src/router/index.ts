@@ -39,6 +39,11 @@ const router = createRouter({
       component: () => import('../views/SectorRotationView.vue'),
       beforeEnter: authGuard,
     },
+    {
+      path: '/news',
+      component: () => import('../views/NewsView.vue'),
+      beforeEnter: authGuard,
+    },
   ],
 })
 

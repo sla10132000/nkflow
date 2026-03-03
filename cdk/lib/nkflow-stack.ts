@@ -86,6 +86,11 @@ export class NkflowStack extends Stack {
       actions: ['ssm:GetParameter'],
       resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/nkflow/*`],
     }));
+    // Phase 18: ニュース raw データ読み取り権限 (fetch_news.normalize_news で使用)
+    batchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject'],
+      resources: [`${dataBucket.bucketArn}/news/raw/*`],
+    }));
     // Phase 12: SNS publish 権限
     batchRole.addToPolicy(new iam.PolicyStatement({
       actions: ['sns:Publish'],
@@ -174,8 +179,56 @@ export class NkflowStack extends Stack {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 9. Lambda (通知) — Phase 12
+    // 9. IAM ロール / Lambda / Scheduler (news-fetch) — Phase 18
     // ─────────────────────────────────────────────────────────────
+    const newsFetchRole = new iam.Role(this, 'NkflowNewsFetchRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+    // news/raw/* への読み書きのみ許可
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:PutObject', 's3:GetObject'],
+      resources: [`${dataBucket.bucketArn}/news/raw/*`],
+    }));
+
+    const newsFetchLambda = new lambda.DockerImageFunction(this, 'NkflowNewsFetchLambda', {
+      functionName: 'nkflow-news-fetch',
+      code: lambda.DockerImageCode.fromImageAsset(BACKEND, {
+        file: 'Dockerfile.news',
+        platform: Platform.LINUX_AMD64,
+      }),
+      memorySize: 256,
+      timeout: Duration.seconds(60),
+      role: newsFetchRole,
+      environment: {
+        S3_BUCKET: dataBucket.bucketName,
+      },
+    });
+
+    // EventBridge Scheduler: 毎営業日 UTC 08:50 = JST 17:50 (バッチの 10 分前)
+    const newsFetchSchedulerRole = new iam.Role(this, 'NkflowNewsFetchSchedulerRole', {
+      assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
+    });
+    newsFetchLambda.grantInvoke(newsFetchSchedulerRole);
+
+    new scheduler.CfnSchedule(this, 'NkflowNewsFetchSchedule', {
+      name: 'nkflow-news-fetch',
+      scheduleExpression: 'cron(50 8 ? * MON-FRI *)',
+      scheduleExpressionTimezone: 'UTC',
+      flexibleTimeWindow: { mode: 'OFF' },
+      target: {
+        arn: newsFetchLambda.functionArn,
+        roleArn: newsFetchSchedulerRole.roleArn,
+        input: JSON.stringify({}),
+      },
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // 10. Lambda (通知) — Phase 12
+    // ─────────────────────────────────────────────────────────────
+
     const notificationLambda = new lambda.DockerImageFunction(this, 'NkflowNotificationLambda', {
       functionName: 'nkflow-notification',
       code: lambda.DockerImageCode.fromImageAsset(BACKEND, {

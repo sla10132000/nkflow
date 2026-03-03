@@ -140,6 +140,26 @@ export interface SectorRotationPrediction {
   model_accuracy?: number
 }
 
+// ─── Phase 18: ニュース ───────────────────────────────────────────────────────
+
+export interface NewsArticle {
+  id: string
+  published_at: string
+  source: string
+  source_name: string | null
+  title: string
+  url: string
+  language: string
+  image_url: string | null
+  sentiment: number | null
+}
+
+export interface NewsSummary {
+  date: string | null
+  total: number
+  sources: { source: string; count: number }[]
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface StockDetail {
