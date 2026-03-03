@@ -31,7 +31,7 @@ def get_news(
             FROM news_articles a
             JOIN news_ticker_map m ON a.id = m.article_id
             WHERE m.ticker = ?
-              AND (? IS NULL OR date(a.published_at) = ?)
+              AND (? IS NULL OR date(a.published_at, '+9 hours') = ?)
             ORDER BY a.published_at DESC
             LIMIT ?
             """,
@@ -43,7 +43,7 @@ def get_news(
             SELECT id, published_at, source, source_name,
                    title, title_ja, url, language, image_url, sentiment
             FROM news_articles
-            WHERE (? IS NULL OR date(published_at) = ?)
+            WHERE (? IS NULL OR date(published_at, '+9 hours') = ?)
             ORDER BY published_at DESC
             LIMIT ?
             """,
@@ -66,7 +66,7 @@ def get_news_summary(
     total = conn.execute(
         """
         SELECT COUNT(*) FROM news_articles
-        WHERE (? IS NULL OR date(published_at) = ?)
+        WHERE (? IS NULL OR date(published_at, '+9 hours') = ?)
         """,
         (date, date),
     ).fetchone()[0]
@@ -75,7 +75,7 @@ def get_news_summary(
         """
         SELECT source, COUNT(*) AS count
         FROM news_articles
-        WHERE (? IS NULL OR date(published_at) = ?)
+        WHERE (? IS NULL OR date(published_at, '+9 hours') = ?)
         GROUP BY source
         ORDER BY count DESC
         LIMIT 10
