@@ -5,8 +5,6 @@ import {
   aws_lambda as lambda,
   aws_iam as iam,
   aws_apigateway as apigateway,
-  aws_cloudfront as cloudfront,
-  aws_cloudfront_origins as origins,
   aws_scheduler as scheduler,
   aws_sns as sns,
   aws_sns_subscriptions as snsSubscriptions,
@@ -163,10 +161,6 @@ export class NkflowStack extends Stack {
         // CACHE_BUST: Lambda 環境変数を手動更新する際に S3_BUCKET が消えるのを防ぐためここで管理する。
         // キャッシュを強制破棄したい場合はこの値を変更して cdk deploy する。
         CACHE_BUST: '1',
-        // Auth0 JWT 検証用 (Google ソーシャルログイン)
-        // 値は cdk.json の context または環境変数で設定する
-        AUTH0_DOMAIN: process.env.AUTH0_DOMAIN ?? 'dev-0ay7xweu5xq7tmq2.us.auth0.com',
-        AUTH0_AUDIENCE: process.env.AUTH0_AUDIENCE ?? '',
       },
     });
 
@@ -257,44 +251,7 @@ export class NkflowStack extends Stack {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 11. CloudFront Distribution — API Gateway を前段でキャッシュ・配信
-    // ─────────────────────────────────────────────────────────────
-    // API Gateway の URL から origin ドメインを抽出 (https://<id>.execute-api.<region>.amazonaws.com)
-    const apiGatewayDomain = `${restApi.restApiId}.execute-api.${this.region}.amazonaws.com`;
-
-    const distribution = new cloudfront.Distribution(this, 'NkflowDistribution', {
-      comment: 'nkflow CDN — API Gateway オリジン',
-      defaultBehavior: {
-        // API Gateway HTTP オリジン (prod ステージ)
-        origin: new origins.HttpOrigin(apiGatewayDomain, {
-          originPath: '/prod',
-          protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
-        }),
-        // すべてのリクエストをオリジンに転送 (動的コンテンツ)
-        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-        originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
-        allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-      },
-      additionalBehaviors: {
-        // /api/* は必ずキャッシュ無効 (動的 API レスポンス)
-        '/api/*': {
-          origin: new origins.HttpOrigin(apiGatewayDomain, {
-            originPath: '/prod',
-            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
-          }),
-          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        },
-      },
-      enableLogging: false,
-      priceClass: cloudfront.PriceClass.PRICE_CLASS_200, // 北米・欧州・アジア
-    });
-
-    // ─────────────────────────────────────────────────────────────
-    // 12. EventBridge Scheduler (毎営業日 UTC 09:00 = JST 18:00)
+    // 11. EventBridge Scheduler (毎営業日 UTC 09:00 = JST 18:00)
     // ─────────────────────────────────────────────────────────────
     const schedulerRole = new iam.Role(this, 'NkflowSchedulerRole', {
       assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
@@ -318,17 +275,9 @@ export class NkflowStack extends Stack {
     // ─────────────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'DataBucketName', { value: dataBucket.bucketName });
     new cdk.CfnOutput(this, 'ApiLambdaUrl', { value: apiUrl.url });
-    new cdk.CfnOutput(this, 'ApiGatewayUrl', {
+    new cdk.CfnOutput(this, 'FrontendUrl', {
       value: restApi.url,
-      description: 'API Gateway 直接 URL (内部参照用)',
-    });
-    new cdk.CfnOutput(this, 'CloudFrontUrl', {
-      value: `https://${distribution.distributionDomainName}`,
-      description: 'フロントエンド + API の公開 URL (CloudFront)',
-    });
-    new cdk.CfnOutput(this, 'CloudFrontDistributionId', {
-      value: distribution.distributionId,
-      description: 'CloudFront Distribution ID (キャッシュ無効化用)',
+      description: 'フロントエンド + API の公開 URL (API Gateway)',
     });
     new cdk.CfnOutput(this, 'NotificationTopicArn', {
       value: notificationTopic.topicArn,

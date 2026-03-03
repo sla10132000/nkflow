@@ -106,12 +106,7 @@ def client(s3_with_dbs, monkeypatch, tmp_path):
     importlib.reload(ps)
 
     from src.api.main import app
-    from src.api.auth import require_auth
-
-    # テスト環境では JWT 検証をスキップ
-    app.dependency_overrides[require_auth] = lambda: {"sub": "test-user"}
     yield TestClient(app, raise_server_exceptions=True)
-    app.dependency_overrides.clear()
 
 
 # ─────────────────────────────────────────────
