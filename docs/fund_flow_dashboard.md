@@ -1,6 +1,6 @@
 # 資金フローダッシュボード 設計書
 
-> 最終更新: 2026-03-02 (Phase 16: Market Pressure 追加)
+> 最終更新: 2026-03-03 (fix: 市場圧力が常に同じ値になる問題を修正)
 > 対象ブランチ: feature/fund-flow-dashboard (dev にマージ済み)
 
 ---
@@ -250,10 +250,20 @@
 **`run_market_pressure(db_path, target_date)`**:
 1. `margin_balances` から最新 `week_date` を取得
 2. SUM(margin_buy), SUM(margin_sell) → `margin_trading_weekly` に保存
-3. `pl_ratio_proxy`: 直近4週 daily_prices の return_rate を margin_buy 加重平均
+3. `pl_ratio_proxy`: **最新の信用残高報告日 (latest_week) 以降**の累積リターンを margin_buy 加重平均
+   - 報告日当日 (window=0) はフォールバックとして直近20営業日窓を使用 (>=5日分)
+   - これにより毎営業日 pl_ratio が変動するようになる
 4. `buy_growth_4w`: 現在の margin_buy_balance と4週前の比較
-5. `margin_ratio_trend`: 直近4エントリの margin_ratio を linregress で傾き算出
-6. `market_pressure_daily` に INSERT OR REPLACE
+5. `margin_ratio_trend`: 直近**2**エントリ以上の margin_ratio を linregress で傾き算出 (旧: 4件必須)
+6. `signal_flags.credit_overheating`: `pl_zone in (ceiling, overheat) AND margin_ratio >= 6.0` で True
+7. `market_pressure_daily` に INSERT OR REPLACE
+
+**`_backfill_market_pressure(db_path)`**:
+- `margin_balances` に存在するが `market_pressure_daily` にない週をバックフィル
+- `run_all` 末尾から呼ばれる
+
+**`fetch_margin_balance`** (fetch_external.py):
+- 既存週数 < 8 の場合は 180 日遡及取得 (初回バックフィル)
 
 **`_calc_pl_zone(pl_ratio)`**:
 
