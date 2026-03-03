@@ -3,6 +3,7 @@
 EventBridge Scheduler から呼び出される。
 
 実行順序:
+  0. fetch_news.normalize_news() - S3 raw ニュース → SQLite 正規化 (Phase 18)
   1. storage.get_credentials()   - SSM から J-Quants クレデンシャル取得
   2. storage.download()          - S3 から SQLite / KùzuDB を復元
   3. fetch.fetch_daily()         - J-Quants から当日 OHLCV を取得
@@ -41,7 +42,7 @@ def handler(event: dict, context: Any) -> dict:
         Lambda レスポンス dict
     """
     from src.config import JQUANTS_PLAN, KUZU_PATH, SQLITE_PATH
-    from src.batch import compute, fetch, fetch_external, graph, notifier, sector_rotation, signals, statistics, storage, tracker
+    from src.batch import compute, fetch, fetch_external, fetch_news, graph, notifier, sector_rotation, signals, statistics, storage, tracker
 
     # 処理対象日の決定
     target_date: str | None = event.get("target_date") or os.environ.get("TARGET_DATE")
@@ -82,6 +83,14 @@ def handler(event: dict, context: Any) -> dict:
     conn = sqlite3.connect(SQLITE_PATH)
 
     try:
+        # ── 0. ニュース正規化 (Phase 18, 非ブロッキング) ──────────
+        try:
+            news_count = fetch_news.normalize_news(conn, target_date)
+            logger.info(f"fetch_news.normalize_news: {news_count} 件")
+        except Exception as e:
+            logger.error(f"fetch_news.normalize_news 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_news: {e}")
+
         # ── 3. データ取得 ─────────────────────────────────────────
         try:
             stocks_updated = fetch.fetch_daily(conn, target_date)
