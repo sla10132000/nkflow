@@ -23,7 +23,7 @@ class TestLambdaHandler:
         fake_articles = [{"url": "https://example.com/1", "title": "Test"}]
         mock_s3 = MagicMock()
 
-        with patch("src.news.gdelt.fetch_articles", return_value=fake_articles), \
+        with patch("src.news.rss.fetch_feeds", return_value=fake_articles), \
              patch("boto3.client", return_value=mock_s3):
             from src.news.handler import lambda_handler
             result = lambda_handler({"date": "2026-03-03"}, _make_context())
@@ -36,14 +36,14 @@ class TestLambdaHandler:
         saved = json.loads(call_kwargs["Body"])
         assert saved == fake_articles
 
-    def test_sends_sns_when_all_queries_fail(self):
+    def test_sends_sns_when_all_feeds_fail(self):
         mock_s3 = MagicMock()
         mock_sns = MagicMock()
 
         def boto3_client(service, **kwargs):
             return mock_sns if service == "sns" else mock_s3
 
-        with patch("src.news.gdelt.fetch_articles", return_value=[]), \
+        with patch("src.news.rss.fetch_feeds", return_value=[]), \
              patch("boto3.client", side_effect=boto3_client):
             from src.news import handler
             # SNS_TOPIC_ARN を確実にセット
@@ -64,7 +64,7 @@ class TestLambdaHandler:
         def boto3_client(service, **kwargs):
             return mock_sns if service == "sns" else mock_s3
 
-        with patch("src.news.gdelt.fetch_articles", return_value=[]), \
+        with patch("src.news.rss.fetch_feeds", return_value=[]), \
              patch("boto3.client", side_effect=boto3_client):
             from src.news import handler
             handler.SNS_TOPIC_ARN = ""
@@ -77,7 +77,7 @@ class TestLambdaHandler:
         mock_s3 = MagicMock()
         mock_s3.put_object.side_effect = Exception("S3 connection error")
 
-        with patch("src.news.gdelt.fetch_articles", return_value=[{"url": "u", "title": "t"}]), \
+        with patch("src.news.rss.fetch_feeds", return_value=[{"url": "u", "title": "t"}]), \
              patch("boto3.client", return_value=mock_s3):
             from src.news.handler import lambda_handler
             result = lambda_handler({}, _make_context())

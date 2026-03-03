@@ -25,6 +25,8 @@ dependencies = [
     "boto3>=1.34",
     # ユーティリティ
     "joblib>=1.4",
+    # ニュース RSS 取得
+    "feedparser>=6.0",
     # セクターローテーション分析 (Phase 17)
     "scikit-learn>=1.4",
     "lightgbm>=4.0",

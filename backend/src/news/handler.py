@@ -1,4 +1,4 @@
-"""news-fetch Lambda エントリポイント: GDELT → S3 raw JSON 保存"""
+"""news-fetch Lambda エントリポイント: RSS → S3 raw JSON 保存"""
 import json
 import logging
 import os
@@ -6,7 +6,7 @@ from datetime import date
 
 import boto3
 
-from src.news import gdelt
+from src.news import rss
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -16,7 +16,7 @@ SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
 
 
 def lambda_handler(event: dict, context) -> dict:
-    """GDELT からニュースを取得し S3 に raw JSON として保存する。
+    """RSS フィードからニュースを取得し S3 に raw JSON として保存する。
 
     Event:
         date (str, optional): 対象日 YYYY-MM-DD。省略時は今日。
@@ -26,7 +26,7 @@ def lambda_handler(event: dict, context) -> dict:
     """
     date_str = event.get("date") or date.today().isoformat()
 
-    articles = gdelt.fetch_articles()
+    articles = rss.fetch_feeds()
 
     if not articles and SNS_TOPIC_ARN:
         _notify_failure(date_str)
@@ -52,17 +52,17 @@ def lambda_handler(event: dict, context) -> dict:
 
 
 def _notify_failure(date_str: str) -> None:
-    """全クエリ失敗時に SNS で通知する。"""
+    """全フィード失敗時に SNS で通知する。"""
     try:
         boto3.client("sns").publish(
             TopicArn=SNS_TOPIC_ARN,
             Subject=f"[nkflow] ニュース取得失敗 {date_str}",
             Message=(
-                f"GDELT API からの記事取得が全件失敗しました。\n"
+                f"RSS フィードからの記事取得が全件失敗しました。\n"
                 f"対象日: {date_str}\n"
                 f"CloudWatch Logs を確認してください: /aws/lambda/nkflow-news-fetch"
             ),
         )
-        logger.info("SNS 通知送信済み (全クエリ失敗)")
+        logger.info("SNS 通知送信済み (全フィード失敗)")
     except Exception as e:
         logger.error(f"SNS 通知失敗: {e}")
