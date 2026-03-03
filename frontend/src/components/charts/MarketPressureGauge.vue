@@ -2,9 +2,17 @@
   <div class="flex flex-col items-center gap-2">
     <!-- 半円ゲージ -->
     <svg :width="svgW" :height="svgH" :viewBox="`0 0 ${svgW} ${svgH}`" class="overflow-visible">
-      <!-- 背景 arc セグメント (大底→天井) -->
+      <!-- 背景 arc セグメント (大底→天井) - stroke-dasharray で完全円を保証 -->
       <path v-for="seg in segments" :key="seg.zone"
-        :d="seg.path" :fill="seg.color" opacity="0.7" />
+        :d="gaugeArcPath"
+        fill="none"
+        :stroke="seg.color"
+        stroke-width="16"
+        stroke-opacity="0.7"
+        :stroke-dasharray="seg.dashArray"
+        :stroke-dashoffset="seg.dashOffset"
+        stroke-linecap="butt"
+      />
 
       <!-- 針 -->
       <line
@@ -73,39 +81,40 @@ const MIN_RATIO = -0.25;
 const MAX_RATIO = 0.2;
 const TOTAL_RANGE = MAX_RATIO - MIN_RATIO;
 
+const BAND_WIDTH = 16;
+const strokeR = R - BAND_WIDTH / 2; // ストロークバンドの中心半径 (= 72)
+const gaugeArcLen = Math.PI * strokeR; // 半円の弧長
+
+// 左端→頂点→右端の上半円パス (2つの90°弧で構成)
+const gaugeArcPath = [
+	`M ${cx - strokeR} ${cy}`,
+	`A ${strokeR} ${strokeR} 0 0 1 ${cx} ${cy - strokeR}`,
+	`A ${strokeR} ${strokeR} 0 0 1 ${cx + strokeR} ${cy}`,
+].join(" ");
+
 function ratioToAngle(r: number): number {
-	// 左端(180°) ～ 右端(0°) の半円
 	const clamped = Math.max(MIN_RATIO, Math.min(MAX_RATIO, r));
 	const pct = (clamped - MIN_RATIO) / TOTAL_RANGE;
-	return Math.PI - pct * Math.PI; // 180° → 0°
+	return Math.PI - pct * Math.PI;
 }
 
 function polarToCart(angle: number, r: number): { x: number; y: number } {
 	return { x: cx + r * Math.cos(angle), y: cy - r * Math.sin(angle) };
 }
 
-function arcPath(ratioStart: number, ratioEnd: number): string {
-	const a1 = ratioToAngle(ratioStart);
-	const a2 = ratioToAngle(ratioEnd);
-	const p1 = polarToCart(a1, R);
-	const p2 = polarToCart(a2, R);
-	const p1i = polarToCart(a1, R - 16);
-	const p2i = polarToCart(a2, R - 16);
-	return [
-		`M ${p1.x} ${p1.y}`,
-		`A ${R} ${R} 0 0 0 ${p2.x} ${p2.y}`,
-		`L ${p2i.x} ${p2i.y}`,
-		`A ${R - 16} ${R - 16} 0 0 1 ${p1i.x} ${p1i.y}`,
-		"Z",
-	].join(" ");
-}
-
 const segments = computed(() =>
-	ZONE_DEFS.map(([s, e, color]) => ({
-		zone: `${s}_${e}`,
-		path: arcPath(s, e),
-		color,
-	})),
+	ZONE_DEFS.map(([ratioStart, ratioEnd, color]) => {
+		const pctStart = (ratioStart - MIN_RATIO) / TOTAL_RANGE;
+		const pctEnd = (ratioEnd - MIN_RATIO) / TOTAL_RANGE;
+		const startLen = pctStart * gaugeArcLen;
+		const arcLen = (pctEnd - pctStart) * gaugeArcLen + 0.5; // +0.5px で境界ギャップを防ぐ
+		return {
+			zone: `${ratioStart}_${ratioEnd}`,
+			color,
+			dashArray: `${arcLen} ${gaugeArcLen * 10}`,
+			dashOffset: -startLen,
+		};
+	}),
 );
 
 const needleTip = computed(() => {
