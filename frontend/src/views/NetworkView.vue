@@ -101,7 +101,7 @@
           <button
             @click="showPressureTimeline = !showPressureTimeline"
             class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >信用圧力タイムライン {{ showPressureTimeline ? '▲' : '▼' }}</button>
+          >信用圧力タイムライン (週次) {{ showPressureTimeline ? '▲' : '▼' }}</button>
           <div class="flex gap-1">
             <button v-for="d in [30, 60, 90, 180]" :key="d"
               @click="pressureDays = d; loadPressure()"
@@ -109,7 +109,7 @@
               :class="pressureDays === d
                 ? 'border-blue-500 text-blue-600 bg-blue-50'
                 : 'border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600'"
-            >{{ d }}日</button>
+            >{{ Math.round(d / 7) }}週</button>
           </div>
         </div>
       </div>

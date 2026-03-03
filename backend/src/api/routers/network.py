@@ -345,24 +345,27 @@ def get_market_pressure_timeseries(
     conn: Connection = Depends(get_connection),
 ):
     """
-    市場圧力指標の時系列を返す。
+    市場圧力指標の時系列を返す (週次)。
 
     params:
-      days: 取得日数 (デフォルト 90)
+      days: 取得期間日数 (デフォルト 90)。内部的に週次データを返す。
 
     レスポンス:
       dates, pl_ratio, pl_zone, buy_growth_4w, margin_ratio,
-      margin_ratio_trend, signal_flags の配列
+      margin_ratio_trend, signal_flags の配列 (週次)
     """
     rows = conn.execute(
         """
-        SELECT date, pl_ratio, pl_zone, buy_growth_4w, margin_ratio,
-               margin_ratio_trend, signal_flags
-        FROM market_pressure_daily
-        ORDER BY date DESC
-        LIMIT ?
+        SELECT mpd.date, mpd.pl_ratio, mpd.pl_zone, mpd.buy_growth_4w,
+               mpd.margin_ratio, mpd.margin_ratio_trend, mpd.signal_flags
+        FROM market_pressure_daily mpd
+        WHERE mpd.date IN (
+            SELECT week_date FROM margin_trading_weekly WHERE market_code = 'ALL'
+        )
+          AND mpd.date >= date('now', ? || ' days')
+        ORDER BY mpd.date ASC
         """,
-        (days,),
+        (f"-{days}",),
     ).fetchall()
 
     if not rows:
@@ -375,9 +378,6 @@ def get_market_pressure_timeseries(
             "margin_ratio_trend": [],
             "signal_flags": [],
         }
-
-    # 昇順に並び替えて返す
-    rows = list(reversed(rows))
 
     def _parse_flags(raw: Optional[str]) -> dict:
         if not raw:

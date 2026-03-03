@@ -5,7 +5,7 @@
     </div>
     <div v-else-if="!data || data.dates.length === 0"
          class="flex items-center justify-center h-48 text-gray-500 text-sm">
-      データなし
+      データなし（信用残データは週次蓄積中）
     </div>
     <div v-else class="h-64 relative">
       <Line :data="chartData" :options="chartOptions" :plugins="chartPlugins" />
@@ -64,8 +64,10 @@ const chartData = computed(() => {
         borderColor: '#60a5fa',
         backgroundColor: '#60a5fa22',
         borderWidth: 2,
-        pointRadius: 0,
+        pointRadius: 4,
+        pointHoverRadius: 6,
         tension: 0.3,
+        spanGaps: true,
         yAxisID: 'y',
       },
       {
@@ -75,8 +77,10 @@ const chartData = computed(() => {
         backgroundColor: 'transparent',
         borderWidth: 1.5,
         borderDash: [4, 3],
-        pointRadius: 0,
+        pointRadius: 4,
+        pointHoverRadius: 6,
         tension: 0.3,
+        spanGaps: true,
         yAxisID: 'y',
       },
     ],
