@@ -35,14 +35,6 @@
         </div>
       </div>
 
-      <!-- 騰落率チャート -->
-      <div class="card">
-        <h2 class="font-semibold mb-2">騰落率 (%)</h2>
-        <div class="h-48">
-          <ReturnDist :returns="prices.map(p => p.return_rate).filter(r => r != null) as number[]" />
-        </div>
-      </div>
-
       <!-- データテーブル -->
       <div class="card overflow-x-auto">
         <h2 class="font-semibold mb-3">価格データ</h2>
@@ -87,7 +79,6 @@
 import { ref } from 'vue'
 import { useApi } from '../composables/useApi'
 import PriceChart from '../components/charts/PriceChart.vue'
-import ReturnDist from '../components/charts/ReturnDist.vue'
 import type { DailyPrice } from '../types'
 
 const api = useApi()
