@@ -6,7 +6,6 @@
         <RouterLink to="/" class="nav-link">概要</RouterLink>
         <RouterLink to="/timeseries" class="nav-link">時系列</RouterLink>
         <RouterLink to="/network" class="nav-link">資金フロー</RouterLink>
-        <RouterLink to="/signals" class="nav-link">シグナル</RouterLink>
         <RouterLink to="/sector-rotation" class="nav-link">ローテーション</RouterLink>
         <RouterLink to="/news" class="nav-link">ニュース</RouterLink>
       </div>

@@ -3,8 +3,7 @@
 テスト内容:
   1. _calc_pl_zone: 各閾値の境界値テスト
   2. run_market_pressure: SQLite in-memory DB で指標計算
-  3. generate_credit_overheating_signal: 2条件を満たすデータで発動確認
-  4. GET /api/market-pressure/timeseries: TestClient でエンドポイント確認
+  3. GET /api/market-pressure/timeseries: TestClient でエンドポイント確認
 """
 import json
 import os
@@ -23,7 +22,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from scripts.init_sqlite import init_sqlite
 from scripts.migrate_phase16 import migrate
 from src.batch.statistics import _calc_pl_zone, run_market_pressure
-from src.batch.signals import generate_credit_overheating_signal
 
 BUCKET = "test-nkflow-bucket"
 TARGET_DATE = "2025-03-01"
@@ -186,98 +184,7 @@ class TestRunMarketPressure:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. generate_credit_overheating_signal
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _make_conn_with_pressure(db_path: str, pl_ratio: float, buy_growth_4w: float) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path)
-    conn.execute(
-        """
-        INSERT OR REPLACE INTO market_pressure_daily
-            (date, pl_ratio, pl_zone, buy_growth_4w, margin_ratio, margin_ratio_trend, signal_flags)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (TARGET_DATE, pl_ratio, _calc_pl_zone(pl_ratio), buy_growth_4w, 5.0, 0.1,
-         json.dumps({"credit_overheating": False})),
-    )
-    conn.commit()
-    return conn
-
-
-class TestGenerateCreditOverheatingSignal:
-    def test_fires_when_conditions_met(self, tmp_path):
-        db_path = _make_db(tmp_path)
-        conn = _make_conn_with_pressure(db_path, pl_ratio=0.15, buy_growth_4w=0.10)
-        n = generate_credit_overheating_signal(conn, TARGET_DATE)
-        conn.close()
-        assert n == 1
-
-    def test_does_not_fire_when_pl_ratio_low(self, tmp_path):
-        db_path = _make_db(tmp_path)
-        conn = _make_conn_with_pressure(db_path, pl_ratio=0.08, buy_growth_4w=0.10)
-        n = generate_credit_overheating_signal(conn, TARGET_DATE)
-        conn.close()
-        assert n == 0
-
-    def test_does_not_fire_when_buy_growth_low(self, tmp_path):
-        db_path = _make_db(tmp_path)
-        conn = _make_conn_with_pressure(db_path, pl_ratio=0.15, buy_growth_4w=0.03)
-        n = generate_credit_overheating_signal(conn, TARGET_DATE)
-        conn.close()
-        assert n == 0
-
-    def test_signal_is_bearish(self, tmp_path):
-        db_path = _make_db(tmp_path)
-        conn = _make_conn_with_pressure(db_path, pl_ratio=0.15, buy_growth_4w=0.10)
-        generate_credit_overheating_signal(conn, TARGET_DATE)
-
-        row = conn.execute(
-            "SELECT direction, signal_type FROM signals WHERE date = ?", (TARGET_DATE,)
-        ).fetchone()
-        conn.close()
-
-        assert row is not None
-        assert row[0] == "bearish"
-        assert row[1] == "credit_overheating"
-
-    def test_updates_signal_flags(self, tmp_path):
-        db_path = _make_db(tmp_path)
-        conn = _make_conn_with_pressure(db_path, pl_ratio=0.15, buy_growth_4w=0.10)
-        generate_credit_overheating_signal(conn, TARGET_DATE)
-
-        row = conn.execute(
-            "SELECT signal_flags FROM market_pressure_daily WHERE date = ?", (TARGET_DATE,)
-        ).fetchone()
-        conn.close()
-
-        flags = json.loads(row[0])
-        assert flags["credit_overheating"] is True
-
-    def test_confidence_formula(self, tmp_path):
-        pl = 0.15   # 0.15 - 0.12 = 0.03
-        bg = 0.10   # 0.10 - 0.08 = 0.02
-        expected = min(1.0, 0.5 + min(0.4, 0.03 * 4 + 0.02 * 2))
-
-        db_path = _make_db(tmp_path)
-        conn = _make_conn_with_pressure(db_path, pl_ratio=pl, buy_growth_4w=bg)
-        generate_credit_overheating_signal(conn, TARGET_DATE)
-
-        row = conn.execute(
-            "SELECT confidence FROM signals WHERE date = ?", (TARGET_DATE,)
-        ).fetchone()
-        conn.close()
-        assert row[0] == pytest.approx(expected, abs=1e-4)
-
-    def test_no_data_returns_0(self, tmp_path):
-        db_path = _make_db(tmp_path)
-        conn = sqlite3.connect(db_path)
-        n = generate_credit_overheating_signal(conn, TARGET_DATE)
-        conn.close()
-        assert n == 0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. GET /api/market-pressure/timeseries
+# 3. GET /api/market-pressure/timeseries
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture

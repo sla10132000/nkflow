@@ -29,15 +29,12 @@ def build_report(
 
     内容:
       - 日経225状況 (regime / nikkei_return / nikkei_close)
-      - 生成シグナル数
-      - 信頼度上位シグナル (最大5件)
-      - シグナル的中率サマリー (5日ホライズン、直近集計日)
 
     Args:
         db_path:      SQLite ファイルパス
         target_date:  'YYYY-MM-DD'
         batch_result: handler から受け取る結果 dict
-                      (stocks_updated, signals_generated, errors)
+                      (stocks_updated, errors)
     Returns:
         通知用テキスト
     """
@@ -72,57 +69,6 @@ def build_report(
 
         lines.append("")
 
-        # ─── シグナルサマリー ─────────────────────────────────────
-        signals_generated = batch_result.get("signals_generated", 0)
-        lines.append(f"📣 本日のシグナル: {signals_generated} 件")
-
-        if signals_generated > 0:
-            top_signals = conn.execute(
-                """
-                SELECT sg.code, st.name, sg.signal_type, sg.direction, sg.confidence
-                FROM signals sg
-                LEFT JOIN stocks st ON sg.code = st.code
-                WHERE sg.date = ? AND sg.code IS NOT NULL
-                ORDER BY sg.confidence DESC
-                LIMIT 5
-                """,
-                (target_date,),
-            ).fetchall()
-
-            for code, name, sig_type, direction, confidence in top_signals:
-                icon = "▲" if direction == "bullish" else "▼"
-                name_str = name or code
-                lines.append(
-                    f"  {icon} {code} {name_str} [{sig_type}/{direction}]"
-                    f" 信頼度:{confidence:.2f}"
-                )
-
-        lines.append("")
-
-        # ─── 的中率サマリー ───────────────────────────────────────
-        accuracy_rows = conn.execute(
-            """
-            SELECT sa.signal_type, sa.hit_rate, sa.total_signals
-            FROM signal_accuracy sa
-            WHERE sa.horizon_days = 5
-              AND sa.calc_date = (
-                SELECT MAX(calc_date) FROM signal_accuracy WHERE horizon_days = 5
-              )
-            ORDER BY sa.hit_rate DESC
-            """,
-        ).fetchall()
-
-        if accuracy_rows:
-            lines.append("🎯 直近シグナル的中率 (5日ホライズン)")
-            for sig_type, hit_rate, total in accuracy_rows:
-                lines.append(
-                    f"  {sig_type}: {hit_rate:.1%} ({total} 件)"
-                )
-        else:
-            lines.append("🎯 的中率データなし")
-
-        lines.append("")
-
         # ─── エラー情報 ───────────────────────────────────────────
         errors = batch_result.get("errors", [])
         if errors:
@@ -150,7 +96,7 @@ def publish(
     Args:
         db_path:      SQLite ファイルパス
         target_date:  'YYYY-MM-DD'
-        batch_result: バッチ結果 dict (stocks_updated, signals_generated, errors)
+        batch_result: バッチ結果 dict (stocks_updated, errors)
         topic_arn:    SNS トピック ARN (省略時は config.SNS_TOPIC_ARN を使用)
     Returns:
         成功または スキップ: True / 失敗: False

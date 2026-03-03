@@ -234,8 +234,9 @@ class TestBatchHandler:
             patch("src.batch.graph.update_and_query", return_value={
                 "chains": [], "fund_flow_paths": [], "regime_perf": {}
             }),
-            patch("src.batch.signals.generate", return_value=3),
-            patch("src.batch.tracker.run_all", return_value=0),
+            patch("src.batch.fetch_external.fetch_exchange_rates", return_value=0),
+            patch("src.batch.fetch_external.fetch_margin_balance", return_value=0),
+            patch("src.batch.sector_rotation.run_all"),
             patch("src.batch.notifier.publish", return_value=True),
         ]
 
@@ -248,8 +249,7 @@ class TestBatchHandler:
         patches = self._patch_all(n_fetched=5)
         with patches[0], patches[1], patches[2], patches[3] as mock_fetch, \
              patches[4] as mock_compute, patches[5] as mock_stats, \
-             patches[6] as mock_graph, patches[7] as mock_signals, \
-             patches[8], patches[9]:
+             patches[6] as mock_graph, patches[7], patches[8], patches[9], patches[10]:
 
             import importlib
             import src.batch.handler as handler_mod
@@ -259,12 +259,10 @@ class TestBatchHandler:
 
         assert resp["statusCode"] == 200
         assert resp["body"]["stocks_updated"] == 5
-        assert resp["body"]["signals_generated"] == 3
         mock_fetch.assert_called_once()
         mock_compute.assert_called_once()
         mock_stats.assert_called_once()
         mock_graph.assert_called_once()
-        mock_signals.assert_called_once()
 
     def test_returns_200_on_non_trading_day(self, tmp_path, monkeypatch):
         """非取引日は stocks_updated=0 で後続処理をスキップ。"""
@@ -275,8 +273,7 @@ class TestBatchHandler:
         patches = self._patch_all(n_fetched=0)
         with patches[0], patches[1], patches[2], patches[3], \
              patches[4] as mock_compute, patches[5] as mock_stats, \
-             patches[6] as mock_graph, patches[7] as mock_signals, \
-             patches[8], patches[9]:
+             patches[6] as mock_graph, patches[7], patches[8], patches[9], patches[10]:
 
             import importlib
             import src.batch.handler as handler_mod
@@ -303,8 +300,9 @@ class TestBatchHandler:
              patch("src.batch.compute.compute_all", side_effect=RuntimeError("DuckDB crash")), \
              patch("src.batch.statistics.run_all"), \
              patch("src.batch.graph.update_and_query", return_value={}), \
-             patch("src.batch.signals.generate", return_value=0), \
-             patch("src.batch.tracker.run_all", return_value=0), \
+             patch("src.batch.fetch_external.fetch_exchange_rates", return_value=0), \
+             patch("src.batch.fetch_external.fetch_margin_balance", return_value=0), \
+             patch("src.batch.sector_rotation.run_all"), \
              patch("src.batch.notifier.publish", return_value=True):
 
             import importlib

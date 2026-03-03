@@ -5,7 +5,7 @@ import os
 import boto3
 from fastapi import FastAPI, Response
 
-from src.api.routers import accuracy, backtest, forex, margin, network, news, portfolio, prices, sector_rotation, signals, stock, summary
+from src.api.routers import backtest, forex, margin, network, news, portfolio, prices, sector_rotation, stock, summary
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,6 @@ app = FastAPI(title="nkflow API", version="0.1.0")
 
 app.include_router(summary.router, prefix="/api")
 app.include_router(prices.router, prefix="/api")
-app.include_router(accuracy.router, prefix="/api")  # /api/signals/accuracy (Phase 11)
-app.include_router(signals.router, prefix="/api")
 app.include_router(network.router, prefix="/api")
 app.include_router(stock.router, prefix="/api")
 app.include_router(forex.router, prefix="/api")    # Phase 13

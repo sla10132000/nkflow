@@ -75,13 +75,6 @@ def db_path(tmp_path):
         """
     )
 
-    conn.execute(
-        """
-        INSERT INTO signal_accuracy (signal_type, horizon_days, calc_date, total_signals, hits, hit_rate)
-        VALUES ('causality_chain', 5, '2025-01-14', 100, 70, 0.70)
-        """
-    )
-
     conn.commit()
     conn.close()
     return path
@@ -94,37 +87,20 @@ def db_path(tmp_path):
 class TestBuildReport:
     def test_contains_date(self, db_path):
         from src.batch.notifier import build_report
-        report = build_report(db_path, "2025-01-15", {"stocks_updated": 225, "signals_generated": 2, "errors": []})
+        report = build_report(db_path, "2025-01-15", {"stocks_updated": 225, "errors": []})
         assert "2025-01-15" in report
 
     def test_contains_nikkei_info(self, db_path):
         from src.batch.notifier import build_report
-        report = build_report(db_path, "2025-01-15", {"stocks_updated": 225, "signals_generated": 2, "errors": []})
+        report = build_report(db_path, "2025-01-15", {"stocks_updated": 225, "errors": []})
         assert "38,500" in report
         assert "リスクオン" in report
-
-    def test_contains_signal_count(self, db_path):
-        from src.batch.notifier import build_report
-        report = build_report(db_path, "2025-01-15", {"stocks_updated": 225, "signals_generated": 2, "errors": []})
-        assert "2 件" in report
-
-    def test_contains_top_signals(self, db_path):
-        from src.batch.notifier import build_report
-        report = build_report(db_path, "2025-01-15", {"stocks_updated": 225, "signals_generated": 2, "errors": []})
-        assert "7203" in report
-        assert "トヨタ自動車" in report
-
-    def test_contains_accuracy(self, db_path):
-        from src.batch.notifier import build_report
-        report = build_report(db_path, "2025-01-15", {"stocks_updated": 225, "signals_generated": 2, "errors": []})
-        assert "causality_chain" in report
-        assert "70.0%" in report
 
     def test_contains_errors_when_present(self, db_path):
         from src.batch.notifier import build_report
         report = build_report(
             db_path, "2025-01-15",
-            {"stocks_updated": 225, "signals_generated": 2, "errors": ["compute: some error"]}
+            {"stocks_updated": 225, "errors": ["compute: some error"]}
         )
         assert "エラー" in report
         assert "compute: some error" in report
@@ -132,7 +108,7 @@ class TestBuildReport:
     def test_no_summary_row(self, db_path):
         """daily_summary がない日でもクラッシュしない。"""
         from src.batch.notifier import build_report
-        report = build_report(db_path, "2000-01-01", {"stocks_updated": 0, "signals_generated": 0, "errors": []})
+        report = build_report(db_path, "2000-01-01", {"stocks_updated": 0, "errors": []})
         assert "2000-01-01" in report
 
 
@@ -151,7 +127,7 @@ class TestPublish:
         from src.batch import notifier
         result = notifier.publish(
             db_path, "2025-01-15",
-            {"stocks_updated": 225, "signals_generated": 2, "errors": []},
+            {"stocks_updated": 225, "errors": []},
             topic_arn=topic_arn,
         )
         assert result is True
@@ -165,7 +141,7 @@ class TestPublish:
         from src.batch import notifier
         result = notifier.publish(
             db_path, "2025-01-15",
-            {"stocks_updated": 225, "signals_generated": 2, "errors": []},
+            {"stocks_updated": 225, "errors": []},
             topic_arn="",
         )
         assert result is True
@@ -176,7 +152,7 @@ class TestPublish:
         from src.batch import notifier
         result = notifier.publish(
             db_path, "2025-01-15",
-            {"stocks_updated": 225, "signals_generated": 2, "errors": []},
+            {"stocks_updated": 225, "errors": []},
             topic_arn="arn:aws:sns:ap-northeast-1:123456789012:nonexistent",
         )
         assert result is False

@@ -16,10 +16,6 @@ const router = createRouter({
       component: () => import('../views/NetworkView.vue'),
     },
     {
-      path: '/signals',
-      component: () => import('../views/SignalsView.vue'),
-    },
-    {
       path: '/stock/:code',
       component: () => import('../views/StockView.vue'),
       props: true,
