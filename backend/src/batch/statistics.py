@@ -741,9 +741,9 @@ def _calc_pl_ratio_proxy(
     if not rows or sum(r[3] for r in rows) == 0:
         cutoff = conn.execute(
             """
-            SELECT date FROM daily_prices
-            WHERE date <= ?
-            ORDER BY date DESC
+            SELECT date FROM (
+                SELECT DISTINCT date FROM daily_prices WHERE date <= ?
+            ) ORDER BY date DESC
             LIMIT 1
             OFFSET 19
             """,
