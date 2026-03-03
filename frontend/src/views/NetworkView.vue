@@ -171,6 +171,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import FundFlowSankey from "../components/charts/FundFlowSankey.vue";
+import FundFlowTimeline from "../components/charts/FundFlowTimeline.vue";
+import MarketPressureGauge from "../components/charts/MarketPressureGauge.vue";
+import MarketPressureTimeline from "../components/charts/MarketPressureTimeline.vue";
+import GraphView from "../components/network/GraphView.vue";
 import { useApi } from "../composables/useApi";
 import type { MarketPressureTimeseries, NetworkData } from "../types";
 
