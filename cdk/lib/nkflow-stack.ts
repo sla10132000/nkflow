@@ -149,6 +149,7 @@ export class NkflowStack extends Stack {
       }),
       memorySize: 512,
       timeout: Duration.seconds(30),
+      ephemeralStorageSize: cdk.Size.mebibytes(2048),
       role: apiRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
