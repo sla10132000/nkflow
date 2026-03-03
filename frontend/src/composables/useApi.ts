@@ -1,8 +1,24 @@
 import axios from 'axios'
+import { useAuth0 } from '@auth0/auth0-vue'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || '',
   timeout: 15000,
+})
+
+// Auth0 アクセストークンを Authorization ヘッダーに自動付与するインターセプター
+api.interceptors.request.use(async (config) => {
+  try {
+    // useAuth0 はコンポーネント外でも呼べるが、インスタンスはグローバルに1つ
+    const { getAccessTokenSilently, isAuthenticated } = useAuth0()
+    if (isAuthenticated.value) {
+      const token = await getAccessTokenSilently()
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  } catch {
+    // 未ログイン時は無視
+  }
+  return config
 })
 
 export const useApi = () => ({

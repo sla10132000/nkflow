@@ -25,6 +25,10 @@ dependencies = [
     "boto3>=1.34",
     # ユーティリティ
     "joblib>=1.4",
+    # 認証 (Auth0 JWT 検証)
+    "PyJWT>=2.8",
+    "cryptography>=42.0",
+    "httpx>=0.27",
     # セクターローテーション分析 (Phase 17)
     "scikit-learn>=1.4",
     "lightgbm>=4.0",

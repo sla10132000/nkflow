@@ -147,6 +147,10 @@ export class NkflowStack extends Stack {
         // CACHE_BUST: Lambda 環境変数を手動更新する際に S3_BUCKET が消えるのを防ぐためここで管理する。
         // キャッシュを強制破棄したい場合はこの値を変更して cdk deploy する。
         CACHE_BUST: '1',
+        // Auth0 JWT 検証用 (Google ソーシャルログイン)
+        // 値は cdk.json の context または環境変数で設定する
+        AUTH0_DOMAIN: process.env.AUTH0_DOMAIN ?? 'dev-0ay7xweu5xq7tmq2.us.auth0.com',
+        AUTH0_AUDIENCE: process.env.AUTH0_AUDIENCE ?? '',
       },
     });
 
