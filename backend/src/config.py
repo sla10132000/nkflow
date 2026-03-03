@@ -21,6 +21,14 @@ KUZU_PATH = os.environ.get("KUZU_PATH", "/tmp/kuzu_db")
 # SNS (Phase 12)
 SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
 
+# 米国株価指数 (Phase 20)
+US_INDEX_TICKERS: dict[str, str] = {
+    "^GSPC": "S&P 500",
+    "^DJI": "Dow Jones",
+    "^IXIC": "NASDAQ Composite",
+}
+US_INDEX_INITIAL_PERIOD = "5y"
+
 # 分析パラメータ
 CORRELATION_PERIODS = [20, 60, 120]
 GRANGER_MAX_LAG = 5

@@ -6,7 +6,7 @@ Phase 13: 外部データ取得モジュール
 """
 import logging
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 import pandas as pd
@@ -145,6 +145,138 @@ def fetch_exchange_rates(
         logger.info(f"exchange_rates: {pair_name} {len(rows)} 行挿入")
 
     return total_rows
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 米国主要株価指数
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _fetch_index_ohlcv(symbol: str, start_date: Optional[str] = None) -> pd.DataFrame:
+    """
+    Yahoo Finance から指定シンボルの日次 OHLCV + volume を取得する。
+
+    Args:
+        symbol: Yahoo Finance シンボル (例: "^GSPC")
+        start_date: 'YYYY-MM-DD'。省略時は直近5年分を取得
+
+    Returns:
+        columns=[date, open, high, low, close, volume] の DataFrame。取得失敗時は空
+    """
+    url = _YAHOO_CHART_URL.format(symbol=symbol)
+    if start_date is None:
+        params: dict = {"interval": "1d", "range": "5y"}
+    else:
+        start_ts = int(datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+        end_ts = int(datetime.now(timezone.utc).timestamp())
+        params = {"interval": "1d", "period1": start_ts, "period2": end_ts}
+
+    try:
+        resp = requests.get(url, params=params, headers=_YAHOO_HEADERS, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        logger.warning(f"Yahoo Finance 取得失敗 ({symbol}): {e}")
+        return pd.DataFrame()
+
+    try:
+        result = data["chart"]["result"][0]
+        timestamps = result["timestamp"]
+        ohlcv = result["indicators"]["quote"][0]
+
+        df = pd.DataFrame({
+            "date":   [datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d") for t in timestamps],
+            "open":   ohlcv.get("open",   [None] * len(timestamps)),
+            "high":   ohlcv.get("high",   [None] * len(timestamps)),
+            "low":    ohlcv.get("low",    [None] * len(timestamps)),
+            "close":  ohlcv.get("close",  [None] * len(timestamps)),
+            "volume": ohlcv.get("volume", [None] * len(timestamps)),
+        })
+        return df.dropna(subset=["close"])
+    except (KeyError, IndexError, TypeError) as e:
+        logger.warning(f"Yahoo Finance レスポンス解析失敗 ({symbol}): {e}")
+        return pd.DataFrame()
+
+
+def fetch_us_indices(db_path: str) -> dict:
+    """
+    米国主要株価指数の OHLCV を取得し SQLite の us_indices テーブルに保存する。
+
+    - 差分更新: テーブル内の最新日付以降のみ取得
+    - 初回: 直近5年分を一括取得
+    - 取引日のみ保存 (NaN 行はスキップ)
+    - エラー時も他ティッカーの処理は継続
+
+    Args:
+        db_path: SQLite ファイルパス
+
+    Returns:
+        {"status": "ok", "rows_inserted": N, "tickers": [...]}
+    """
+    from src.config import US_INDEX_TICKERS
+
+    conn = sqlite3.connect(db_path)
+    total_rows = 0
+    tickers_done: list[str] = []
+
+    try:
+        for ticker, name in US_INDEX_TICKERS.items():
+            try:
+                latest = conn.execute(
+                    "SELECT MAX(date) FROM us_indices WHERE ticker = ?", (ticker,)
+                ).fetchone()[0]
+
+                if latest is None:
+                    df = _fetch_index_ohlcv(ticker)
+                else:
+                    start = (date.fromisoformat(latest) + timedelta(days=1)).isoformat()
+                    df = _fetch_index_ohlcv(ticker, start_date=start)
+
+                if df.empty:
+                    logger.info(f"us_indices: {ticker} データなし")
+                    tickers_done.append(ticker)
+                    continue
+
+                # 最新日以降のみに絞る (差分更新の重複防止)
+                if latest is not None:
+                    df = df[df["date"] > latest].copy()
+
+                if df.empty:
+                    logger.info(f"us_indices: {ticker} 新規データなし (最新: {latest})")
+                    tickers_done.append(ticker)
+                    continue
+
+                rows = [
+                    (
+                        row.date, ticker, name,
+                        row.open   if pd.notna(row.open)   else None,
+                        row.high   if pd.notna(row.high)   else None,
+                        row.low    if pd.notna(row.low)    else None,
+                        row.close,
+                        int(row.volume) if row.volume is not None and pd.notna(row.volume) else None,
+                    )
+                    for row in df.itertuples(index=False)
+                ]
+
+                conn.executemany(
+                    """
+                    INSERT OR REPLACE INTO us_indices
+                        (date, ticker, name, open, high, low, close, volume)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+                conn.commit()
+                total_rows += len(rows)
+                tickers_done.append(ticker)
+                logger.info(f"us_indices: {ticker} {len(rows)} 行挿入")
+
+            except Exception as e:
+                logger.error(f"us_indices: {ticker} 処理失敗 (継続): {e}")
+
+    finally:
+        conn.close()
+
+    return {"status": "ok", "rows_inserted": total_rows, "tickers": tickers_done}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

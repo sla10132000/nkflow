@@ -125,6 +125,14 @@ def handler(event: dict, context: Any) -> dict:
             logger.error(f"fetch_margin_balance 失敗 (処理は継続): {e}")
             errors.append(f"fetch_margin_balance: {e}")
 
+        # ── 3.6. 米国株指数取得 (Phase 20) ───────────────────────
+        try:
+            us_result = fetch_external.fetch_us_indices(SQLITE_PATH)
+            logger.info(f"fetch_us_indices: {us_result}")
+        except Exception as e:
+            logger.error(f"fetch_us_indices 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_us_indices: {e}")
+
         # ── 4. DuckDB 計算 ────────────────────────────────────────
         try:
             compute.compute_all(SQLITE_PATH, target_date)
