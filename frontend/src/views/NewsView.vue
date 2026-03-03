@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useApi } from "../composables/useApi";
 import type { NewsArticle, NewsSummary } from "../types";
 
@@ -124,5 +124,6 @@ function sentimentLabel(s: number) {
 	return "— ニュートラル";
 }
 
+watch(filterDate, load);
 onMounted(load);
 </script>
