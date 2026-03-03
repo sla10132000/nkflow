@@ -294,6 +294,7 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 source        TEXT NOT NULL,
                 source_name   TEXT,
                 title         TEXT NOT NULL,
+                title_ja      TEXT,
                 url           TEXT NOT NULL UNIQUE,
                 language      TEXT DEFAULT 'en',
                 image_url     TEXT,
