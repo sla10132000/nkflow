@@ -170,211 +170,220 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useApi } from '../composables/useApi'
-import GraphView from '../components/network/GraphView.vue'
-import FundFlowTimeline from '../components/charts/FundFlowTimeline.vue'
-import FundFlowSankey from '../components/charts/FundFlowSankey.vue'
-import MarketPressureGauge from '../components/charts/MarketPressureGauge.vue'
-import MarketPressureTimeline from '../components/charts/MarketPressureTimeline.vue'
-import type { NetworkData, MarketPressureTimeseries } from '../types'
+import { computed, onMounted, ref } from "vue";
+import { useApi } from "../composables/useApi";
+import type { MarketPressureTimeseries, NetworkData } from "../types";
 
-const api = useApi()
-const loading = ref(false)
-const error = ref('')
-const networkData = ref<NetworkData | null>(null)
-const selectedNode = ref<string | null>(null)
-const showNetwork = ref(false)
-const showPressureTimeline = ref(true)
-const pressureDays = ref(90)
-const period = ref('20d')
-const fundFlowFilter = ref<'period' | 'range' | 'date'>('range')
-const dateFrom = ref('')
-const dateTo = ref('')
-const dateSingle = ref('')
-const anchorDate = ref<string | null>(null)
-const currentRegime = ref<string | null>(null)
-const pressureData = ref<MarketPressureTimeseries | null>(null)
+const api = useApi();
+const loading = ref(false);
+const error = ref("");
+const networkData = ref<NetworkData | null>(null);
+const selectedNode = ref<string | null>(null);
+const showNetwork = ref(false);
+const showPressureTimeline = ref(true);
+const pressureDays = ref(90);
+const period = ref("20d");
+const fundFlowFilter = ref<"period" | "range" | "date">("range");
+const dateFrom = ref("");
+const dateTo = ref("");
+const dateSingle = ref("");
+const anchorDate = ref<string | null>(null);
+const currentRegime = ref<string | null>(null);
+const pressureData = ref<MarketPressureTimeseries | null>(null);
 
-const periods = ['20d', '60d', '120d']
+const periods = ["20d", "60d", "120d"];
 const fundFlowFilters = [
-  { value: 'period', label: '期間' },
-  { value: 'range',  label: '範囲' },
-  { value: 'date',   label: '日付' },
-]
+	{ value: "period", label: "期間" },
+	{ value: "range", label: "範囲" },
+	{ value: "date", label: "日付" },
+];
 const rangePresets = [
-  { label: '直近5営業日', days: 7 },
-  { label: '先月',        days: 30 },
-  { label: '3ヶ月',       days: 90 },
-]
+	{ label: "直近5営業日", days: 7 },
+	{ label: "先月", days: 30 },
+	{ label: "3ヶ月", days: 90 },
+];
 const datePresets = [
-  { label: '今日',   offsetDays: 0 },
-  { label: '昨日',   offsetDays: 1 },
-  { label: '先週末', offsetDays: -1 },
-]
+	{ label: "今日", offsetDays: 0 },
+	{ label: "昨日", offsetDays: 1 },
+	{ label: "先週末", offsetDays: -1 },
+];
 
 const latestPressure = computed(() => {
-  if (!pressureData.value || pressureData.value.dates.length === 0) return null
-  const last = pressureData.value.dates.length - 1
-  return {
-    pl_ratio: pressureData.value.pl_ratio[last] ?? null,
-    pl_zone:  pressureData.value.pl_zone[last] ?? 'neutral',
-    buy_growth_4w: pressureData.value.buy_growth_4w[last] ?? null,
-    margin_ratio: pressureData.value.margin_ratio[last] ?? null,
-    margin_ratio_trend: pressureData.value.margin_ratio_trend[last] ?? null,
-  }
-})
+	if (!pressureData.value || pressureData.value.dates.length === 0) return null;
+	const last = pressureData.value.dates.length - 1;
+	return {
+		pl_ratio: pressureData.value.pl_ratio[last] ?? null,
+		pl_zone: pressureData.value.pl_zone[last] ?? "neutral",
+		buy_growth_4w: pressureData.value.buy_growth_4w[last] ?? null,
+		margin_ratio: pressureData.value.margin_ratio[last] ?? null,
+		margin_ratio_trend: pressureData.value.margin_ratio_trend[last] ?? null,
+	};
+});
 
 const isCreditOverheating = computed(() => {
-  if (!pressureData.value || pressureData.value.signal_flags.length === 0) return false
-  const last = pressureData.value.signal_flags.length - 1
-  return pressureData.value.signal_flags[last]?.credit_overheating === true
-})
+	if (!pressureData.value || pressureData.value.signal_flags.length === 0)
+		return false;
+	const last = pressureData.value.signal_flags.length - 1;
+	return pressureData.value.signal_flags[last]?.credit_overheating === true;
+});
 
 const trendClass = computed(() => {
-  const t = latestPressure.value?.margin_ratio_trend ?? 0
-  return t > 0 ? 'text-red-600' : t < 0 ? 'text-green-600' : 'text-gray-600'
-})
+	const t = latestPressure.value?.margin_ratio_trend ?? 0;
+	return t > 0 ? "text-red-600" : t < 0 ? "text-green-600" : "text-gray-600";
+});
 
 function fmtNum(v: number | null, decimals = 2): string {
-  if (v == null) return '—'
-  return v.toFixed(decimals)
+	if (v == null) return "—";
+	return v.toFixed(decimals);
 }
 
 const regimeBadgeClass = computed(() => {
-  if (currentRegime.value === 'risk_on')  return 'bg-green-100 text-green-700 border-green-200'
-  if (currentRegime.value === 'risk_off') return 'bg-red-100 text-red-700 border-red-200'
-  return 'bg-gray-100 text-gray-600 border-gray-300'
-})
+	if (currentRegime.value === "risk_on")
+		return "bg-green-100 text-green-700 border-green-200";
+	if (currentRegime.value === "risk_off")
+		return "bg-red-100 text-red-700 border-red-200";
+	return "bg-gray-100 text-gray-600 border-gray-300";
+});
 const regimeLabel = computed(() => {
-  if (currentRegime.value === 'risk_on')  return '🟢 Risk-on'
-  if (currentRegime.value === 'risk_off') return '🔴 Risk-off'
-  return '⚪ Neutral'
-})
+	if (currentRegime.value === "risk_on") return "🟢 Risk-on";
+	if (currentRegime.value === "risk_off") return "🔴 Risk-off";
+	return "⚪ Neutral";
+});
 
 const connectedEdges = computed(() => {
-  if (!networkData.value || !selectedNode.value) return 0
-  return networkData.value.edges.filter(
-    e => e.from === selectedNode.value || e.to === selectedNode.value
-  ).length
-})
+	if (!networkData.value || !selectedNode.value) return 0;
+	return networkData.value.edges.filter(
+		(e) => e.from === selectedNode.value || e.to === selectedNode.value,
+	).length;
+});
 const inflowCount = computed(() => {
-  if (!networkData.value || !selectedNode.value) return 0
-  return networkData.value.edges.filter(e => e.to === selectedNode.value).length
-})
+	if (!networkData.value || !selectedNode.value) return 0;
+	return networkData.value.edges.filter((e) => e.to === selectedNode.value)
+		.length;
+});
 const outflowCount = computed(() => {
-  if (!networkData.value || !selectedNode.value) return 0
-  return networkData.value.edges.filter(e => e.from === selectedNode.value).length
-})
+	if (!networkData.value || !selectedNode.value) return 0;
+	return networkData.value.edges.filter((e) => e.from === selectedNode.value)
+		.length;
+});
 
-const fmt = (d: Date) => d.toISOString().slice(0, 10)
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
 function lastBusinessDay(from: Date = new Date()): Date {
-  const d = new Date(from)
-  const dow = d.getDay()
-  if (dow === 0) d.setDate(d.getDate() - 2)
-  else if (dow === 6) d.setDate(d.getDate() - 1)
-  return d
+	const d = new Date(from);
+	const dow = d.getDay();
+	if (dow === 0) d.setDate(d.getDate() - 2);
+	else if (dow === 6) d.setDate(d.getDate() - 1);
+	return d;
 }
 
 function periodToDateRange(p: string): { from: string; to: string } {
-  const days = parseInt(p) * 1.5
-  const to = new Date()
-  const from = new Date()
-  from.setDate(to.getDate() - Math.ceil(days))
-  return { from: fmt(from), to: fmt(to) }
+	const days = parseInt(p, 10) * 1.5;
+	const to = new Date();
+	const from = new Date();
+	from.setDate(to.getDate() - Math.ceil(days));
+	return { from: fmt(from), to: fmt(to) };
 }
 
 function applyRangePreset(pr: { days: number }) {
-  const to = new Date()
-  const from = new Date()
-  from.setDate(to.getDate() - pr.days)
-  dateTo.value = fmt(to)
-  dateFrom.value = fmt(from)
-  loadNetwork()
+	const to = new Date();
+	const from = new Date();
+	from.setDate(to.getDate() - pr.days);
+	dateTo.value = fmt(to);
+	dateFrom.value = fmt(from);
+	loadNetwork();
 }
 
 function applyDatePreset(pr: { label: string; offsetDays: number }) {
-  if (pr.label === '先週末') {
-    const d = new Date()
-    const dow = d.getDay()
-    const daysToFriday = dow === 0 ? 2 : dow === 6 ? 1 : dow - 5 + (dow < 5 ? 7 : 0)
-    d.setDate(d.getDate() - daysToFriday)
-    dateSingle.value = fmt(d)
-  } else {
-    const d = new Date()
-    d.setDate(d.getDate() - pr.offsetDays)
-    dateSingle.value = fmt(lastBusinessDay(d))
-  }
-  loadNetwork()
+	if (pr.label === "先週末") {
+		const d = new Date();
+		const dow = d.getDay();
+		const daysToFriday =
+			dow === 0 ? 2 : dow === 6 ? 1 : dow - 5 + (dow < 5 ? 7 : 0);
+		d.setDate(d.getDate() - daysToFriday);
+		dateSingle.value = fmt(d);
+	} else {
+		const d = new Date();
+		d.setDate(d.getDate() - pr.offsetDays);
+		dateSingle.value = fmt(lastBusinessDay(d));
+	}
+	loadNetwork();
 }
 
 function onAnchorChanged(date: string | null) {
-  anchorDate.value = date
+	anchorDate.value = date;
 }
 
 async function loadRegime() {
-  try {
-    const summary = await api.getSummary(1)
-    currentRegime.value = summary?.regime ?? null
-  } catch {
-    currentRegime.value = null
-  }
+	try {
+		const summary = await api.getSummary(1);
+		currentRegime.value = summary?.regime ?? null;
+	} catch {
+		currentRegime.value = null;
+	}
 }
 
 async function loadPressure() {
-  try {
-    pressureData.value = await api.getMarketPressureTimeseries(pressureDays.value)
-  } catch {
-    pressureData.value = null
-  }
+	try {
+		pressureData.value = await api.getMarketPressureTimeseries(
+			pressureDays.value,
+		);
+	} catch {
+		pressureData.value = null;
+	}
 }
 
 async function loadNetwork() {
-  loading.value = true
-  error.value = ''
-  selectedNode.value = null
-  try {
-    let df: string | undefined
-    let dt: string | undefined
-    if (fundFlowFilter.value === 'period') {
-      const range = periodToDateRange(period.value)
-      df = range.from
-      dt = range.to
-    } else if (fundFlowFilter.value === 'range') {
-      df = dateFrom.value || undefined
-      dt = dateTo.value || undefined
-    } else {
-      df = dateSingle.value || undefined
-      dt = dateSingle.value || undefined
-    }
-    networkData.value = await api.getNetwork('fund_flow', undefined, undefined, df, dt)
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'データ取得失敗'
-  } finally {
-    loading.value = false
-  }
+	loading.value = true;
+	error.value = "";
+	selectedNode.value = null;
+	try {
+		let df: string | undefined;
+		let dt: string | undefined;
+		if (fundFlowFilter.value === "period") {
+			const range = periodToDateRange(period.value);
+			df = range.from;
+			dt = range.to;
+		} else if (fundFlowFilter.value === "range") {
+			df = dateFrom.value || undefined;
+			dt = dateTo.value || undefined;
+		} else {
+			df = dateSingle.value || undefined;
+			dt = dateSingle.value || undefined;
+		}
+		networkData.value = await api.getNetwork(
+			"fund_flow",
+			undefined,
+			undefined,
+			df,
+			dt,
+		);
+	} catch (e: unknown) {
+		error.value = e instanceof Error ? e.message : "データ取得失敗";
+	} finally {
+		loading.value = false;
+	}
 }
 
 function setPeriod(p: string) {
-  period.value = p
-  loadNetwork()
+	period.value = p;
+	loadNetwork();
 }
 
 function setFundFlowFilter(f: string) {
-  fundFlowFilter.value = f as 'period' | 'range' | 'date'
-  loadNetwork()
+	fundFlowFilter.value = f as "period" | "range" | "date";
+	loadNetwork();
 }
 
 function onNodeClick(id: string) {
-  selectedNode.value = id
+	selectedNode.value = id;
 }
 
 onMounted(() => {
-  applyRangePreset({ days: 7 })
-  loadRegime()
-  loadPressure()
-})
+	applyRangePreset({ days: 7 });
+	loadRegime();
+	loadPressure();
+});
 </script>
 
 <style scoped>

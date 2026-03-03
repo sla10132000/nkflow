@@ -122,58 +122,59 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { useApi } from '../composables/useApi'
-import PriceChart from '../components/charts/PriceChart.vue'
-import type { DailyPrice, StockDetail } from '../types'
+import { onMounted, ref, watch } from "vue";
+import { useApi } from "../composables/useApi";
+import type { DailyPrice, StockDetail } from "../types";
 
-const props = defineProps<{ code: string }>()
-const api = useApi()
-const loading = ref(true)
-const error = ref('')
-const detail = ref<StockDetail | null>(null)
-const prices = ref<DailyPrice[]>([])
-const activeDays = ref(60)
+const props = defineProps<{ code: string }>();
+const api = useApi();
+const loading = ref(true);
+const error = ref("");
+const detail = ref<StockDetail | null>(null);
+const prices = ref<DailyPrice[]>([]);
+const activeDays = ref(60);
 
 const periods = [
-  { label: '1M', days: 20 },
-  { label: '3M', days: 60 },
-  { label: '6M', days: 120 },
-]
+	{ label: "1M", days: 20 },
+	{ label: "3M", days: 60 },
+	{ label: "6M", days: 120 },
+];
 
 function formatReturn(r: number | null | undefined) {
-  if (r == null) return '—'
-  return (r >= 0 ? '+' : '') + (r * 100).toFixed(2) + '%'
+	if (r == null) return "—";
+	return `${(r >= 0 ? "+" : "") + (r * 100).toFixed(2)}%`;
 }
 
 function toDate(daysAgo: number) {
-  const d = new Date()
-  d.setDate(d.getDate() - daysAgo)
-  return d.toISOString().split('T')[0]
+	const d = new Date();
+	d.setDate(d.getDate() - daysAgo);
+	return d.toISOString().split("T")[0];
 }
 
 async function loadPrices(days = 60) {
-  activeDays.value = days
-  try {
-    prices.value = await api.getPrices(props.code, toDate(days))
-  } catch { /* ignore */ }
+	activeDays.value = days;
+	try {
+		prices.value = await api.getPrices(props.code, toDate(days));
+	} catch {
+		/* ignore */
+	}
 }
 
 async function loadDetail() {
-  loading.value = true
-  error.value = ''
-  try {
-    detail.value = await api.getStock(props.code)
-    await loadPrices(activeDays.value)
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'データ取得失敗'
-  } finally {
-    loading.value = false
-  }
+	loading.value = true;
+	error.value = "";
+	try {
+		detail.value = await api.getStock(props.code);
+		await loadPrices(activeDays.value);
+	} catch (e: unknown) {
+		error.value = e instanceof Error ? e.message : "データ取得失敗";
+	} finally {
+		loading.value = false;
+	}
 }
 
-onMounted(loadDetail)
-watch(() => props.code, loadDetail)
+onMounted(loadDetail);
+watch(() => props.code, loadDetail);
 </script>
 
 <style scoped>

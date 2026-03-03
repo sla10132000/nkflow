@@ -27,6 +27,7 @@ help:
 	@echo "--- Test / Lint ---"
 	@echo "  test              backend pytest"
 	@echo "  lint              backend ruff"
+	@echo "  lint-frontend     frontend biome check"
 	@echo ""
 	@echo "--- Build ---"
 	@echo "  build             frontend + cdk をビルド"
@@ -82,6 +83,9 @@ test:
 
 lint:
 	cd backend && .venv/bin/ruff check src/ tests/
+
+lint-frontend:
+	cd frontend && npm run lint
 
 # -----------------------------------------------------------------------
 # Build

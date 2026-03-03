@@ -178,97 +178,103 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useApi } from '../composables/useApi'
-import type { SectorRotationPrediction, SectorRotationTransitions } from '../types'
-import SectorReturnHeatmap from '../components/charts/SectorReturnHeatmap.vue'
-import SectorRotationTimeline from '../components/charts/SectorRotationTimeline.vue'
+import { computed, onMounted, ref, watch } from "vue";
+import { useApi } from "../composables/useApi";
+import type {
+	SectorRotationPrediction,
+	SectorRotationTransitions,
+} from "../types";
 
-const api = useApi()
+const api = useApi();
 
 // ── 状態 ───────────────────────────────────────────────────────────
-const prediction = ref<SectorRotationPrediction | null>(null)
-const transitions = ref<SectorRotationTransitions | null>(null)
-const loadingTransitions = ref(false)
+const prediction = ref<SectorRotationPrediction | null>(null);
+const transitions = ref<SectorRotationTransitions | null>(null);
+const loadingTransitions = ref(false);
 
-const activeTab = ref<'heatmap' | 'timeline' | 'transitions'>('heatmap')
-const periodType = ref<'weekly' | 'monthly'>('weekly')
-const heatmapPeriods = ref(12)
-const timelineWeeks = ref(52)
+const activeTab = ref<"heatmap" | "timeline" | "transitions">("heatmap");
+const periodType = ref<"weekly" | "monthly">("weekly");
+const heatmapPeriods = ref(12);
+const timelineWeeks = ref(52);
 
 const tabs = [
-  { value: 'heatmap',     label: 'ヒートマップ' },
-  { value: 'timeline',    label: 'タイムライン' },
-  { value: 'transitions', label: '遷移行列' },
-] as const
+	{ value: "heatmap", label: "ヒートマップ" },
+	{ value: "timeline", label: "タイムライン" },
+	{ value: "transitions", label: "遷移行列" },
+] as const;
 
 const periodTypes = [
-  { value: 'weekly' as const,  label: '週次' },
-  { value: 'monthly' as const, label: '月次' },
-]
+	{ value: "weekly" as const, label: "週次" },
+	{ value: "monthly" as const, label: "月次" },
+];
 
 // ── カラー ─────────────────────────────────────────────────────────
-const STATE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7']
+const STATE_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#a855f7"];
 
 function stateColor(id: number): string {
-  return STATE_COLORS[id % STATE_COLORS.length] ?? '#6b7280'
+	return STATE_COLORS[id % STATE_COLORS.length] ?? "#6b7280";
 }
 
 function stateColorBg(id: number): string {
-  const c = STATE_COLORS[id % STATE_COLORS.length] ?? '#6b7280'
-  return c + '1a'  // 10% opacity
+	const c = STATE_COLORS[id % STATE_COLORS.length] ?? "#6b7280";
+	return `${c}1a`; // 10% opacity
 }
 
 // ── 予測の確率ソート ────────────────────────────────────────────────
 const sortedProba = computed(() =>
-  [...(prediction.value?.all_probabilities ?? [])]
-    .sort((a, b) => b.probability - a.probability)
-)
+	[...(prediction.value?.all_probabilities ?? [])].sort(
+		(a, b) => b.probability - a.probability,
+	),
+);
 
 // ── 遷移行列ヘルパー ────────────────────────────────────────────────
 function transitionProb(from: number, to: number): string {
-  const entry = transitions.value?.transitions.find(
-    t => t.from_state === from && t.to_state === to
-  )
-  if (!entry || entry.probability < 0.001) return '—'
-  return `${(entry.probability * 100).toFixed(0)}%`
+	const entry = transitions.value?.transitions.find(
+		(t) => t.from_state === from && t.to_state === to,
+	);
+	if (!entry || entry.probability < 0.001) return "—";
+	return `${(entry.probability * 100).toFixed(0)}%`;
 }
 
 function transitionCellStyle(from: number, to: number): Record<string, string> {
-  const entry = transitions.value?.transitions.find(
-    t => t.from_state === from && t.to_state === to
-  )
-  const prob = entry?.probability ?? 0
-  const isDiag = from === to
-  if (prob < 0.001) return { color: '#d1d5db' }
-  const alpha = Math.min(1, prob * 3).toFixed(2)
-  const color = isDiag ? `rgba(59,130,246,${alpha})` : `rgba(107,114,128,${alpha})`
-  return { background: color, color: prob > 0.25 ? '#ffffff' : '#6b7280' }
+	const entry = transitions.value?.transitions.find(
+		(t) => t.from_state === from && t.to_state === to,
+	);
+	const prob = entry?.probability ?? 0;
+	const isDiag = from === to;
+	if (prob < 0.001) return { color: "#d1d5db" };
+	const alpha = Math.min(1, prob * 3).toFixed(2);
+	const color = isDiag
+		? `rgba(59,130,246,${alpha})`
+		: `rgba(107,114,128,${alpha})`;
+	return { background: color, color: prob > 0.25 ? "#ffffff" : "#6b7280" };
 }
 
 // ── データ読み込み ──────────────────────────────────────────────────
 async function loadPrediction() {
-  try {
-    prediction.value = await api.getSectorRotationPrediction()
-  } catch (_) { /* noop */ }
+	try {
+		prediction.value = await api.getSectorRotationPrediction();
+	} catch (_) {
+		/* noop */
+	}
 }
 
 async function loadTransitions() {
-  if (transitions.value) return
-  loadingTransitions.value = true
-  try {
-    transitions.value = await api.getSectorRotationTransitions()
-  } finally {
-    loadingTransitions.value = false
-  }
+	if (transitions.value) return;
+	loadingTransitions.value = true;
+	try {
+		transitions.value = await api.getSectorRotationTransitions();
+	} finally {
+		loadingTransitions.value = false;
+	}
 }
 
 // 遷移行列タブに切り替えたら自動ロード
 watch(activeTab, (tab) => {
-  if (tab === 'transitions') loadTransitions()
-})
+	if (tab === "transitions") loadTransitions();
+});
 
 onMounted(() => {
-  loadPrediction()
-})
+	loadPrediction();
+});
 </script>

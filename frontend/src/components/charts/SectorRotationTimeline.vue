@@ -68,57 +68,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useApi } from '../../composables/useApi'
-import type { SectorRotationState } from '../../types'
+import { computed, onMounted, ref } from "vue";
+import { useApi } from "../../composables/useApi";
+import type { SectorRotationState } from "../../types";
 
-const props = defineProps<{ limit?: number; clusterMethod?: string }>()
+const props = defineProps<{ limit?: number; clusterMethod?: string }>();
 
-const api = useApi()
-const loading = ref(false)
-const states = ref<SectorRotationState[]>([])
-const error = ref(false)
-const selectedState = ref<SectorRotationState | null>(null)
+const api = useApi();
+const loading = ref(false);
+const states = ref<SectorRotationState[]>([]);
+const error = ref(false);
+const selectedState = ref<SectorRotationState | null>(null);
 
 // 状態ID → 状態名 (最新の代表名)
 const stateNames = computed<Record<number, string>>(() => {
-  const m: Record<number, string> = {}
-  states.value.forEach(s => { m[s.state_id] = s.state_name })
-  return m
-})
+	const m: Record<number, string> = {};
+	states.value.forEach((s) => {
+		m[s.state_id] = s.state_name;
+	});
+	return m;
+});
 
-const tickInterval = computed(() => Math.max(1, Math.ceil(states.value.length / 20)))
+const tickInterval = computed(() =>
+	Math.max(1, Math.ceil(states.value.length / 20)),
+);
 
 const STATE_COLORS = [
-  '#3b82f6', // blue-500
-  '#22c55e', // green-500
-  '#f59e0b', // amber-500
-  '#ef4444', // red-500
-  '#a855f7', // purple-500
-]
+	"#3b82f6", // blue-500
+	"#22c55e", // green-500
+	"#f59e0b", // amber-500
+	"#ef4444", // red-500
+	"#a855f7", // purple-500
+];
 
 function stateColor(id: number): string {
-  return STATE_COLORS[id % STATE_COLORS.length] ?? '#6b7280'
+	return STATE_COLORS[id % STATE_COLORS.length] ?? "#6b7280";
 }
 
 async function load() {
-  loading.value = true
-  error.value = false
-  try {
-    const res = await api.getSectorRotationStates(
-      props.clusterMethod ?? 'kmeans',
-      props.limit ?? 52,
-    )
-    states.value = res.states ?? []
-    if (states.value.length > 0) {
-      selectedState.value = states.value[states.value.length - 1]
-    }
-  } catch (_) {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
+	loading.value = true;
+	error.value = false;
+	try {
+		const res = await api.getSectorRotationStates(
+			props.clusterMethod ?? "kmeans",
+			props.limit ?? 52,
+		);
+		states.value = res.states ?? [];
+		if (states.value.length > 0) {
+			selectedState.value = states.value[states.value.length - 1];
+		}
+	} catch (_) {
+		error.value = true;
+	} finally {
+		loading.value = false;
+	}
 }
 
-onMounted(load)
+onMounted(load);
 </script>

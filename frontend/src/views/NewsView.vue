@@ -71,58 +71,58 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useApi } from '../composables/useApi'
-import type { NewsArticle, NewsSummary } from '../types'
+import { onMounted, ref } from "vue";
+import { useApi } from "../composables/useApi";
+import type { NewsArticle, NewsSummary } from "../types";
 
-const api = useApi()
+const api = useApi();
 
-const articles = ref<NewsArticle[]>([])
-const summary = ref<NewsSummary | null>(null)
-const loading = ref(false)
-const summaryLoading = ref(false)
-const filterDate = ref('')
+const articles = ref<NewsArticle[]>([]);
+const summary = ref<NewsSummary | null>(null);
+const loading = ref(false);
+const summaryLoading = ref(false);
+const filterDate = ref("");
 
 async function load() {
-  loading.value = true
-  summaryLoading.value = true
-  try {
-    const params: { date?: string; limit?: number } = { limit: 50 }
-    if (filterDate.value) params.date = filterDate.value
+	loading.value = true;
+	summaryLoading.value = true;
+	try {
+		const params: { date?: string; limit?: number } = { limit: 50 };
+		if (filterDate.value) params.date = filterDate.value;
 
-    const [arts, sum] = await Promise.all([
-      api.getNews(params),
-      api.getNewsSummary(filterDate.value || undefined),
-    ])
-    articles.value = arts
-    summary.value = sum
-  } finally {
-    loading.value = false
-    summaryLoading.value = false
-  }
+		const [arts, sum] = await Promise.all([
+			api.getNews(params),
+			api.getNewsSummary(filterDate.value || undefined),
+		]);
+		articles.value = arts;
+		summary.value = sum;
+	} finally {
+		loading.value = false;
+		summaryLoading.value = false;
+	}
 }
 
 function clearFilter() {
-  filterDate.value = ''
-  load()
+	filterDate.value = "";
+	load();
 }
 
 function formatDate(dt: string) {
-  if (!dt) return ''
-  return dt.replace('T', ' ').slice(0, 16)
+	if (!dt) return "";
+	return dt.replace("T", " ").slice(0, 16);
 }
 
 function sentimentClass(s: number) {
-  if (s > 0.1) return 'text-green-400'
-  if (s < -0.1) return 'text-red-400'
-  return 'text-gray-400'
+	if (s > 0.1) return "text-green-400";
+	if (s < -0.1) return "text-red-400";
+	return "text-gray-400";
 }
 
 function sentimentLabel(s: number) {
-  if (s > 0.1) return '▲ ポジティブ'
-  if (s < -0.1) return '▼ ネガティブ'
-  return '— ニュートラル'
+	if (s > 0.1) return "▲ ポジティブ";
+	if (s < -0.1) return "▼ ネガティブ";
+	return "— ニュートラル";
 }
 
-onMounted(load)
+onMounted(load);
 </script>

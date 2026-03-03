@@ -82,52 +82,54 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useApi } from '../composables/useApi'
-import HeatMap from '../components/charts/HeatMap.vue'
-import type { DailySummary } from '../types'
+import { computed, onMounted, ref } from "vue";
+import { useApi } from "../composables/useApi";
+import type { DailySummary } from "../types";
 
-const api = useApi()
-const loading = ref(true)
-const error = ref('')
-const summary = ref<DailySummary | null>(null)
+const api = useApi();
+const loading = ref(true);
+const error = ref("");
+const summary = ref<DailySummary | null>(null);
 
 const sectorData = computed(() => {
-  if (!summary.value?.sector_rotation) return []
-  try {
-    const data = typeof summary.value.sector_rotation === 'string'
-      ? JSON.parse(summary.value.sector_rotation)
-      : summary.value.sector_rotation
-    return Array.isArray(data) ? data : []
-  } catch { return [] }
-})
+	if (!summary.value?.sector_rotation) return [];
+	try {
+		const data =
+			typeof summary.value.sector_rotation === "string"
+				? JSON.parse(summary.value.sector_rotation)
+				: summary.value.sector_rotation;
+		return Array.isArray(data) ? data : [];
+	} catch {
+		return [];
+	}
+});
 
 function formatReturn(r: number | null | undefined) {
-  if (r == null) return '—'
-  return (r >= 0 ? '+' : '') + (r * 100).toFixed(2) + '%'
+	if (r == null) return "—";
+	return `${(r >= 0 ? "+" : "") + (r * 100).toFixed(2)}%`;
 }
 
 function returnClass(r: number | null | undefined) {
-  if (r == null) return ''
-  return r >= 0 ? 'text-green-600' : 'text-red-600'
+	if (r == null) return "";
+	return r >= 0 ? "text-green-600" : "text-red-600";
 }
 
 function regimeClass(regime: string | null | undefined) {
-  if (regime === 'risk_on') return 'text-green-600'
-  if (regime === 'risk_off') return 'text-red-600'
-  return 'text-amber-600'
+	if (regime === "risk_on") return "text-green-600";
+	if (regime === "risk_off") return "text-red-600";
+	return "text-amber-600";
 }
 
 onMounted(async () => {
-  try {
-    const data = await api.getSummary(1)
-    summary.value = Array.isArray(data) ? data[0] : data
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'データ取得失敗'
-  } finally {
-    loading.value = false
-  }
-})
+	try {
+		const data = await api.getSummary(1);
+		summary.value = Array.isArray(data) ? data[0] : data;
+	} catch (e: unknown) {
+		error.value = e instanceof Error ? e.message : "データ取得失敗";
+	} finally {
+		loading.value = false;
+	}
+});
 </script>
 
 <style scoped>

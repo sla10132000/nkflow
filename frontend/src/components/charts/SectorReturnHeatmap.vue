@@ -62,76 +62,79 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useApi } from '../../composables/useApi'
-import type { SectorRotationHeatmap, SectorReturnEntry } from '../../types'
+import { computed, onMounted, ref, watch } from "vue";
+import { useApi } from "../../composables/useApi";
+import type { SectorReturnEntry, SectorRotationHeatmap } from "../../types";
 
 const props = defineProps<{
-  periods?: number
-  periodType?: 'weekly' | 'monthly'
-}>()
+	periods?: number;
+	periodType?: "weekly" | "monthly";
+}>();
 
-const api = useApi()
-const loading = ref(false)
-const data = ref<SectorRotationHeatmap | null>(null)
-const error = ref(false)
+const api = useApi();
+const loading = ref(false);
+const data = ref<SectorRotationHeatmap | null>(null);
+const error = ref(false);
 
 // (sector, period) → entry の高速ルックアップ
 const entryMap = computed(() => {
-  const m = new Map<string, SectorReturnEntry>()
-  data.value?.data.forEach(e => m.set(`${e.sector}::${e.period}`, e))
-  return m
-})
+	const m = new Map<string, SectorReturnEntry>();
+	for (const e of data.value?.data ?? []) m.set(`${e.sector}::${e.period}`, e);
+	return m;
+});
 
-function getEntry(sector: string, period: string): SectorReturnEntry | undefined {
-  return entryMap.value.get(`${sector}::${period}`)
+function getEntry(
+	sector: string,
+	period: string,
+): SectorReturnEntry | undefined {
+	return entryMap.value.get(`${sector}::${period}`);
 }
 
 function formatReturn(v: number | undefined): string {
-  if (v == null) return '—'
-  return `${(v * 100).toFixed(1)}%`
+	if (v == null) return "—";
+	return `${(v * 100).toFixed(1)}%`;
 }
 
 function formatPeriod(p: string): string {
-  // weekly: YYYY-MM-DD → MM/DD
-  // monthly: YYYY-MM → MM月
-  if (p.length === 7) return p.slice(5) + '月'
-  return p.slice(5).replace('-', '/')
+	// weekly: YYYY-MM-DD → MM/DD
+	// monthly: YYYY-MM → MM月
+	if (p.length === 7) return `${p.slice(5)}月`;
+	return p.slice(5).replace("-", "/");
 }
 
 function cellStyle(sector: string, period: string): Record<string, string> {
-  const entry = getEntry(sector, period)
-  if (!entry) return { background: '#f9fafb' }
-  const v = entry.return_rate
-  const bg = returnToColor(v)
-  return { background: bg, color: Math.abs(v) > 0.02 ? '#f9fafb' : '#6b7280' }
+	const entry = getEntry(sector, period);
+	if (!entry) return { background: "#f9fafb" };
+	const v = entry.return_rate;
+	const bg = returnToColor(v);
+	return { background: bg, color: Math.abs(v) > 0.02 ? "#f9fafb" : "#6b7280" };
 }
 
 function returnToColor(v: number): string {
-  if (v >= 0.04)  return '#166534'  // very green
-  if (v >= 0.02)  return '#14532d'  // green
-  if (v >= 0.005) return '#052e16'  // light green
-  if (v >= -0.005) return '#f3f4f6' // neutral (light gray)
-  if (v >= -0.02) return '#450a0a'  // light red
-  if (v >= -0.04) return '#991b1b'  // red
-  return '#7f1d1d'                   // very red
+	if (v >= 0.04) return "#166534"; // very green
+	if (v >= 0.02) return "#14532d"; // green
+	if (v >= 0.005) return "#052e16"; // light green
+	if (v >= -0.005) return "#f3f4f6"; // neutral (light gray)
+	if (v >= -0.02) return "#450a0a"; // light red
+	if (v >= -0.04) return "#991b1b"; // red
+	return "#7f1d1d"; // very red
 }
 
 async function load() {
-  loading.value = true
-  error.value = false
-  try {
-    data.value = await api.getSectorRotationHeatmap(
-      props.periods ?? 12,
-      props.periodType ?? 'weekly',
-    )
-  } catch (_) {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
+	loading.value = true;
+	error.value = false;
+	try {
+		data.value = await api.getSectorRotationHeatmap(
+			props.periods ?? 12,
+			props.periodType ?? "weekly",
+		);
+	} catch (_) {
+		error.value = true;
+	} finally {
+		loading.value = false;
+	}
 }
 
-watch(() => [props.periods, props.periodType], load)
-onMounted(load)
+watch(() => [props.periods, props.periodType], load);
+onMounted(load);
 </script>

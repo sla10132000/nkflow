@@ -76,48 +76,50 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useApi } from '../composables/useApi'
-import PriceChart from '../components/charts/PriceChart.vue'
-import type { DailyPrice } from '../types'
+import { ref } from "vue";
+import { useApi } from "../composables/useApi";
+import type { DailyPrice } from "../types";
 
-const api = useApi()
-const codeInput = ref('')
-const prices = ref<DailyPrice[]>([])
-const loading = ref(false)
-const error = ref('')
-const activePeriod = ref(60)
+const api = useApi();
+const codeInput = ref("");
+const prices = ref<DailyPrice[]>([]);
+const loading = ref(false);
+const error = ref("");
+const activePeriod = ref(60);
 
 const periods = [
-  { label: '1M', days: 20 },
-  { label: '3M', days: 60 },
-  { label: '6M', days: 120 },
-  { label: '1Y', days: 250 },
-]
+	{ label: "1M", days: 20 },
+	{ label: "3M", days: 60 },
+	{ label: "6M", days: 120 },
+	{ label: "1Y", days: 250 },
+];
 
 function toDate(daysAgo: number) {
-  const d = new Date()
-  d.setDate(d.getDate() - daysAgo)
-  return d.toISOString().split('T')[0]
+	const d = new Date();
+	d.setDate(d.getDate() - daysAgo);
+	return d.toISOString().split("T")[0];
 }
 
 async function loadPrices() {
-  if (!codeInput.value.trim()) return
-  loading.value = true
-  error.value = ''
-  try {
-    prices.value = await api.getPrices(codeInput.value.trim(), toDate(activePeriod.value))
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'データ取得失敗'
-    prices.value = []
-  } finally {
-    loading.value = false
-  }
+	if (!codeInput.value.trim()) return;
+	loading.value = true;
+	error.value = "";
+	try {
+		prices.value = await api.getPrices(
+			codeInput.value.trim(),
+			toDate(activePeriod.value),
+		);
+	} catch (e: unknown) {
+		error.value = e instanceof Error ? e.message : "データ取得失敗";
+		prices.value = [];
+	} finally {
+		loading.value = false;
+	}
 }
 
 async function setPeriod(days: number) {
-  activePeriod.value = days
-  if (codeInput.value.trim()) await loadPrices()
+	activePeriod.value = days;
+	if (codeInput.value.trim()) await loadPrices();
 }
 </script>
 
