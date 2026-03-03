@@ -10,15 +10,15 @@
       <line
         :x1="cx" :y1="cy"
         :x2="needleTip.x" :y2="needleTip.y"
-        stroke="#f9fafb" stroke-width="2" stroke-linecap="round"
+        stroke="#374151" stroke-width="2" stroke-linecap="round"
       />
-      <circle :cx="cx" :cy="cy" r="4" fill="#f9fafb" />
+      <circle :cx="cx" :cy="cy" r="4" fill="#374151" />
 
       <!-- 中央ラベル -->
-      <text :x="cx" :y="cy + 20" text-anchor="middle" fill="#9ca3af" font-size="11">
+      <text :x="cx" :y="cy + 20" text-anchor="middle" fill="#6b7280" font-size="11">
         {{ zoneLabel }}
       </text>
-      <text :x="cx" :y="cy + 34" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="bold">
+      <text :x="cx" :y="cy + 34" text-anchor="middle" fill="#111827" font-size="13" font-weight="bold">
         {{ plRatioLabel }}
       </text>
 
@@ -33,7 +33,7 @@
         <span>信用買残4週増加率</span>
         <span :class="buyGrowthClass">{{ buyGrowthLabel }}</span>
       </div>
-      <div class="h-2 bg-gray-800 rounded-full overflow-hidden">
+      <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
         <div
           class="h-full rounded-full transition-all duration-500"
           :class="buyGrowthBarClass"
@@ -138,9 +138,9 @@ const buyGrowthLabel = computed(() => {
 
 const buyGrowthClass = computed(() => {
   const v = props.buyGrowth4w ?? 0
-  if (v > 0.08) return 'text-red-400'
-  if (v > 0) return 'text-yellow-400'
-  return 'text-green-400'
+  if (v > 0.08) return 'text-red-600'
+  if (v > 0) return 'text-amber-600'
+  return 'text-green-600'
 })
 
 const buyGrowthBarClass = computed(() => {

@@ -45,8 +45,8 @@ const chartOptions = {
   maintainAspectRatio: false,
   plugins: { legend: { display: false } },
   scales: {
-    x: { ticks: { color: '#9ca3af', maxTicksLimit: 10 }, grid: { display: false } },
-    y: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } },
+    x: { ticks: { color: '#6b7280', maxTicksLimit: 10 }, grid: { display: false } },
+    y: { ticks: { color: '#6b7280' }, grid: { color: '#e5e7eb' } },
   },
 }
 </script>

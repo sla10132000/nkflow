@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="loading" class="flex items-center justify-center h-48 text-gray-400 text-sm">
+    <div v-if="loading" class="flex items-center justify-center h-48 text-gray-500 text-sm">
       読み込み中...
     </div>
     <div v-else-if="!data || data.dates.length === 0"
@@ -100,15 +100,15 @@ const chartOptions = computed(() => ({
   },
   scales: {
     x: {
-      ticks: { color: '#9ca3af', font: { size: 9 }, maxTicksLimit: 10 },
-      grid: { color: '#1f2937' },
+      ticks: { color: '#6b7280', font: { size: 9 }, maxTicksLimit: 10 },
+      grid: { color: '#e5e7eb' },
     },
     y: {
       ticks: {
-        color: '#9ca3af', font: { size: 10 },
+        color: '#6b7280', font: { size: 10 },
         callback: (v: string | number) => `${(Number(v) * 100).toFixed(0)}%`,
       },
-      grid: { color: '#1f2937' },
+      grid: { color: '#e5e7eb' },
     },
   },
 }))

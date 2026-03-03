@@ -30,8 +30,8 @@ const chartData = computed(() => ({
     {
       label: '終値',
       data: props.prices.map(p => p.close),
-      borderColor: '#60a5fa',
-      backgroundColor: 'rgba(96,165,250,0.1)',
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59,130,246,0.08)',
       borderWidth: 1.5,
       pointRadius: 0,
       fill: true,
@@ -56,12 +56,12 @@ const chartOptions = {
   },
   scales: {
     x: {
-      ticks: { color: '#9ca3af', maxTicksLimit: 8 },
-      grid: { color: '#1f2937' },
+      ticks: { color: '#6b7280', maxTicksLimit: 8 },
+      grid: { color: '#e5e7eb' },
     },
     y: {
-      ticks: { color: '#9ca3af' },
-      grid: { color: '#1f2937' },
+      ticks: { color: '#6b7280' },
+      grid: { color: '#e5e7eb' },
     },
   },
 }

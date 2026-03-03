@@ -4,13 +4,13 @@
 
     <!-- 的中率サマリ -->
     <div class="card">
-      <h2 class="text-sm font-semibold text-gray-400 mb-3">的中率サマリ (Phase 11)</h2>
+      <h2 class="text-sm font-semibold text-gray-600 mb-3">的中率サマリ (Phase 11)</h2>
       <div v-if="accuracyLoading" class="text-gray-500 text-sm">読み込み中...</div>
-      <div v-else-if="accuracy.length === 0" class="text-gray-600 text-sm">データなし</div>
+      <div v-else-if="accuracy.length === 0" class="text-gray-500 text-sm">データなし</div>
       <div v-else class="overflow-x-auto">
         <table class="text-xs w-full">
           <thead>
-            <tr class="text-gray-500 border-b border-gray-800">
+            <tr class="text-gray-500 border-b border-gray-200">
               <th class="text-left py-1 pr-4">シグナルタイプ</th>
               <th class="text-right pr-4">5日</th>
               <th class="text-right pr-4">10日</th>
@@ -18,21 +18,21 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in accuracyTable" :key="row.signal_type" class="border-b border-gray-800/50">
+            <tr v-for="row in accuracyTable" :key="row.signal_type" class="border-b border-gray-100">
               <td class="py-1 pr-4">
                 <span class="badge" :class="typeClass(row.signal_type)">{{ row.signal_type }}</span>
               </td>
               <td class="text-right pr-4" :class="hitRateColor(row.h5?.hit_rate)">
                 {{ row.h5 ? (row.h5.hit_rate * 100).toFixed(0) + '%' : '—' }}
-                <span v-if="row.h5" class="text-gray-600">({{ row.h5.total_signals }})</span>
+                <span v-if="row.h5" class="text-gray-400">({{ row.h5.total_signals }})</span>
               </td>
               <td class="text-right pr-4" :class="hitRateColor(row.h10?.hit_rate)">
                 {{ row.h10 ? (row.h10.hit_rate * 100).toFixed(0) + '%' : '—' }}
-                <span v-if="row.h10" class="text-gray-600">({{ row.h10.total_signals }})</span>
+                <span v-if="row.h10" class="text-gray-400">({{ row.h10.total_signals }})</span>
               </td>
               <td class="text-right" :class="hitRateColor(row.h20?.hit_rate)">
                 {{ row.h20 ? (row.h20.hit_rate * 100).toFixed(0) + '%' : '—' }}
-                <span v-if="row.h20" class="text-gray-600">({{ row.h20.total_signals }})</span>
+                <span v-if="row.h20" class="text-gray-400">({{ row.h20.total_signals }})</span>
               </td>
             </tr>
           </tbody>
@@ -72,8 +72,8 @@
       <button @click="loadSignals" class="btn-primary">検索</button>
     </div>
 
-    <div v-if="loading" class="text-gray-400">読み込み中...</div>
-    <div v-else-if="error" class="text-red-400">{{ error }}</div>
+    <div v-if="loading" class="text-gray-500">読み込み中...</div>
+    <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
     <template v-else>
       <div class="text-sm text-gray-500">{{ signals.length }} 件</div>
@@ -85,25 +85,25 @@
           class="card"
         >
           <div class="flex flex-wrap items-center gap-3 mb-2">
-            <span class="text-gray-400 text-sm">{{ s.date }}</span>
+            <span class="text-gray-600 text-sm">{{ s.date }}</span>
             <span class="badge" :class="typeClass(s.signal_type)">{{ s.signal_type }}</span>
             <span class="badge" :class="s.direction === 'bullish' ? 'badge-green' : 'badge-red'">
               {{ s.direction }}
             </span>
-            <span class="text-sm text-gray-300">
+            <span class="text-sm text-gray-700">
               confidence: <span class="font-bold">{{ (s.confidence * 100).toFixed(1) }}%</span>
             </span>
-            <RouterLink v-if="s.code" :to="`/stock/${s.code}`" class="text-blue-400 text-sm hover:underline ml-auto">
+            <RouterLink v-if="s.code" :to="`/stock/${s.code}`" class="text-blue-600 text-sm hover:underline ml-auto">
               {{ s.code }}
             </RouterLink>
             <span v-if="s.sector" class="text-gray-500 text-sm">{{ s.sector }}</span>
           </div>
 
           <!-- reasoning 展開 -->
-          <button @click="toggleReasoning(s.id)" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+          <button @click="toggleReasoning(s.id)" class="text-xs text-gray-500 hover:text-gray-700 transition-colors">
             {{ expanded.has(s.id) ? '▼ reasoning を閉じる' : '▶ reasoning を展開' }}
           </button>
-          <pre v-if="expanded.has(s.id)" class="mt-2 text-xs bg-gray-950 rounded p-3 overflow-x-auto text-gray-300">{{ formatReasoning(s.reasoning) }}</pre>
+          <pre v-if="expanded.has(s.id)" class="mt-2 text-xs bg-gray-100 rounded p-3 overflow-x-auto text-gray-700">{{ formatReasoning(s.reasoning) }}</pre>
         </div>
       </div>
 
@@ -167,9 +167,9 @@ async function loadAccuracy() {
 
 function hitRateColor(rate?: number) {
   if (rate === undefined) return ''
-  if (rate >= 0.6) return 'text-green-400'
-  if (rate >= 0.5) return 'text-gray-300'
-  return 'text-red-400'
+  if (rate >= 0.6) return 'text-green-600'
+  if (rate >= 0.5) return 'text-gray-700'
+  return 'text-red-600'
 }
 
 const filters = reactive({
@@ -226,17 +226,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.card { @apply bg-gray-900 rounded-lg p-4 border border-gray-800; }
+.card { @apply bg-white rounded-lg p-4 border border-gray-200 shadow-sm; }
 .label { @apply block text-xs text-gray-500 mb-1; }
-.input { @apply bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500; }
+.input { @apply bg-white border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500; }
 .btn-primary { @apply bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm transition-colors; }
 .badge { @apply px-2 py-0.5 rounded text-xs font-medium; }
-.badge-green { @apply bg-green-900/60 text-green-300; }
-.badge-red { @apply bg-red-900/60 text-red-300; }
-.badge-blue { @apply bg-blue-900/60 text-blue-300; }
-.badge-yellow { @apply bg-yellow-900/60 text-yellow-300; }
-.badge-purple { @apply bg-purple-900/60 text-purple-300; }
-.badge-orange { @apply bg-orange-900/60 text-orange-300; }
-.badge-teal { @apply bg-teal-900/60 text-teal-300; }
-.badge-gray { @apply bg-gray-800 text-gray-300; }
+.badge-green { @apply bg-green-100 text-green-700; }
+.badge-red { @apply bg-red-100 text-red-700; }
+.badge-blue { @apply bg-blue-100 text-blue-700; }
+.badge-yellow { @apply bg-amber-100 text-amber-700; }
+.badge-purple { @apply bg-purple-100 text-purple-700; }
+.badge-orange { @apply bg-orange-100 text-orange-700; }
+.badge-teal { @apply bg-teal-100 text-teal-700; }
+.badge-gray { @apply bg-gray-200 text-gray-700; }
 </style>

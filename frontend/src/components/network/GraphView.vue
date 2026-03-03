@@ -85,12 +85,12 @@ function buildNetwork() {
           : `${n.id}\n${n.label}\n${n.group}`,
         color: {
           background: nodeColor(n.group),
-          border: isHotNode ? '#fbbf24' : '#1f2937',
+          border: isHotNode ? '#fbbf24' : '#d1d5db',
           highlight: { background: nodeColor(n.group), border: '#f59e0b' },
         },
         size,
         borderWidth: isHotNode ? 3 : 1,
-        font: { color: '#f3f4f6', size: 11 },
+        font: { color: '#1f2937', size: 11 },
       }
     })
   )
@@ -110,8 +110,8 @@ function buildNetwork() {
       const edgeColor = props.anchorMode && hasCount
         ? strength > 0.6 ? '#f59e0b'               // 強: 琥珀
         : strength > 0.3 ? '#6366f1'               // 中: 紫
-        : '#374151'                                  // 弱: グレー
-        : '#374151'
+        : '#9ca3af'                                  // 弱: グレー
+        : '#9ca3af'
       const title = hasCount
         ? `${count}日間のフロー / 平均spread: ${(((e.coefficient || 0) * 100).toFixed(2))}%`
         : undefined

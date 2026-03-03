@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="loading" class="flex items-center justify-center h-32 text-gray-400 text-sm">
+    <div v-if="loading" class="flex items-center justify-center h-32 text-gray-500 text-sm">
       読み込み中...
     </div>
     <div v-else-if="!states.length"
@@ -23,14 +23,14 @@
       <div class="relative h-4 flex mt-0.5">
         <div
           v-for="(s, i) in states" :key="s.period"
-          class="flex-1 text-[9px] text-gray-600 text-center"
+          class="flex-1 text-[9px] text-gray-500 text-center"
         >
           {{ i % tickInterval === 0 ? s.period.slice(2, 7) : '' }}
         </div>
       </div>
 
       <!-- 凡例 -->
-      <div class="flex flex-wrap gap-3 mt-2 text-xs text-gray-400">
+      <div class="flex flex-wrap gap-3 mt-2 text-xs text-gray-600">
         <span
           v-for="(name, id) in stateNames" :key="id"
           class="flex items-center gap-1"
@@ -41,19 +41,19 @@
       </div>
 
       <!-- 選択状態の詳細 -->
-      <div v-if="selectedState" class="mt-3 p-3 rounded-lg bg-gray-900 border border-gray-800 text-xs">
+      <div v-if="selectedState" class="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs">
         <div class="flex items-center gap-2 mb-2">
           <span class="inline-block w-3 h-3 rounded-sm" :style="{ background: stateColor(selectedState.state_id) }"></span>
-          <span class="text-gray-300 font-medium">{{ selectedState.period }}</span>
-          <span class="text-gray-400">{{ selectedState.state_name }}</span>
+          <span class="text-gray-800 font-medium">{{ selectedState.period }}</span>
+          <span class="text-gray-600">{{ selectedState.state_name }}</span>
         </div>
         <div class="grid grid-cols-5 gap-1">
           <div
             v-for="sec in selectedState.top_sectors" :key="sec.sector"
-            class="text-center p-1 rounded bg-gray-800"
+            class="text-center p-1 rounded bg-white border border-gray-200"
           >
-            <div class="text-gray-300 truncate">{{ sec.sector }}</div>
-            <div :class="sec.avg_return >= 0 ? 'text-green-400' : 'text-red-400'">
+            <div class="text-gray-700 truncate">{{ sec.sector }}</div>
+            <div :class="sec.avg_return >= 0 ? 'text-green-600' : 'text-red-600'">
               {{ (sec.avg_return * 100).toFixed(1) }}%
             </div>
           </div>

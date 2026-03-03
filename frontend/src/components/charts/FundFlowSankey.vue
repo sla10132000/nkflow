@@ -39,7 +39,7 @@
         <!-- Sector label -->
         <text
           :x="RIGHT_X + NODE_W + 5" :y="n.top + n.h / 2 + 4"
-          fill="#e5e7eb" font-size="11" font-weight="600" text-anchor="start"
+          fill="#111827" font-size="11" font-weight="600" text-anchor="start"
         >{{ short(n.name) }}</text>
         <!-- Count badge -->
         <text

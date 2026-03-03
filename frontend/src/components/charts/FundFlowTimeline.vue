@@ -4,73 +4,73 @@
     <div class="flex flex-wrap gap-2 items-center mb-3">
 
       <!-- 粒度 -->
-      <div class="flex rounded overflow-hidden border border-gray-700 text-xs">
+      <div class="flex rounded overflow-hidden border border-gray-300 text-xs">
         <button
           v-for="g in granularities" :key="g.value"
           @click="setGranularity(g.value)"
           class="px-3 py-1 transition-colors"
           :class="granularity === g.value
             ? 'bg-blue-600 text-white'
-            : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'"
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'"
         >{{ g.label }}</button>
       </div>
 
       <!-- 通常モード: 指標 -->
       <template v-if="!anchorDate">
-        <div class="w-px h-4 bg-gray-700" />
-        <div class="flex rounded overflow-hidden border border-gray-700 text-xs">
+        <div class="w-px h-4 bg-gray-300" />
+        <div class="flex rounded overflow-hidden border border-gray-300 text-xs">
           <button
             v-for="m in metrics" :key="m.value"
             @click="metric = m.value"
             class="px-3 py-1 transition-colors"
             :class="metric === m.value
               ? 'bg-indigo-600 text-white'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'"
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'"
           >{{ m.label }}</button>
         </div>
-        <span class="text-xs text-gray-600 ml-1">← 棒をクリックで基準日に設定</span>
+        <span class="text-xs text-gray-400 ml-1">← 棒をクリックで基準日に設定</span>
       </template>
 
       <!-- アンカーモード: バッジ + 指標 + 表示方法 + 解除 -->
       <template v-else>
-        <span class="flex items-center gap-1 text-xs bg-indigo-950 text-indigo-300 px-2 py-1 rounded border border-indigo-700">
+        <span class="flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-200">
           📍 基準日: {{ anchorPeriodLabel }}
         </span>
 
         <!-- 指標 -->
-        <div class="flex rounded overflow-hidden border border-gray-700 text-xs">
+        <div class="flex rounded overflow-hidden border border-gray-300 text-xs">
           <button
             v-for="m in anchorMetrics" :key="m.value"
             @click="anchorMetric = m.value"
             class="px-3 py-1 transition-colors"
             :class="anchorMetric === m.value
               ? 'bg-indigo-600 text-white'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'"
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'"
           >{{ m.label }}</button>
         </div>
 
         <!-- 集計粒度 -->
-        <div class="flex rounded overflow-hidden border border-gray-700 text-xs">
+        <div class="flex rounded overflow-hidden border border-gray-300 text-xs">
           <button
             v-for="g in groupByOptions" :key="g.value"
             @click="groupBy = g.value"
             class="px-3 py-1 transition-colors"
             :class="groupBy === g.value
               ? 'bg-amber-600 text-white'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'"
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'"
           >{{ g.label }}</button>
         </div>
 
         <button
           @click="clearAnchor"
-          class="text-xs px-2 py-1 rounded border border-gray-700 text-gray-400 hover:border-red-500 hover:text-red-400 transition-colors"
+          class="text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 hover:border-red-500 hover:text-red-600 transition-colors"
         >× 解除</button>
       </template>
     </div>
 
     <!-- ===== チャート本体 ===== -->
     <div v-if="loading || loadingCumulative"
-         class="flex items-center justify-center h-64 text-gray-400 text-sm">
+         class="flex items-center justify-center h-64 text-gray-500 text-sm">
       読み込み中...
     </div>
 
@@ -219,7 +219,7 @@ const chartOptions = computed(() => ({
     }
   },
   plugins: {
-    legend: { display: true, position: 'bottom' as const, labels: { color: '#9ca3af', boxWidth: 10, font: { size: 10 } } },
+    legend: { display: true, position: 'bottom' as const, labels: { color: '#6b7280', boxWidth: 10, font: { size: 10 } } },
     tooltip: {
       callbacks: {
         label: (ctx: { dataset: { label?: string }; parsed: { y: number | null } }) => {
@@ -230,14 +230,14 @@ const chartOptions = computed(() => ({
     },
   },
   scales: {
-    x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: '#1f2937' } },
+    x: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: '#e5e7eb' } },
     y: {
       beginAtZero: true,
       ticks: {
-        color: '#9ca3af', font: { size: 10 },
+        color: '#6b7280', font: { size: 10 },
         callback: (v: string | number) => metric.value === 'spread' ? `${(Number(v) * 100).toFixed(1)}%` : String(v),
       },
-      grid: { color: '#1f2937' },
+      grid: { color: '#e5e7eb' },
     },
   },
 }))
@@ -265,7 +265,7 @@ const cumulativeChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { display: true, position: 'bottom' as const, labels: { color: '#9ca3af', boxWidth: 10, font: { size: 10 } } },
+    legend: { display: true, position: 'bottom' as const, labels: { color: '#6b7280', boxWidth: 10, font: { size: 10 } } },
     tooltip: {
       callbacks: {
         label: (ctx: { dataset: { label?: string }; parsed: { y: number | null } }) => {
@@ -276,10 +276,10 @@ const cumulativeChartOptions = computed(() => ({
     },
   },
   scales: {
-    x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: '#1f2937' } },
+    x: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: '#e5e7eb' } },
     y: {
-      ticks: { color: '#9ca3af', font: { size: 10 }, callback: (v: string | number) => `${(Number(v) * 100).toFixed(1)}%` },
-      grid: { color: '#1f2937' },
+      ticks: { color: '#6b7280', font: { size: 10 }, callback: (v: string | number) => `${(Number(v) * 100).toFixed(1)}%` },
+      grid: { color: '#e5e7eb' },
     },
   },
 }))
@@ -350,7 +350,7 @@ const destChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { display: true, position: 'bottom' as const, labels: { color: '#9ca3af', boxWidth: 10, font: { size: 10 } } },
+    legend: { display: true, position: 'bottom' as const, labels: { color: '#6b7280', boxWidth: 10, font: { size: 10 } } },
     tooltip: {
       callbacks: {
         label: (ctx: { dataset: { label?: string }; parsed: { y: number | null } }) => {
@@ -363,11 +363,11 @@ const destChartOptions = computed(() => ({
     },
   },
   scales: {
-    x: { stacked: true, ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: '#1f2937' } },
+    x: { stacked: true, ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: '#e5e7eb' } },
     y: {
       stacked: true,
-      ticks: { color: '#9ca3af', font: { size: 10 }, callback: (v: string | number) => `${(Number(v) * 100).toFixed(1)}%` },
-      grid: { color: '#1f2937' },
+      ticks: { color: '#6b7280', font: { size: 10 }, callback: (v: string | number) => `${(Number(v) * 100).toFixed(1)}%` },
+      grid: { color: '#e5e7eb' },
     },
   },
 }))
