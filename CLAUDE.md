@@ -15,8 +15,8 @@ make help            # 利用可能なコマンド一覧
 make deploy          # CDK + frontend を両方デプロイ (通常はこれ)
 make deploy-cdk      # CDK のみ (backend/Lambda/インフラ変更時)
 make deploy-frontend # Vue frontend のみビルド&S3同期
-make pull            # S3 → /tmp/stocks.db ダウンロード
-make push-db         # /tmp/stocks.db → S3 アップロード
+make pull            # S3 → stocks.db ダウンロード (worktree 対応)
+make push-db         # stocks.db → S3 アップロード (worktree 対応)
 make test            # pytest
 make lint            # ruff
 ```
@@ -149,6 +149,17 @@ backend/src/
 - テストフレームワーク: pytest + moto (S3/SSM/SNS モック)
 - `conftest.py` が `S3_BUCKET=test-nkflow-bucket` 等のダミー環境変数を自動設定
 - 実 AWS アクセスなし。全テストはローカルで完結
+
+### SQLite 並列実行の安全ルール
+
+Worktree ごとに `SQLITE_PATH` が自動で分離される（`/tmp/nkflow-<worktree名>/stocks.db`）。
+ただし以下のルールを守ること:
+
+* `make push-db` は排他的に実行する — 同時に複数セッションで実行しない
+* DB スキーマ変更（マイグレーション）を含むタスクは並列実行しない
+* バックフィルスクリプト実行中は他セッションで同じ DB を操作しない
+* `make push-db` 実行前に、他セッションが S3 上の DB を更新していないか確認する
+* テスト (`make test`) は pytest `tmp_path` で隔離されるため並列実行しても安全
 
 ### スキーマ変更時
 

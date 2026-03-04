@@ -32,7 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 S3_BUCKET = os.environ.get("S3_BUCKET", "nkflow-data-268914462689")
-SQLITE_PATH = "/tmp/stocks.db"
+SQLITE_PATH = os.environ.get("SQLITE_PATH", "/tmp/stocks.db")
 # 2年分のデフォルト取得期間
 DEFAULT_LOOKBACK_DAYS = 730
 
