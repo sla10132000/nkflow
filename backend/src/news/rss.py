@@ -15,7 +15,6 @@ FEEDS: dict[str, str] = {
     "investing_fx": "https://www.investing.com/rss/news_25.rss",
     "investing_jp": "https://www.investing.com/rss/news_301.rss",
     "cnbc_markets": "https://www.cnbc.com/id/15838459/device/rss/rss.html",
-    "mw_top":       "https://feeds.content.dowjones.io/public/rss/mw_topstories",
     "ft_markets":   "https://www.ft.com/markets?format=rss",
 }
 
