@@ -7,10 +7,6 @@
       <h2 class="text-sm font-semibold text-gray-400 mb-3">本日のニュース</h2>
       <div v-if="summaryLoading" class="text-gray-500 text-sm">読み込み中...</div>
       <div v-else-if="summary" class="flex flex-wrap gap-6 text-sm">
-        <div>
-          <span class="text-gray-400">合計</span>
-          <span class="ml-2 font-bold text-white">{{ summary.total }} 件</span>
-        </div>
         <div v-for="s in summary.sources.slice(0, 5)" :key="s.source" class="text-gray-300">
           <span class="text-gray-500">{{ s.source }}</span>
           <span class="ml-1">{{ s.count }}</span>

@@ -59,7 +59,7 @@ describe("NewsView", () => {
 		expect(newsCall).toHaveProperty("date");
 	});
 
-	it("サマリーの合計件数を表示する", async () => {
+	it("サマリーのソース別件数を表示する", async () => {
 		mockApi.getNewsSummary.mockResolvedValue({
 			date: "2026-03-04",
 			total: 42,
@@ -70,7 +70,8 @@ describe("NewsView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("42 件");
+		expect(wrapper.text()).toContain("Reuters");
+		expect(wrapper.text()).toContain("20");
 	});
 
 	it("記事一覧を表示する", async () => {
