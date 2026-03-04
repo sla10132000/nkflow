@@ -162,6 +162,21 @@ Worktree ごとに `SQLITE_PATH` が自動で分離される（`/tmp/nkflow-<wor
 * `make push-db` 実行前に、他セッションが S3 上の DB を更新していないか確認する
 * テスト (`make test`) は pytest `tmp_path` で隔離されるため並列実行しても安全
 
+#### WAL (Write-Ahead Log) の注意
+
+SQLite はデフォルトで WAL モードで動作する。バックフィル等でデータを書き込んだ後、
+WAL ファイル (`stocks.db-wal`) に変更が残った状態で `aws s3 cp` するとメインDBファイルのみが
+アップロードされ、変更が S3 に反映されない。
+
+**`make push-db` は内部で `PRAGMA wal_checkpoint(TRUNCATE)` を実行してから S3 にアップロードするため、
+直接 `aws s3 cp` を使わず必ず `make push-db` を使うこと。**
+
+直接 cp が必要な場合は事前に手動でチェックポイントすること:
+```bash
+sqlite3 /tmp/stocks.db "PRAGMA wal_checkpoint(TRUNCATE);"
+aws s3 cp /tmp/stocks.db s3://...
+```
+
 ### スキーマ変更時
 
 `backend/scripts/migrate_phaseXX.py` を作成して冪等なマイグレーションを実装する。
