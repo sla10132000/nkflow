@@ -148,6 +148,8 @@ pull:
 	@echo "Downloaded to: $(SQLITE_LOCAL)"
 
 # SQLite を S3 へアップロード (バックフィル後など)
+# WAL チェックポイントを先に実行し、WAL の変更をメイン DB ファイルに書き込んでからアップロードする
 push-db:
+	sqlite3 $(SQLITE_LOCAL) "PRAGMA wal_checkpoint(TRUNCATE);"
 	aws s3 cp $(SQLITE_LOCAL) s3://$(S3_BUCKET)/data/stocks.db
 	@echo "Uploaded from: $(SQLITE_LOCAL)"
