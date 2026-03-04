@@ -81,7 +81,11 @@ const articles = ref<NewsArticle[]>([]);
 const summary = ref<NewsSummary | null>(null);
 const loading = ref(false);
 const summaryLoading = ref(false);
-const filterDate = ref("");
+function todayJst() {
+	return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+}
+
+const filterDate = ref(todayJst());
 
 async function load() {
 	loading.value = true;
@@ -103,7 +107,7 @@ async function load() {
 }
 
 function clearFilter() {
-	filterDate.value = "";
+	filterDate.value = todayJst();
 	load();
 }
 
