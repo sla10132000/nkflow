@@ -12,36 +12,26 @@
         <span class="text-xs text-gray-400 ml-2 font-normal">{{ yesterdayLabel }}</span>
       </h2>
       <ul class="space-y-2">
-        <li v-for="article in topNews" :key="article.id" class="flex gap-2 items-start">
-          <img
-            v-if="article.image_url"
-            :src="article.image_url"
-            alt=""
-            class="w-10 h-10 object-cover rounded flex-shrink-0 bg-gray-100"
-            @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
-          />
-          <div v-else class="w-10 h-10 bg-gray-100 rounded flex-shrink-0" />
-          <div class="min-w-0">
-            <a
-              :href="article.url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-sm font-medium text-blue-700 hover:underline leading-snug line-clamp-2"
+        <li v-for="article in topNews" :key="article.id">
+          <a
+            :href="article.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm font-medium text-blue-700 hover:underline leading-snug line-clamp-2"
+          >
+            {{ article.title_ja ?? article.title }}
+          </a>
+          <div class="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
+            <span>{{ article.source_name ?? article.source }}</span>
+            <span>{{ formatTime(article.published_at) }}</span>
+            <span
+              v-if="article.sentiment != null"
+              :class="sentimentClass(article.sentiment)"
+              class="px-1.5 py-0.5 rounded-full font-medium"
             >
-              {{ article.title_ja ?? article.title }}
-            </a>
-            <div class="mt-1 flex items-center gap-2 text-xs text-gray-400">
-              <span>{{ article.source_name ?? article.source }}</span>
-              <span>{{ formatTime(article.published_at) }}</span>
-              <span
-                v-if="article.sentiment != null"
-                :class="sentimentClass(article.sentiment)"
-                class="px-1.5 py-0.5 rounded-full font-medium"
-              >
-                {{ article.sentiment > 0.1 ? '+' : article.sentiment < -0.1 ? '−' : '中立' }}
-                {{ article.sentiment > 0.1 || article.sentiment < -0.1 ? Math.abs(article.sentiment).toFixed(1) : '' }}
-              </span>
-            </div>
+              {{ article.sentiment > 0.1 ? '+' : article.sentiment < -0.1 ? '−' : '中立' }}
+              {{ article.sentiment > 0.1 || article.sentiment < -0.1 ? Math.abs(article.sentiment).toFixed(1) : '' }}
+            </span>
           </div>
         </li>
       </ul>
