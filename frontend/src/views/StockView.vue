@@ -12,24 +12,24 @@
 
     <template v-else-if="detail">
       <!-- 最新データ -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3" v-if="detail.latest">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3" v-if="latest">
         <div class="card">
           <div class="label">終値</div>
-          <div class="value">¥{{ detail.latest.close?.toLocaleString() }}</div>
+          <div class="value">¥{{ latest.close?.toLocaleString() }}</div>
         </div>
         <div class="card">
           <div class="label">騰落率</div>
-          <div class="value" :class="detail.latest.return_rate >= 0 ? 'text-green-600' : 'text-red-600'">
-            {{ formatReturn(detail.latest.return_rate) }}
+          <div class="value" :class="latest.return_rate >= 0 ? 'text-green-600' : 'text-red-600'">
+            {{ formatReturn(latest.return_rate) }}
           </div>
         </div>
         <div class="card">
           <div class="label">値幅</div>
-          <div class="value">{{ detail.latest.price_range?.toLocaleString() }}</div>
+          <div class="value">{{ latest.price_range?.toLocaleString() }}</div>
         </div>
         <div class="card">
           <div class="label">出来高</div>
-          <div class="value text-base">{{ detail.latest.volume?.toLocaleString() }}</div>
+          <div class="value text-base">{{ latest.volume?.toLocaleString() }}</div>
         </div>
       </div>
 
@@ -149,7 +149,7 @@
       </div>
 
       <!-- 関連シグナル -->
-      <div class="card" v-if="detail.signals.length">
+      <div class="card" v-if="detail.signals?.length">
         <h2 class="font-semibold mb-2">関連シグナル</h2>
         <div class="space-y-2">
           <div v-for="s in detail.signals" :key="s.id" class="flex items-center gap-3 text-sm border-t border-gray-200 pt-2">
@@ -165,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
 import { useApi } from "../composables/useApi";
 import type { DailyPrice, StockDetail, TdSequentialBar } from "../types";
@@ -179,6 +179,8 @@ const prices = ref<DailyPrice[]>([]);
 const activeDays = ref(60);
 const tdData = ref<TdSequentialBar[]>([]);
 const tdLatest = ref<TdSequentialBar | null>(null);
+
+const latest = computed(() => detail.value?.recent_prices?.[0] ?? null);
 
 const periods = [
 	{ label: "1M", days: 20 },

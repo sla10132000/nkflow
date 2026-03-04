@@ -32,16 +32,13 @@ describe("StockView", () => {
 		mockApi.getStock.mockResolvedValue({
 			name: "トヨタ自動車",
 			sector: "輸送用機器",
-			latest: {
-				close: 2800,
-				return_rate: 0.015,
-				price_range: 50,
-				volume: 1000000,
-			},
+			recent_prices: [
+				{ close: 2800, return_rate: 0.015, price_range: 50, volume: 1000000 },
+			],
 			causes: [],
 			caused_by: [],
 			correlated: [],
-			community_members: [],
+			cluster: null,
 			signals: [],
 		});
 		mockApi.getPrices.mockResolvedValue([]);
@@ -58,16 +55,13 @@ describe("StockView", () => {
 		mockApi.getStock.mockResolvedValue({
 			name: "テスト銘柄",
 			sector: "テスト",
-			latest: {
-				close: 1000,
-				return_rate: 0.01,
-				price_range: 20,
-				volume: 500000,
-			},
+			recent_prices: [
+				{ close: 1000, return_rate: 0.01, price_range: 20, volume: 500000 },
+			],
 			causes: [],
 			caused_by: [],
 			correlated: [],
-			community_members: [],
+			cluster: null,
 			signals: [],
 		});
 		mockApi.getPrices.mockResolvedValue([]);
@@ -87,11 +81,11 @@ describe("StockView", () => {
 
 	it("getStock を正しいコードで呼び出す", async () => {
 		mockApi.getStock.mockResolvedValue({
-			latest: null,
+			recent_prices: [],
 			causes: [],
 			caused_by: [],
 			correlated: [],
-			community_members: [],
+			cluster: null,
 			signals: [],
 		});
 		mockApi.getPrices.mockResolvedValue([]);
@@ -104,11 +98,11 @@ describe("StockView", () => {
 
 	it("戻るボタンが表示される", async () => {
 		mockApi.getStock.mockResolvedValue({
-			latest: null,
+			recent_prices: [],
 			causes: [],
 			caused_by: [],
 			correlated: [],
-			community_members: [],
+			cluster: null,
 			signals: [],
 		});
 		mockApi.getPrices.mockResolvedValue([]);
@@ -121,16 +115,13 @@ describe("StockView", () => {
 
 	it("期間ボタンが表示される", async () => {
 		mockApi.getStock.mockResolvedValue({
-			latest: {
-				close: 1000,
-				return_rate: 0.01,
-				price_range: 20,
-				volume: 500000,
-			},
+			recent_prices: [
+				{ close: 1000, return_rate: 0.01, price_range: 20, volume: 500000 },
+			],
 			causes: [],
 			caused_by: [],
 			correlated: [],
-			community_members: [],
+			cluster: null,
 			signals: [],
 		});
 		mockApi.getPrices.mockResolvedValue([]);
@@ -155,11 +146,13 @@ describe("StockView", () => {
 		mockApi.getStock.mockResolvedValue({
 			name: "トヨタ自動車",
 			sector: "輸送用機器",
-			latest: { close: 2800, return_rate: 0.015, price_range: 50, volume: 1000000 },
+			recent_prices: [
+				{ close: 2800, return_rate: 0.015, price_range: 50, volume: 1000000 },
+			],
 			causes: [],
 			caused_by: [],
 			correlated: [],
-			community_members: [],
+			cluster: null,
 			signals: [],
 		});
 		mockApi.getPrices.mockResolvedValue([]);
@@ -181,11 +174,11 @@ describe("StockView", () => {
 
 	it("tdLatest が null の場合、TD Sequential カードを表示しない", async () => {
 		mockApi.getStock.mockResolvedValue({
-			latest: null,
+			recent_prices: [],
 			causes: [],
 			caused_by: [],
 			correlated: [],
-			community_members: [],
+			cluster: null,
 			signals: [],
 		});
 		mockApi.getPrices.mockResolvedValue([]);

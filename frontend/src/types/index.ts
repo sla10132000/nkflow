@@ -193,16 +193,33 @@ export interface StockDetail {
 	code: string;
 	name: string;
 	sector: string;
-	latest: DailyPrice | null;
-	causes: { code: string; name: string; lag_days: number; p_value: number }[];
-	caused_by: {
-		code: string;
+	recent_prices: DailyPrice[];
+	causes: {
+		target: string;
 		name: string;
+		sector: string;
 		lag_days: number;
 		p_value: number;
+		f_stat: number;
 	}[];
-	correlated: { code: string; name: string; coefficient: number }[];
-	community_members: { code: string; name: string }[];
+	caused_by: {
+		source: string;
+		name: string;
+		sector: string;
+		lag_days: number;
+		p_value: number;
+		f_stat: number;
+	}[];
+	correlated: {
+		peer_code: string;
+		name: string;
+		sector: string;
+		coefficient: number;
+	}[];
+	cluster: {
+		community_id: number;
+		members: { code: string; name: string; sector: string }[];
+	} | null;
 	signals: Signal[];
 }
 
