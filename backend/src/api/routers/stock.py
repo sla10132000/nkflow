@@ -9,6 +9,15 @@ from src.api.storage import get_connection
 router = APIRouter()
 
 
+@router.get("/stocks")
+def get_stocks(conn: Connection = Depends(get_connection)):
+    """銘柄一覧: code・name・sector を全件返す。"""
+    rows = conn.execute(
+        "SELECT code, name, sector FROM stocks ORDER BY code"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 @router.get("/stock/{code}")
 def get_stock(code: str, conn: Connection = Depends(get_connection)):
     """銘柄詳細: 基本情報 + 因果連鎖 + 相関銘柄 + クラスター + 関連シグナル。"""
