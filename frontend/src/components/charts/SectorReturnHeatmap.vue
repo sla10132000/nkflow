@@ -72,24 +72,24 @@
     <Teleport to="body">
       <div
         v-if="tooltip.visible"
-        class="fixed z-50 pointer-events-none px-2.5 py-1.5 rounded-md shadow-lg text-xs border border-gray-200 bg-white"
-        :style="{ left: `${tooltip.x + 14}px`, top: `${tooltip.y - 8}px` }"
+        ref="tooltipEl"
+        class="fixed z-50 pointer-events-none px-2 py-1 rounded shadow-md text-[11px] border border-gray-200 bg-white/95 backdrop-blur-sm"
+        :style="tooltipStyle"
       >
-        <div class="font-semibold text-gray-800">{{ tooltip.sector }}</div>
-        <div class="text-gray-400 text-[10px]">{{ tooltip.periodLabel }}</div>
-        <div
-          class="font-mono font-bold mt-0.5 text-sm"
+        <span class="text-gray-500">{{ tooltip.sector }}</span>
+        <span class="text-gray-300 mx-1">·</span>
+        <span class="text-gray-400">{{ tooltip.periodLabel }}</span>
+        <span
+          class="ml-1.5 font-mono font-bold"
           :class="(tooltip.returnRate ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'"
-        >
-          {{ tooltip.returnLabel }}
-        </div>
+        >{{ tooltip.returnLabel }}</span>
       </div>
     </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch, nextTick } from "vue";
 import { useApi } from "../../composables/useApi";
 import type { SectorReturnEntry, SectorRotationHeatmap } from "../../types";
 
@@ -102,6 +102,7 @@ const api = useApi();
 const loading = ref(false);
 const data = ref<SectorRotationHeatmap | null>(null);
 const error = ref(false);
+const tooltipEl = ref<HTMLElement | null>(null);
 
 const tooltip = reactive({
 	visible: false,
@@ -114,9 +115,22 @@ const tooltip = reactive({
 	returnLabel: "",
 });
 
+const TOOLTIP_OFFSET = 10;
+
+const tooltipStyle = computed(() => {
+	const vw = window.innerWidth;
+	const vh = window.innerHeight;
+	const tw = tooltipEl.value?.offsetWidth ?? 180;
+	const th = tooltipEl.value?.offsetHeight ?? 28;
+	let x = tooltip.x + TOOLTIP_OFFSET;
+	let y = tooltip.y - th - TOOLTIP_OFFSET;
+	if (x + tw > vw - 8) x = tooltip.x - tw - TOOLTIP_OFFSET;
+	if (y < 8) y = tooltip.y + TOOLTIP_OFFSET;
+	return { left: `${x}px`, top: `${y}px` };
+});
+
 function showTooltip(e: MouseEvent, sector: string, period: string) {
 	const entry = getEntry(sector, period);
-	tooltip.visible = true;
 	tooltip.x = e.clientX;
 	tooltip.y = e.clientY;
 	tooltip.sector = sector;
@@ -124,6 +138,7 @@ function showTooltip(e: MouseEvent, sector: string, period: string) {
 	tooltip.periodLabel = formatPeriod(period);
 	tooltip.returnRate = entry?.return_rate ?? null;
 	tooltip.returnLabel = formatReturn(entry?.return_rate);
+	tooltip.visible = true;
 }
 
 // (sector, period) → entry の高速ルックアップ
