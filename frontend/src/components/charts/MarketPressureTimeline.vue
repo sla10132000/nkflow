@@ -11,13 +11,21 @@
       <Line :data="chartData" :options="chartOptions" :plugins="chartPlugins" />
     </div>
 
-    <!-- 凡例 -->
+    <!-- 凡例: ライン -->
     <div class="flex gap-4 mt-2 text-xs text-gray-500">
       <span class="flex items-center gap-1">
         <span class="inline-block w-3 h-1 rounded" style="background:#60a5fa"></span>評価損益率
       </span>
       <span class="flex items-center gap-1">
         <span class="inline-block w-3 h-1 rounded border-dashed border border-amber-400"></span>買残増加率(4週)
+      </span>
+    </div>
+    <!-- 凡例: ゾーン背景 -->
+    <div v-if="activeZones.length" class="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-400">
+      <span>背景:</span>
+      <span v-for="z in activeZones" :key="z" class="flex items-center gap-1">
+        <span class="inline-block w-3 h-3 rounded-sm border border-gray-200"
+              :style="{ background: ZONE_BG[z] ?? 'transparent' }"></span>{{ ZONE_LABEL[z] ?? z }}
       </span>
     </div>
   </div>
@@ -65,6 +73,24 @@ const ZONE_BG: Record<string, string> = {
 	sellin: "rgba(29,78,216,0.10)",
 	bottom: "rgba(30,58,95,0.12)",
 };
+
+const ZONE_LABEL: Record<string, string> = {
+	ceiling: "天井圏",
+	overheat: "過熱",
+	neutral: "中立",
+	weak: "弱気",
+	sellin: "売り圧力",
+	bottom: "底値圏",
+};
+
+const activeZones = computed(() => {
+	const zones = data.value?.pl_zone;
+	if (!zones?.length) return [];
+	return [...new Set(zones)].sort(
+		(a, b) =>
+			Object.keys(ZONE_BG).indexOf(a) - Object.keys(ZONE_BG).indexOf(b),
+	);
+});
 
 const chartData = computed(() => {
 	if (!data.value) return { labels: [], datasets: [] };
@@ -135,7 +161,7 @@ const chartOptions = computed(() => ({
 	},
 }));
 
-/** ゾーン背景色帯 plugin */
+/** ゾーン背景色帯 + ラベル plugin */
 const zoneBgPlugin = {
 	id: "nkflowPressureZoneBg",
 	beforeDraw(chart: {
@@ -153,6 +179,8 @@ const zoneBgPlugin = {
 		if (!chartArea) return;
 		const bw = chartArea.width / zones.length;
 		ctx.save();
+
+		// 背景色帯
 		zones.forEach((zone, i) => {
 			ctx.fillStyle = ZONE_BG[zone] ?? "rgba(107,114,128,0.05)";
 			ctx.fillRect(
@@ -161,6 +189,25 @@ const zoneBgPlugin = {
 				bw,
 				chartArea.height,
 			);
+		});
+
+		// ゾーン切替時にラベルを描画
+		ctx.font = "bold 10px sans-serif";
+		ctx.textBaseline = "top";
+		let prevZone = "";
+		zones.forEach((zone, i) => {
+			if (zone !== prevZone) {
+				const label = ZONE_LABEL[zone] ?? zone;
+				const x = chartArea.left + i * bw + 3;
+				const y = chartArea.top + 3;
+				// 背景付きテキスト
+				ctx.fillStyle = "rgba(255,255,255,0.75)";
+				const tw = ctx.measureText(label).width;
+				ctx.fillRect(x - 1, y - 1, tw + 4, 14);
+				ctx.fillStyle = "#6b7280";
+				ctx.fillText(label, x + 1, y);
+				prevZone = zone;
+			}
 		});
 		ctx.restore();
 	},
