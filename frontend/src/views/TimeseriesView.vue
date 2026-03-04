@@ -4,12 +4,34 @@
 
     <!-- コントロール -->
     <div class="flex flex-wrap gap-3 items-center">
-      <input
-        v-model="codeInput"
-        @keyup.enter="loadPrices"
-        placeholder="銘柄コード (例: 7203)"
-        class="bg-white border border-gray-300 rounded px-3 py-1.5 text-sm w-36 focus:outline-none focus:border-blue-500"
-      />
+      <div class="relative">
+        <input
+          v-model="searchInput"
+          @keyup.enter="onEnter"
+          @input="onInput"
+          @blur="hideDropdownDelayed"
+          @focus="onFocus"
+          placeholder="銘柄コード or 銘柄名"
+          class="bg-white border border-gray-300 rounded px-3 py-1.5 text-sm w-56 focus:outline-none focus:border-blue-500"
+          autocomplete="off"
+        />
+        <!-- オートコンプリートドロップダウン -->
+        <ul
+          v-if="showDropdown && suggestions.length"
+          class="absolute z-50 top-full left-0 mt-1 w-80 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-y-auto text-sm"
+        >
+          <li
+            v-for="stock in suggestions"
+            :key="stock.code"
+            @mousedown.prevent="selectStock(stock)"
+            class="px-3 py-2 cursor-pointer hover:bg-blue-50 flex gap-2 items-center"
+          >
+            <span class="font-mono text-blue-700 w-12 shrink-0">{{ stock.code }}</span>
+            <span class="text-gray-800 truncate flex-1">{{ stock.name }}</span>
+            <span class="text-gray-400 text-xs shrink-0">{{ stock.sector }}</span>
+          </li>
+        </ul>
+      </div>
       <button @click="loadPrices" class="btn-primary">表示</button>
 
       <div class="flex gap-2 ml-auto">
@@ -29,7 +51,7 @@
     <template v-else-if="prices.length">
       <!-- 株価チャート -->
       <div class="card">
-        <h2 class="font-semibold mb-2">{{ codeInput }} 終値</h2>
+        <h2 class="font-semibold mb-2">{{ chartTitle }}</h2>
         <div class="h-64">
           <PriceChart :prices="prices" />
         </div>
@@ -76,16 +98,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import PriceChart from "../components/charts/PriceChart.vue";
 import { useApi } from "../composables/useApi";
-import type { DailyPrice } from "../types";
+import type { DailyPrice, Stock } from "../types";
 
 const api = useApi();
-const codeInput = ref("");
+const searchInput = ref("");
+const selectedCode = ref("");
+const selectedStock = ref<Stock | null>(null);
+const stocks = ref<Stock[]>([]);
 const prices = ref<DailyPrice[]>([]);
 const loading = ref(false);
 const error = ref("");
 const activePeriod = ref(60);
+const showDropdown = ref(false);
 
 const periods = [
 	{ label: "1M", days: 20 },
@@ -94,6 +121,78 @@ const periods = [
 	{ label: "1Y", days: 250 },
 ];
 
+const suggestions = computed(() => {
+	const q = searchInput.value.trim().toLowerCase();
+	if (!q) return [];
+	return stocks.value
+		.filter(
+			(s) =>
+				s.code.toLowerCase().includes(q) ||
+				s.name.toLowerCase().includes(q),
+		)
+		.slice(0, 10);
+});
+
+const chartTitle = computed(() => {
+	if (selectedStock.value) {
+		return `${selectedStock.value.code} ${selectedStock.value.name} 終値`;
+	}
+	return `${selectedCode.value} 終値`;
+});
+
+onMounted(async () => {
+	try {
+		stocks.value = await api.getStocks();
+	} catch {
+		// 銘柄リスト取得失敗は無視 (オートコンプリートなしで動作継続)
+	}
+});
+
+function onInput() {
+	showDropdown.value = true;
+	selectedStock.value = null;
+	selectedCode.value = "";
+}
+
+function onFocus() {
+	if (searchInput.value.trim()) showDropdown.value = true;
+}
+
+function hideDropdownDelayed() {
+	setTimeout(() => {
+		showDropdown.value = false;
+	}, 150);
+}
+
+function selectStock(stock: Stock) {
+	searchInput.value = `${stock.code} ${stock.name}`;
+	selectedCode.value = stock.code;
+	selectedStock.value = stock;
+	showDropdown.value = false;
+	loadPrices();
+}
+
+function onEnter() {
+	const q = searchInput.value.trim();
+	if (!q) return;
+	// コード完全一致
+	const exactCode = stocks.value.find((s) => s.code === q);
+	if (exactCode) {
+		selectStock(exactCode);
+		return;
+	}
+	// サジェスト候補の先頭
+	if (suggestions.value.length > 0) {
+		selectStock(suggestions.value[0]);
+		return;
+	}
+	// 候補なし → 入力をそのままコードとして使用
+	selectedCode.value = q;
+	selectedStock.value = null;
+	showDropdown.value = false;
+	loadPrices();
+}
+
 function toDate(daysAgo: number) {
 	const d = new Date();
 	d.setDate(d.getDate() - daysAgo);
@@ -101,14 +200,13 @@ function toDate(daysAgo: number) {
 }
 
 async function loadPrices() {
-	if (!codeInput.value.trim()) return;
+	const code = selectedCode.value || searchInput.value.trim();
+	if (!code) return;
+	selectedCode.value = code;
 	loading.value = true;
 	error.value = "";
 	try {
-		prices.value = await api.getPrices(
-			codeInput.value.trim(),
-			toDate(activePeriod.value),
-		);
+		prices.value = await api.getPrices(code, toDate(activePeriod.value));
 	} catch (e: unknown) {
 		error.value = e instanceof Error ? e.message : "データ取得失敗";
 		prices.value = [];
@@ -119,7 +217,7 @@ async function loadPrices() {
 
 async function setPeriod(days: number) {
 	activePeriod.value = days;
-	if (codeInput.value.trim()) await loadPrices();
+	if (selectedCode.value || searchInput.value.trim()) await loadPrices();
 }
 </script>
 

@@ -19,6 +19,10 @@ function mountView() {
 describe("TimeseriesView", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockApi.getStocks.mockResolvedValue([
+			{ code: "7203", name: "トヨタ自動車", sector: "輸送用機器" },
+			{ code: "6758", name: "ソニーグループ", sector: "電気機器" },
+		]);
 	});
 
 	it("日本語の見出しが表示される", () => {
@@ -53,6 +57,12 @@ describe("TimeseriesView", () => {
 		);
 	});
 
+	it("マウント時に getStocks を呼び出す", async () => {
+		mountView();
+		await flushPromises();
+		expect(mockApi.getStocks).toHaveBeenCalled();
+	});
+
 	it("銘柄コード入力後に API を呼び出す", async () => {
 		mockApi.getPrices.mockResolvedValue([
 			{
@@ -67,12 +77,25 @@ describe("TimeseriesView", () => {
 		]);
 
 		const wrapper = mountView();
+		await flushPromises();
 		const input = wrapper.find("input");
 		await input.setValue("7203");
 		await wrapper.find("button.btn-primary").trigger("click");
 		await flushPromises();
 
 		expect(mockApi.getPrices).toHaveBeenCalledWith("7203", expect.any(String));
+	});
+
+	it("銘柄名入力でサジェストドロップダウンが表示される", async () => {
+		const wrapper = mountView();
+		await flushPromises();
+		const input = wrapper.find("input");
+		await input.setValue("トヨタ");
+		await input.trigger("focus");
+		await input.trigger("input");
+
+		expect(wrapper.text()).toContain("7203");
+		expect(wrapper.text()).toContain("トヨタ自動車");
 	});
 
 	it("データテーブルの日本語ヘッダーが表示される", async () => {
@@ -89,6 +112,7 @@ describe("TimeseriesView", () => {
 		]);
 
 		const wrapper = mountView();
+		await flushPromises();
 		const input = wrapper.find("input");
 		await input.setValue("7203");
 		await wrapper.find("button.btn-primary").trigger("click");
