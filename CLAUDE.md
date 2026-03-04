@@ -184,16 +184,17 @@ aws s3 cp /tmp/stocks.db s3://...
 
 ---
 
-## Design Documents
+## ER
+@docs/er_diagram.md
 
-`docs/` 配下に機能ごとの設計書がある。
+## 画面設計書
+@docs/screen_design.md
 
-| ファイル | 対象機能 |
-|---|---|
-| `docs/spec.md` | プロジェクト全体設計 (Source of truth) |
-| `docs/migration_plan.md` | GCP→AWS 移行計画 |
-| `docs/fund_flow_dashboard.md` | 資金フローダッシュボード (NetworkView / FundFlowTimeline / FundFlowSankey) |
-| `docs/api_reference.md` | REST API 全エンドポイント定義 |
+## テスト設計書
+@docs/test_design.md
+
+## API リファレンス
+@docs/api_reference.md
 
 ### 設計書の更新ルール
 

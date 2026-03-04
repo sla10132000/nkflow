@@ -4,10 +4,10 @@
       <div class="max-w-7xl mx-auto flex items-center gap-6">
         <RouterLink to="/" class="text-lg font-bold text-gray-900">nkflow</RouterLink>
         <RouterLink to="/" class="nav-link">概要</RouterLink>
-        <RouterLink to="/timeseries" class="nav-link">時系列</RouterLink>
         <RouterLink to="/network" class="nav-link">資金フロー</RouterLink>
         <RouterLink to="/sector-rotation" class="nav-link">ローテーション</RouterLink>
         <RouterLink to="/news" class="nav-link">ニュース</RouterLink>
+        <RouterLink to="/timeseries" class="nav-link">時系列</RouterLink>
       </div>
     </nav>
     <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
