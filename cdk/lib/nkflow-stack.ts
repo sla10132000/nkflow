@@ -191,6 +191,16 @@ export class NkflowStack extends Stack {
       actions: ['s3:PutObject', 's3:GetObject'],
       resources: [`${dataBucket.bucketArn}/news/raw/*`],
     }));
+    // stocks.db の読み書き (正規化後にアップロードするため)
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject', 's3:PutObject'],
+      resources: [`${dataBucket.bucketArn}/data/stocks.db`],
+    }));
+    // Amazon Translate (英語記事の日本語翻訳)
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['translate:TranslateText'],
+      resources: ['*'],
+    }));
     // 全クエリ失敗時の SNS 通知
     newsFetchRole.addToPolicy(new iam.PolicyStatement({
       actions: ['sns:Publish'],
@@ -203,8 +213,8 @@ export class NkflowStack extends Stack {
         file: 'Dockerfile.news',
         platform: Platform.LINUX_AMD64,
       }),
-      memorySize: 256,
-      timeout: Duration.seconds(120),
+      memorySize: 512,
+      timeout: Duration.seconds(300),
       role: newsFetchRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
