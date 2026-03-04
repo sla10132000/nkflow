@@ -79,9 +79,10 @@ function daysAgoJst(days: number) {
 	return d.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
 }
 
-const filterDate = ref(todayJst());
+const filterDate = ref("");
 
 const datePresets = computed(() => [
+	{ label: "最新", value: "" },
 	{ label: "今日", value: todayJst() },
 	{ label: "昨日", value: daysAgoJst(1) },
 	{ label: "2日前", value: daysAgoJst(2) },
