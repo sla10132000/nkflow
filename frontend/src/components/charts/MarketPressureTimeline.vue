@@ -20,6 +20,22 @@
         <span class="inline-block w-3 h-1 rounded border-dashed border border-amber-400"></span>買残増加率(4週)
       </span>
     </div>
+    <!-- 凡例: 閾値ライン -->
+    <div class="flex gap-3 mt-1 text-xs text-gray-400">
+      <span>閾値:</span>
+      <span class="flex items-center gap-1">
+        <span class="inline-block w-3 h-0 border-t border-dashed" style="border-color:#dc2626"></span>+15% 天井
+      </span>
+      <span class="flex items-center gap-1">
+        <span class="inline-block w-3 h-0 border-t border-dashed" style="border-color:#ca8a04"></span>+5% 過熱
+      </span>
+      <span class="flex items-center gap-1">
+        <span class="inline-block w-3 h-0 border-t border-dotted" style="border-color:#6b7280"></span>0%
+      </span>
+      <span class="flex items-center gap-1">
+        <span class="inline-block w-3 h-0 border-t border-dashed" style="border-color:#1d4ed8"></span>-10% 弱気
+      </span>
+    </div>
     <!-- 凡例: ゾーン背景 -->
     <div v-if="activeZones.length" class="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-400">
       <span>背景:</span>
@@ -213,6 +229,42 @@ const zoneBgPlugin = {
 	},
 };
 
+/** ゾーン境界 水平線 plugin */
+const THRESHOLD_LINES = [
+	{ value: 0.15, label: "+15% 天井", color: "#dc2626", dash: [4, 3] },
+	{ value: 0.05, label: "+5% 過熱", color: "#ca8a04", dash: [6, 3] },
+	{ value: 0,    label: "0%",       color: "#6b7280", dash: [2, 2] },
+	{ value: -0.10, label: "-10% 弱気", color: "#1d4ed8", dash: [4, 3] },
+];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const thresholdLinePlugin: any = {
+	id: "nkflowThresholdLines",
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	afterDraw(chart: any) {
+		const { ctx, chartArea, scales } = chart;
+		if (!chartArea) return;
+		ctx.save();
+		for (const t of THRESHOLD_LINES) {
+			const y = scales.y.getPixelForValue(t.value);
+			if (y < chartArea.top || y > chartArea.top + chartArea.height) continue;
+			ctx.strokeStyle = t.color;
+			ctx.lineWidth = 1;
+			ctx.setLineDash(t.dash);
+			ctx.beginPath();
+			ctx.moveTo(chartArea.left, y);
+			ctx.lineTo(chartArea.left + chartArea.width, y);
+			ctx.stroke();
+			// ラベル (右端)
+			ctx.fillStyle = t.color;
+			ctx.font = "9px sans-serif";
+			ctx.textAlign = "right";
+			ctx.textBaseline = "bottom";
+			ctx.fillText(t.label, chartArea.left + chartArea.width - 2, y - 2);
+		}
+		ctx.restore();
+	},
+};
+
 /** 信用過熱警報 縦線 plugin */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const overheatingLinePlugin: any = {
@@ -241,7 +293,7 @@ const overheatingLinePlugin: any = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const chartPlugins: any[] = [zoneBgPlugin, overheatingLinePlugin];
+const chartPlugins: any[] = [zoneBgPlugin, thresholdLinePlugin, overheatingLinePlugin];
 
 async function load() {
 	loading.value = true;
