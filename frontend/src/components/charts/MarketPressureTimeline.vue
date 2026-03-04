@@ -85,7 +85,7 @@ const ZONE_BG: Record<string, string> = {
 	ceiling: "rgba(220,38,38,0.15)",
 	overheat: "rgba(202,138,4,0.12)",
 	neutral: "rgba(22,163,74,0.08)",
-	weak: "rgba(5,95,70,0.08)",
+	weak: "rgba(59,130,246,0.18)",
 	sellin: "rgba(29,78,216,0.10)",
 	bottom: "rgba(30,58,95,0.12)",
 };
