@@ -42,6 +42,8 @@ export function createMockApi() {
 		getNews: vi.fn().mockResolvedValue([]),
 		getNewsSummary: vi.fn().mockResolvedValue(null),
 		getFearIndices: vi.fn().mockResolvedValue(null), // Phase 21
+		getTdSequential: vi.fn().mockResolvedValue([]), // Phase 22
+		getTdSequentialLatest: vi.fn().mockResolvedValue(null), // Phase 22
 	};
 }
 

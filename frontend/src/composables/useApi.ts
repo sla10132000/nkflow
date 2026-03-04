@@ -92,4 +92,13 @@ export const useApi = () => ({
 
 	// Phase 21: 恐怖指数
 	getFearIndices: () => api.get("/api/fear-indices/latest").then((r) => r.data),
+
+	// Phase 22: TD Sequential
+	getTdSequential: (code: string, days = 120) =>
+		api
+			.get(`/api/td-sequential/${code}`, { params: { days } })
+			.then((r) => r.data),
+
+	getTdSequentialLatest: (code: string) =>
+		api.get(`/api/td-sequential/${code}/latest`).then((r) => r.data),
 });

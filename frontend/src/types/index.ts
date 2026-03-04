@@ -205,3 +205,13 @@ export interface StockDetail {
 	community_members: { code: string; name: string }[];
 	signals: Signal[];
 }
+
+// ─── Phase 22: TD Sequential ─────────────────────────────────────────────────
+
+export interface TdSequentialBar {
+	date: string;
+	setup_bull: number; // 0-9 (0 = inactive)
+	setup_bear: number; // 0-9 (0 = inactive)
+	countdown_bull: number; // 0-13 (0 = inactive)
+	countdown_bear: number; // 0-13 (0 = inactive)
+}

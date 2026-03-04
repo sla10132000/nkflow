@@ -149,4 +149,52 @@ describe("StockView", () => {
 		await flushPromises();
 		expect(wrapper.text()).toContain("Not found");
 	});
+
+	// Phase 22: TD Sequential
+	it("tdLatest がある場合、TD Sequential カードを表示する", async () => {
+		mockApi.getStock.mockResolvedValue({
+			name: "トヨタ自動車",
+			sector: "輸送用機器",
+			latest: { close: 2800, return_rate: 0.015, price_range: 50, volume: 1000000 },
+			causes: [],
+			caused_by: [],
+			correlated: [],
+			community_members: [],
+			signals: [],
+		});
+		mockApi.getPrices.mockResolvedValue([]);
+		mockApi.getTdSequentialLatest.mockResolvedValue({
+			date: "2026-03-04",
+			setup_bull: 7,
+			setup_bear: 0,
+			countdown_bull: 0,
+			countdown_bear: 0,
+		});
+		mockApi.getTdSequential.mockResolvedValue([]);
+
+		const wrapper = mountView("7203");
+		await flushPromises();
+
+		expect(wrapper.text()).toContain("TD Sequential");
+		expect(wrapper.text()).toContain("7/9");
+	});
+
+	it("tdLatest が null の場合、TD Sequential カードを表示しない", async () => {
+		mockApi.getStock.mockResolvedValue({
+			latest: null,
+			causes: [],
+			caused_by: [],
+			correlated: [],
+			community_members: [],
+			signals: [],
+		});
+		mockApi.getPrices.mockResolvedValue([]);
+		mockApi.getTdSequentialLatest.mockResolvedValue(null);
+		mockApi.getTdSequential.mockResolvedValue([]);
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.text()).not.toContain("TD Sequential");
+	});
 });

@@ -1025,6 +1025,75 @@ vis-network 互換のネットワークデータを返す。
 
 ---
 
+## 15. TD Sequential — TD シーケンシャル (Phase 22)
+
+### `GET /api/td-sequential/{code}`
+
+指定銘柄の TD Sequential カウントを時系列で返す (昇順)。
+
+**Path Parameters**
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| `code` | string | 銘柄コード |
+
+**Query Parameters**
+
+| パラメータ | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `days` | int | 120 | 取得日数 (1〜500) |
+
+**Response** `200 OK` — `TdSequentialBar[]`
+
+```json
+[
+  {
+    "date": "2026-03-04",
+    "setup_bull": 7,
+    "setup_bear": 0,
+    "countdown_bull": 0,
+    "countdown_bear": 0
+  }
+]
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `setup_bull` | int | 強気セットアップ 0-9 (0=非アクティブ) |
+| `setup_bear` | int | 弱気セットアップ 0-9 (0=非アクティブ) |
+| `countdown_bull` | int | 強気カウントダウン 0-13 (0=非アクティブ) |
+| `countdown_bear` | int | 弱気カウントダウン 0-13 (0=非アクティブ) |
+
+**Error** `404` — 銘柄が見つからない場合
+
+---
+
+### `GET /api/td-sequential/{code}/latest`
+
+指定銘柄の TD Sequential 最新状態を返す (StockView サマリーカード用)。
+
+**Path Parameters**
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| `code` | string | 銘柄コード |
+
+**Response** `200 OK` — `TdSequentialBar | null`
+
+```json
+{
+  "date": "2026-03-04",
+  "setup_bull": 7,
+  "setup_bear": 0,
+  "countdown_bull": 0,
+  "countdown_bear": 0
+}
+```
+
+**Error** `404` — 銘柄が見つからない場合
+
+---
+
 ## 共通仕様
 
 ### エラーレスポンス

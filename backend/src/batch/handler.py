@@ -41,7 +41,7 @@ def handler(event: dict, context: Any) -> dict:
         Lambda レスポンス dict
     """
     from src.config import JQUANTS_PLAN, KUZU_PATH, SQLITE_PATH
-    from src.batch import compute, fetch, fetch_external, fetch_news, graph, notifier, sector_rotation, statistics, storage
+    from src.batch import compute, fetch, fetch_external, fetch_news, graph, notifier, sector_rotation, statistics, storage, td_sequential
 
     # 処理対象日の決定
     target_date: str | None = event.get("target_date") or os.environ.get("TARGET_DATE")
@@ -153,6 +153,14 @@ def handler(event: dict, context: Any) -> dict:
         except Exception as e:
             logger.error(f"compute_all 失敗 (処理は継続): {e}")
             errors.append(f"compute: {e}")
+
+        # ── 4.5. TD Sequential (Phase 22) ────────────────────────
+        try:
+            td_count = td_sequential.compute_td_sequential(SQLITE_PATH, target_date)
+            logger.info(f"td_sequential.compute_td_sequential: {td_count} 件")
+        except Exception as e:
+            logger.error(f"td_sequential.compute_td_sequential 失敗 (処理は継続): {e}")
+            errors.append(f"td_sequential: {e}")
 
         # ── 5. 統計分析 ───────────────────────────────────────────
         try:

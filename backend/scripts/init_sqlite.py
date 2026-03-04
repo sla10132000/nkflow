@@ -335,6 +335,20 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 value_classification   TEXT NOT NULL,
                 created_at             TEXT
             );
+
+            -- === TD Sequential (Phase 22) ===
+            CREATE TABLE IF NOT EXISTS td_sequential (
+                code            TEXT NOT NULL,
+                date            TEXT NOT NULL,
+                setup_bull      INTEGER NOT NULL DEFAULT 0,
+                setup_bear      INTEGER NOT NULL DEFAULT 0,
+                countdown_bull  INTEGER NOT NULL DEFAULT 0,
+                countdown_bear  INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (code, date)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_tds_code_date
+                ON td_sequential(code, date DESC);
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")
