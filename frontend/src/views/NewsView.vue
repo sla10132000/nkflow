@@ -101,31 +101,13 @@ async function load() {
 
 function formatDateRelative(dt: string) {
 	if (!dt) return "";
-	const now = new Date();
-	const date = new Date(dt);
-	const diffMs = now.getTime() - date.getTime();
-	const diffMin = Math.floor(diffMs / 60000);
-	const diffHour = Math.floor(diffMs / 3600000);
-
-	if (diffMin < 1) return "たった今";
-	if (diffMin < 60) return `${diffMin}分前`;
-	if (diffHour < 24) return `${diffHour}時間前`;
-
-	const diffDay = Math.floor(diffMs / 86400000);
-	const timeStr = date.toLocaleTimeString("ja-JP", {
+	return new Date(dt).toLocaleString("ja-JP", {
 		timeZone: "Asia/Tokyo",
+		month: "2-digit",
+		day: "2-digit",
 		hour: "2-digit",
 		minute: "2-digit",
 	});
-
-	if (diffDay === 1) return `昨日 ${timeStr}`;
-	if (diffDay < 7) return `${diffDay}日前 ${timeStr}`;
-
-	return date.toLocaleDateString("ja-JP", {
-		timeZone: "Asia/Tokyo",
-		month: "numeric",
-		day: "numeric",
-	}) + ` ${timeStr}`;
 }
 
 function formatDateFull(dt: string) {
