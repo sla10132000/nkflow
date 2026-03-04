@@ -57,33 +57,32 @@ def _get_jquants_client():
         sys.exit(1)
 
 
-def _fetch_chunk(client, from_str: str, to_str: str):
-    """J-Quants API を呼び出して DataFrame を返す。失敗時は None。"""
+def _fetch_one_date(client, date_str: str):
+    """J-Quants API を1日分呼び出して DataFrame を返す。失敗時は None。
+
+    /v2/markets/margin-interest は date パラメータのみ受け付ける。
+    from/to による範囲取得は 400 エラーになる。
+    _range メソッドは全日付を並列リクエストするためレート制限に触れやすく使わない。
+    """
     import time
     import jquantsapi as _jq
 
-    for attempt in range(3):
+    for attempt in range(4):
         try:
             if isinstance(client, _jq.ClientV2):
-                return client.get_mkt_margin_interest_range(
-                    start_dt=from_str,
-                    end_dt=to_str,
-                )
+                return client.get_mkt_margin_interest(date_yyyymmdd=date_str)
             else:
-                return client.get_weekly_margin_interest(
-                    from_yyyymmdd=from_str,
-                    to_yyyymmdd=to_str,
-                )
+                return client.get_weekly_margin_interest(date_yyyymmdd=date_str)
         except AttributeError:
             logger.warning("margin interest API が利用できません (プランを確認してください)")
             return None
         except Exception as e:
-            if "429" in str(e) and attempt < 2:
-                wait = 30 * (attempt + 1)
-                logger.warning(f"レート制限 (429)、{wait}秒待機してリトライ ({attempt+1}/3)")
+            if "429" in str(e) and attempt < 3:
+                wait = 60 * (attempt + 1)
+                logger.warning(f"レート制限 (429)、{wait}秒待機してリトライ ({attempt+1}/4)")
                 time.sleep(wait)
             else:
-                logger.warning(f"信用残高取得失敗: {e}")
+                logger.warning(f"信用残高取得失敗 ({date_str}): {e}")
                 return None
     return None
 
@@ -93,18 +92,20 @@ def fetch_margin_balance_range(
     client,
     from_date: str,
     to_date: str,
-    chunk_days: int = 90,
+    interval_sec: float = 8.0,
 ) -> int:
     """
     指定期間の信用残高を J-Quants API から取得して margin_balances に挿入する。
-    レート制限を避けるため chunk_days ごとに分割して取得する。
+
+    信用残高は週次データ (金曜日締め) なので、金曜日のみ API を呼び出す。
+    interval_sec 秒間隔で順次取得してレート制限を回避する。
 
     Args:
         conn: SQLite 接続
         client: J-Quants API クライアント
         from_date: 'YYYY-MM-DD'
         to_date: 'YYYY-MM-DD'
-        chunk_days: 1回の API コールの最大日数
+        interval_sec: API コール間の待機秒数
 
     Returns:
         挿入行数
@@ -114,28 +115,34 @@ def fetch_margin_balance_range(
 
     start = date.fromisoformat(from_date)
     end = date.fromisoformat(to_date)
-    total_rows = 0
     all_dfs = []
 
-    # chunk_days ずつ分割して取得
-    chunk_start = start
-    while chunk_start <= end:
-        chunk_end = min(chunk_start + timedelta(days=chunk_days - 1), end)
-        from_str = chunk_start.strftime("%Y%m%d")
-        to_str = chunk_end.strftime("%Y%m%d")
+    # 金曜日 (weekday=4) のみ API を呼び出す
+    # 最初の金曜日を求める
+    days_until_friday = (4 - start.weekday()) % 7
+    first_friday = start + timedelta(days=days_until_friday)
 
-        logger.info(f"  チャンク取得: {chunk_start.isoformat()} 〜 {chunk_end.isoformat()}")
-        df_chunk = _fetch_chunk(client, from_str, to_str)
+    fridays = []
+    d = first_friday
+    while d <= end:
+        fridays.append(d)
+        d += timedelta(days=7)
 
-        if df_chunk is not None and not df_chunk.empty:
-            all_dfs.append(df_chunk)
-            logger.info(f"  → {len(df_chunk)} 行取得")
+    logger.info(f"対象金曜日: {len(fridays)} 件 ({fridays[0].isoformat()} 〜 {fridays[-1].isoformat()})")
+
+    for i, friday in enumerate(fridays):
+        date_str = friday.strftime("%Y-%m-%d")
+        logger.info(f"  [{i+1}/{len(fridays)}] 取得: {date_str}")
+        df_day = _fetch_one_date(client, date_str)
+
+        if df_day is not None and not df_day.empty:
+            all_dfs.append(df_day)
+            logger.info(f"    → {len(df_day)} 行取得")
         else:
-            logger.info("  → データなし")
+            logger.info("    → データなし (非営業日 or 発表なし)")
 
-        chunk_start = chunk_end + timedelta(days=1)
-        if chunk_start <= end:
-            time.sleep(2)  # レート制限対策
+        if i < len(fridays) - 1:
+            time.sleep(interval_sec)
 
     if not all_dfs:
         logger.info("信用残高データなし (全期間)")
@@ -308,11 +315,26 @@ def main() -> None:
     logger.info(f"margin_trading_weekly (ALL): {mtw_count} 件")
     logger.info(f"market_pressure_daily: {mpd_count} 件")
 
-    # Step 6: S3 アップロード
+    # Step 6: アップロード前に WAL チェックポイント + integrity_check
+    logger.info("=== Step 5: DB 整合性確認 ===")
+    conn = sqlite3.connect(SQLITE_PATH)
+    try:
+        # WAL を main ファイルに書き戻す (SHM/WAL ファイル不要な状態にする)
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        result = conn.execute("PRAGMA integrity_check").fetchone()
+        if result and result[0] != "ok":
+            logger.error(f"integrity_check 失敗: {result[0]}")
+            conn.close()
+            sys.exit(1)
+        logger.info("integrity_check: ok")
+    finally:
+        conn.close()
+
+    # Step 7: S3 アップロード
     if args.no_upload:
         logger.info("=== S3 アップロードをスキップ (--no-upload) ===")
     else:
-        logger.info("=== Step 4: stocks.db を S3 にアップロード ===")
+        logger.info("=== Step 6: stocks.db を S3 にアップロード ===")
         subprocess.run(
             ["aws", "s3", "cp", SQLITE_PATH, f"s3://{S3_BUCKET}/data/stocks.db"],
             check=True,
