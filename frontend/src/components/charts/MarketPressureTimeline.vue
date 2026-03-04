@@ -177,18 +177,6 @@ const chartOptions = computed(() => ({
 	},
 }));
 
-/**
- * ゾーンの値域境界: yMax (上端の閾値) / yMin (下端の閾値)
- * null = チャートエリア端まで延伸
- */
-const ZONE_THRESHOLDS: Record<string, { yMin: number | null; yMax: number | null }> = {
-	ceiling:  { yMin: 0.15,  yMax: null  },  // +15% 以上
-	overheat: { yMin: 0.05,  yMax: 0.15  },  // +5% 〜 +15%
-	neutral:  { yMin: 0,     yMax: 0.05  },  // 0% 〜 +5%
-	weak:     { yMin: -0.10, yMax: 0     },  // -10% 〜 0%
-	bottom:   { yMin: null,  yMax: -0.10 },  // -10% 以下
-};
-
 /** ゾーン背景色帯 + ラベル plugin */
 const zoneBgPlugin = {
 	id: "nkflowPressureZoneBg",
@@ -205,30 +193,20 @@ const zoneBgPlugin = {
 	}) {
 		const zones = data.value?.pl_zone;
 		if (!zones?.length) return;
-		const { ctx, chartArea, scales } = chart;
+		const { ctx, chartArea } = chart;
 		if (!chartArea) return;
 		const bw = chartArea.width / zones.length;
 		ctx.save();
 
-		// 背景色帯: ゾーンに対応した Y 範囲のみ塗る
+		// 背景色帯: 列全体を塗る（その時期がどのゾーンかを示す）
+		// 閾値の水平線がゾーン境界を表す役割を担う
 		zones.forEach((zone, i) => {
-			const bounds = ZONE_THRESHOLDS[zone];
-			// topPixel: yMax 閾値のピクセル位置 (null = チャート上端)
-			const topPixel = bounds?.yMax != null
-				? Math.max(chartArea.top, scales.y.getPixelForValue(bounds.yMax))
-				: chartArea.top;
-			// bottomPixel: yMin 閾値のピクセル位置 (null = チャート下端)
-			const bottomPixel = bounds?.yMin != null
-				? Math.min(chartArea.bottom, scales.y.getPixelForValue(bounds.yMin))
-				: chartArea.bottom;
-			if (bottomPixel <= topPixel) return; // 表示範囲外
-
 			ctx.fillStyle = ZONE_BG[zone] ?? "rgba(107,114,128,0.05)";
 			ctx.fillRect(
 				chartArea.left + i * bw,
-				topPixel,
+				chartArea.top,
 				bw,
-				bottomPixel - topPixel,
+				chartArea.bottom - chartArea.top,
 			);
 		});
 
@@ -279,12 +257,18 @@ const thresholdLinePlugin: any = {
 			ctx.moveTo(chartArea.left, y);
 			ctx.lineTo(chartArea.left + chartArea.width, y);
 			ctx.stroke();
-			// ラベル (右端)
-			ctx.fillStyle = t.color;
-			ctx.font = "9px sans-serif";
+			// ラベル (右端): 白背景付きで視認性向上
+			ctx.font = "bold 10px sans-serif";
 			ctx.textAlign = "right";
 			ctx.textBaseline = "bottom";
-			ctx.fillText(t.label, chartArea.left + chartArea.width - 2, y - 2);
+			const lw = ctx.measureText(t.label).width;
+			const lx = chartArea.left + chartArea.width - 3;
+			const ly = y - 2;
+			ctx.setLineDash([]);
+			ctx.fillStyle = "rgba(255,255,255,0.85)";
+			ctx.fillRect(lx - lw - 3, ly - 11, lw + 6, 13);
+			ctx.fillStyle = t.color;
+			ctx.fillText(t.label, lx, ly);
 		}
 		ctx.restore();
 	},
