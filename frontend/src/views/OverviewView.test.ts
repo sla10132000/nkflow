@@ -64,7 +64,6 @@ describe("OverviewView", () => {
 		expect(wrapper.text()).toContain("2026-03-04");
 		expect(wrapper.text()).toContain("38,000");
 		expect(wrapper.text()).toContain("+1.20%");
-		expect(wrapper.text()).toContain("5 件");
 		expect(wrapper.text()).toContain("上昇上位");
 		expect(wrapper.text()).toContain("下落上位");
 		expect(wrapper.text()).toContain("7203");

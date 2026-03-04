@@ -28,14 +28,6 @@
         </div>
       </div>
 
-      <!-- シグナル件数 -->
-      <div class="card flex items-center justify-between">
-        <span class="text-gray-600">アクティブシグナル</span>
-        <RouterLink to="/signals" class="text-blue-600 font-bold text-xl hover:underline">
-          {{ summary.active_signals }} 件
-        </RouterLink>
-      </div>
-
       <!-- 上昇/下落上位 -->
       <div class="grid md:grid-cols-2 gap-4">
         <div class="card">
@@ -85,6 +77,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useApi } from "../composables/useApi";
 import type { DailySummary } from "../types";
+import HeatMap from "../components/charts/HeatMap.vue";
 
 const api = useApi();
 const loading = ref(true);
