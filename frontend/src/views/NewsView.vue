@@ -19,13 +19,18 @@
     </div>
 
     <!-- フィルタ -->
-    <div class="card flex flex-wrap gap-4 items-end">
-      <div>
-        <label class="label">日付</label>
+    <div class="card flex flex-wrap gap-3 items-center">
+      <button
+        v-for="preset in datePresets"
+        :key="preset.label"
+        :class="filterDate === preset.value ? 'btn-primary' : 'btn-secondary'"
+        @click="filterDate = preset.value"
+      >
+        {{ preset.label }}
+      </button>
+      <div class="flex items-center gap-2">
         <input v-model="filterDate" type="date" class="input" />
       </div>
-      <button @click="load" class="btn-primary">絞り込み</button>
-      <button @click="clearFilter" class="btn-secondary">クリア</button>
     </div>
 
     <!-- 記事一覧 -->
@@ -57,7 +62,7 @@
               </a>
               <div class="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
                 <span>{{ article.source_name || article.source }}</span>
-                <span>{{ formatDate(article.published_at) }}</span>
+                <span :title="formatDateFull(article.published_at)">{{ formatDateRelative(article.published_at) }}</span>
                 <span v-if="article.sentiment !== null" :class="sentimentClass(article.sentiment)">
                   {{ sentimentLabel(article.sentiment) }}
                 </span>
@@ -71,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useApi } from "../composables/useApi";
 import type { NewsArticle, NewsSummary } from "../types";
 
@@ -81,11 +86,25 @@ const articles = ref<NewsArticle[]>([]);
 const summary = ref<NewsSummary | null>(null);
 const loading = ref(false);
 const summaryLoading = ref(false);
+
 function todayJst() {
 	return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
 }
 
+function daysAgoJst(days: number) {
+	const d = new Date();
+	d.setDate(d.getDate() - days);
+	return d.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+}
+
 const filterDate = ref(todayJst());
+
+const datePresets = computed(() => [
+	{ label: "今日", value: todayJst() },
+	{ label: "昨日", value: daysAgoJst(1) },
+	{ label: "2日前", value: daysAgoJst(2) },
+	{ label: "1週間", value: daysAgoJst(7) },
+]);
 
 async function load() {
 	loading.value = true;
@@ -106,12 +125,36 @@ async function load() {
 	}
 }
 
-function clearFilter() {
-	filterDate.value = todayJst();
-	load();
+function formatDateRelative(dt: string) {
+	if (!dt) return "";
+	const now = new Date();
+	const date = new Date(dt);
+	const diffMs = now.getTime() - date.getTime();
+	const diffMin = Math.floor(diffMs / 60000);
+	const diffHour = Math.floor(diffMs / 3600000);
+
+	if (diffMin < 1) return "たった今";
+	if (diffMin < 60) return `${diffMin}分前`;
+	if (diffHour < 24) return `${diffHour}時間前`;
+
+	const diffDay = Math.floor(diffMs / 86400000);
+	const timeStr = date.toLocaleTimeString("ja-JP", {
+		timeZone: "Asia/Tokyo",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+
+	if (diffDay === 1) return `昨日 ${timeStr}`;
+	if (diffDay < 7) return `${diffDay}日前 ${timeStr}`;
+
+	return date.toLocaleDateString("ja-JP", {
+		timeZone: "Asia/Tokyo",
+		month: "numeric",
+		day: "numeric",
+	}) + ` ${timeStr}`;
 }
 
-function formatDate(dt: string) {
+function formatDateFull(dt: string) {
 	if (!dt) return "";
 	return new Date(dt).toLocaleString("ja-JP", {
 		timeZone: "Asia/Tokyo",

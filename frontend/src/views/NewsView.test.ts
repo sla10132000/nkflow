@@ -24,13 +24,13 @@ describe("NewsView", () => {
 		expect(wrapper.text()).toContain("本日のニュース");
 	});
 
-	it("フィルタ UI の日本語ラベルが表示される", async () => {
+	it("クイック日付プリセットボタンが表示される", async () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("日付");
-		expect(wrapper.text()).toContain("絞り込み");
-		expect(wrapper.text()).toContain("クリア");
+		expect(wrapper.text()).toContain("今日");
+		expect(wrapper.text()).toContain("昨日");
+		expect(wrapper.text()).toContain("1週間");
 	});
 
 	it("初期日付が JST 当日にセットされる", () => {
@@ -102,5 +102,27 @@ describe("NewsView", () => {
 		await flushPromises();
 
 		expect(wrapper.text()).toContain("記事なし");
+	});
+
+	it("相対日付がホバーで絶対日付を表示する (title属性)", async () => {
+		mockApi.getNews.mockResolvedValue([
+			{
+				id: 1,
+				title: "Test",
+				title_ja: null,
+				source: "Reuters",
+				published_at: "2026-03-04T10:00:00Z",
+				sentiment: null,
+				url: "https://example.com",
+			},
+		]);
+		mockApi.getNewsSummary.mockResolvedValue(null);
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		const dateSpan = wrapper.findAll("span").find((s) => s.attributes("title"));
+		expect(dateSpan).toBeTruthy();
+		expect(dateSpan!.attributes("title")).toContain("2026/03/04");
 	});
 });
