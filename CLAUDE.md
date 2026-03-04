@@ -18,6 +18,7 @@ make deploy-frontend # Vue frontend のみビルド&S3同期
 make pull            # S3 → stocks.db ダウンロード (worktree 対応)
 make push-db         # stocks.db → S3 アップロード (worktree 対応)
 make test            # pytest
+make test-frontend   # vitest
 make lint            # ruff
 ```
 

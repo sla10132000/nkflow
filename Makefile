@@ -3,7 +3,7 @@ S3_BUCKET := nkflow-data-268914462689
 .PHONY: help \
         install install-backend install-frontend install-cdk \
         dev \
-        test lint \
+        test test-frontend lint lint-frontend \
         build build-frontend build-cdk \
         diff deploy deploy-cdk deploy-frontend \
         pull push push-db \
@@ -26,6 +26,7 @@ help:
 	@echo ""
 	@echo "--- Test / Lint ---"
 	@echo "  test              backend pytest"
+	@echo "  test-frontend     frontend vitest"
 	@echo "  lint              backend ruff"
 	@echo "  lint-frontend     frontend biome check"
 	@echo ""
@@ -80,6 +81,9 @@ dev-api:
 
 test:
 	cd backend && .venv/bin/python -m pytest tests/ -v
+
+test-frontend:
+	cd frontend && npm test
 
 lint:
 	cd backend && .venv/bin/ruff check src/ tests/
