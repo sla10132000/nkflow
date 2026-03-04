@@ -130,9 +130,12 @@ def writable_portfolio_connection() -> Generator[sqlite3.Connection, None, None]
 
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     try:
         yield conn
         conn.commit()
+        conn.execute("PRAGMA wal_checkpoint(FULL)")
         _upload_portfolio(db_path)
         _last_read_download_time = 0.0  # キャッシュを無効化して次回読み取り時に再ダウンロード
     except Exception:

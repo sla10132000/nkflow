@@ -77,6 +77,7 @@ def _download_sqlite(sqlite_path: str) -> None:
         # WAL モードを有効化
         conn = sqlite3.connect(sqlite_path)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.close()
     except ClientError as e:
         if e.response["Error"]["Code"] in ("NoSuchKey", "404"):
