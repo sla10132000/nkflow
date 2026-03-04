@@ -68,7 +68,7 @@ def backfill(db_path: str) -> None:
             batch = rows[start : start + BATCH_SIZE]
 
             english = [(i, r[0], r[1]) for i, r in enumerate(batch) if r[2] != "Japanese"]
-            japanese = [(i, r[0]) for i, r in enumerate(batch) if r[2] == "Japanese"]
+            japanese = [(i, r[1]) for i, r in enumerate(batch) if r[2] == "Japanese"]
 
             translated: dict[int, Optional[str]] = {}
 
@@ -79,7 +79,7 @@ def backfill(db_path: str) -> None:
             # 英語記事は翻訳
             if english:
                 indices = [e[0] for e in english]
-                titles = [e[1] for e in english]
+                titles = [e[2] for e in english]
                 results = _translate_batch(titles)
                 for j, result in enumerate(results):
                     translated[indices[j]] = result
