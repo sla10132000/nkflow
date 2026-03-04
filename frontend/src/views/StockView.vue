@@ -55,7 +55,7 @@
       <!-- TD Sequential (Phase 22) -->
       <div v-if="tdLatest" class="card">
         <h2 class="font-semibold mb-2 text-sm">TD Sequential</h2>
-        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-3">
           <div class="flex items-center gap-1">
             <span class="text-gray-500">強気 Setup:</span>
             <span v-if="tdLatest.setup_bull > 0" class="font-mono font-bold text-green-600">
@@ -88,6 +88,10 @@
             </span>
             <span v-else class="text-gray-400">—</span>
           </div>
+        </div>
+        <!-- 直近20本のミニチャート -->
+        <div class="h-36" v-if="recentPrices.length">
+          <PriceChart :prices="recentPrices" :tdData="recentTdData" />
         </div>
       </div>
 
@@ -181,6 +185,8 @@ const tdData = ref<TdSequentialBar[]>([]);
 const tdLatest = ref<TdSequentialBar | null>(null);
 
 const latest = computed(() => detail.value?.recent_prices?.[0] ?? null);
+const recentPrices = computed(() => prices.value.slice(-20));
+const recentTdData = computed(() => tdData.value.slice(-20));
 
 const periods = [
 	{ label: "1M", days: 20 },
