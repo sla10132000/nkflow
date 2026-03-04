@@ -1,26 +1,26 @@
 <template>
-  <div class="space-y-6">
-    <h1 class="text-2xl font-bold">概要</h1>
+  <div class="space-y-3">
+    <h1 class="text-xl font-bold">概要</h1>
 
     <div v-if="loading" class="text-gray-500">読み込み中...</div>
     <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
     <!-- 昨日の主なニュース -->
     <div v-if="topNews.length" class="card">
-      <h2 class="font-semibold mb-3 text-gray-700">
+      <h2 class="font-semibold mb-2 text-gray-700">
         昨日の主なニュース
         <span class="text-xs text-gray-400 ml-2 font-normal">{{ yesterdayLabel }}</span>
       </h2>
-      <ul class="space-y-3">
-        <li v-for="article in topNews" :key="article.id" class="flex gap-3 items-start">
+      <ul class="space-y-2">
+        <li v-for="article in topNews" :key="article.id" class="flex gap-2 items-start">
           <img
             v-if="article.image_url"
             :src="article.image_url"
             alt=""
-            class="w-14 h-14 object-cover rounded flex-shrink-0 bg-gray-100"
+            class="w-10 h-10 object-cover rounded flex-shrink-0 bg-gray-100"
             @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
           />
-          <div v-else class="w-14 h-14 bg-gray-100 rounded flex-shrink-0" />
+          <div v-else class="w-10 h-10 bg-gray-100 rounded flex-shrink-0" />
           <div class="min-w-0">
             <a
               :href="article.url"
@@ -45,14 +45,14 @@
           </div>
         </li>
       </ul>
-      <div class="mt-3 text-right">
+      <div class="mt-2 text-right">
         <RouterLink to="/news" class="text-xs text-blue-600 hover:underline">すべてのニュースを見る →</RouterLink>
       </div>
     </div>
 
     <template v-if="summary">
       <!-- 上部サマリカード -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div class="card">
           <div class="label">日付</div>
           <div class="value text-base">{{ summary.date }}</div>
@@ -74,9 +74,9 @@
       </div>
 
       <!-- 上昇/下落上位 -->
-      <div class="grid md:grid-cols-2 gap-4">
+      <div class="grid md:grid-cols-2 gap-3">
         <div class="card">
-          <h2 class="font-semibold mb-3 text-green-600">上昇上位</h2>
+          <h2 class="font-semibold mb-2 text-green-600">上昇上位</h2>
           <table class="w-full text-sm">
             <thead><tr class="text-gray-500 text-left"><th>コード</th><th>名称</th><th class="text-right">騰落率</th></tr></thead>
             <tbody>
@@ -92,7 +92,7 @@
         </div>
 
         <div class="card">
-          <h2 class="font-semibold mb-3 text-red-600">下落上位</h2>
+          <h2 class="font-semibold mb-2 text-red-600">下落上位</h2>
           <table class="w-full text-sm">
             <thead><tr class="text-gray-500 text-left"><th>コード</th><th>名称</th><th class="text-right">騰落率</th></tr></thead>
             <tbody>
@@ -110,7 +110,7 @@
 
       <!-- セクターヒートマップ -->
       <div class="card">
-        <h2 class="font-semibold mb-3">セクター騰落率</h2>
+        <h2 class="font-semibold mb-2">セクター騰落率</h2>
         <HeatMap v-if="sectorData.length" :sectors="sectorData" />
         <div v-else class="text-gray-500 text-sm">データなし</div>
       </div>
@@ -207,7 +207,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.card { @apply bg-white rounded-lg p-4 border border-gray-200 shadow-sm; }
+.card { @apply bg-white rounded-lg p-3 border border-gray-200 shadow-sm; }
 .label { @apply text-gray-500 text-xs mb-1; }
 .value { @apply text-xl font-bold; }
 </style>

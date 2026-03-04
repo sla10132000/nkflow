@@ -1,6 +1,6 @@
 <template>
-  <div class="space-y-6">
-    <h1 class="text-2xl font-bold">時系列チャート</h1>
+  <div class="space-y-3">
+    <h1 class="text-xl font-bold">時系列チャート</h1>
 
     <!-- コントロール -->
     <div class="flex flex-wrap gap-3 items-center">
@@ -59,7 +59,7 @@
 
       <!-- データテーブル -->
       <div class="card overflow-x-auto">
-        <h2 class="font-semibold mb-3">価格データ</h2>
+        <h2 class="font-semibold mb-2">価格データ</h2>
         <table class="w-full text-sm">
           <thead>
             <tr class="text-gray-500 text-left border-b border-gray-200">
@@ -222,7 +222,7 @@ async function setPeriod(days: number) {
 </script>
 
 <style scoped>
-.card { @apply bg-white rounded-lg p-4 border border-gray-200 shadow-sm; }
+.card { @apply bg-white rounded-lg p-3 border border-gray-200 shadow-sm; }
 .btn-primary { @apply bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm transition-colors; }
 .btn-period { @apply px-3 py-1 rounded text-sm border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors; }
 .btn-period-active { @apply border-blue-500 text-blue-600 bg-blue-50; }

@@ -10,7 +10,7 @@
         <RouterLink to="/network" class="nav-link">資金フロー</RouterLink>
       </div>
     </nav>
-    <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-4">
       <RouterView />
     </main>
   </div>

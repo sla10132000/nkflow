@@ -1,9 +1,9 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
 
     <!-- ヘッダー -->
     <div class="flex items-center gap-3 flex-wrap">
-      <h1 class="text-2xl font-bold">セクターローテーション</h1>
+      <h1 class="text-xl font-bold">セクターローテーション</h1>
       <span v-if="prediction?.current"
         class="px-2 py-1 rounded border text-xs font-medium"
         :style="{ background: stateColorBg(prediction.current.state_id), borderColor: stateColor(prediction.current.state_id), color: stateColor(prediction.current.state_id) }">
@@ -15,7 +15,7 @@
     <div v-if="prediction?.available" class="grid grid-cols-1 md:grid-cols-3 gap-3">
 
       <!-- 現在の状態 -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
         <div class="text-xs text-gray-500 mb-1">現在のローテーション状態</div>
         <div class="flex items-center gap-2 mb-2">
           <span class="inline-block w-3 h-3 rounded-sm"
@@ -37,14 +37,14 @@
       </div>
 
       <!-- 次期予測 -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
         <div class="text-xs text-gray-500 mb-1">次期予測状態</div>
         <div class="flex items-center gap-2 mb-2">
           <span class="inline-block w-3 h-3 rounded-sm"
             :style="{ background: stateColor(prediction.prediction!.state_id) }"></span>
           <span class="text-sm font-medium text-gray-800">{{ prediction.prediction!.state_name }}</span>
         </div>
-        <div class="flex items-center gap-2 mb-3">
+        <div class="flex items-center gap-2 mb-2">
           <!-- 確率バー -->
           <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div class="h-full rounded-full bg-blue-500"
@@ -59,7 +59,7 @@
       </div>
 
       <!-- 全状態確率 -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
         <div class="text-xs text-gray-500 mb-2">状態別確率</div>
         <div class="space-y-1.5">
           <div v-for="p in sortedProba" :key="p.state_id" class="flex items-center gap-2 text-xs">
@@ -89,8 +89,8 @@
     </div>
 
     <!-- ヒートマップタブ -->
-    <div v-if="activeTab === 'heatmap'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-      <div class="flex items-center gap-3 mb-3">
+    <div v-if="activeTab === 'heatmap'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+      <div class="flex items-center gap-3 mb-2">
         <span class="text-sm text-gray-700 font-medium">セクター別リターン</span>
         <!-- 期間タイプ -->
         <div class="flex rounded overflow-hidden border border-gray-300 text-xs ml-auto">
@@ -115,8 +115,8 @@
     </div>
 
     <!-- タイムラインタブ -->
-    <div v-if="activeTab === 'timeline'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-      <div class="flex items-center gap-3 mb-3">
+    <div v-if="activeTab === 'timeline'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+      <div class="flex items-center gap-3 mb-2">
         <span class="text-sm text-gray-700 font-medium">ローテーション状態タイムライン</span>
         <div class="flex rounded overflow-hidden border border-gray-300 text-xs ml-auto">
           <button v-for="n in [26, 52, 104]" :key="n"
@@ -131,8 +131,8 @@
     </div>
 
     <!-- 遷移行列タブ -->
-    <div v-if="activeTab === 'transitions'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-      <div class="text-sm text-gray-700 font-medium mb-3">遷移確率行列</div>
+    <div v-if="activeTab === 'transitions'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+      <div class="text-sm text-gray-700 font-medium mb-2">遷移確率行列</div>
       <div v-if="loadingTransitions" class="text-gray-500 text-sm">読み込み中...</div>
       <div v-else-if="transitions" class="overflow-x-auto">
         <table class="text-xs border-collapse">

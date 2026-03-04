@@ -1,8 +1,8 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-3">
     <div class="flex items-center gap-3">
       <button @click="$router.back()" class="text-gray-500 hover:text-gray-900">← 戻る</button>
-      <h1 class="text-2xl font-bold">{{ code }}</h1>
+      <h1 class="text-xl font-bold">{{ code }}</h1>
       <span v-if="detail?.name" class="text-gray-600">{{ detail.name }}</span>
       <span v-if="detail?.sector" class="badge-sector">{{ detail.sector }}</span>
     </div>
@@ -12,7 +12,7 @@
 
     <template v-else-if="detail">
       <!-- 最新データ -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4" v-if="detail.latest">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3" v-if="detail.latest">
         <div class="card">
           <div class="label">終値</div>
           <div class="value">¥{{ detail.latest.close?.toLocaleString() }}</div>
@@ -35,7 +35,7 @@
 
       <!-- 株価チャート -->
       <div class="card">
-        <div class="flex items-center gap-3 mb-3">
+        <div class="flex items-center gap-3 mb-2">
           <h2 class="font-semibold">株価チャート</h2>
           <div class="flex gap-1 ml-auto">
             <button v-for="p in periods" :key="p.days" @click="loadPrices(p.days)"
@@ -49,9 +49,9 @@
       </div>
 
       <!-- 因果連鎖 -->
-      <div class="grid md:grid-cols-2 gap-4">
+      <div class="grid md:grid-cols-2 gap-3">
         <div class="card">
-          <h2 class="font-semibold mb-3 text-blue-600">この銘柄が因果する銘柄</h2>
+          <h2 class="font-semibold mb-2 text-blue-600">この銘柄が因果する銘柄</h2>
           <div v-if="detail.causes.length" class="space-y-1">
             <div v-for="c in detail.causes" :key="c.code" class="flex items-center gap-2 text-sm">
               <RouterLink :to="`/stock/${c.code}`" class="text-blue-600 hover:underline">{{ c.code }}</RouterLink>
@@ -64,7 +64,7 @@
         </div>
 
         <div class="card">
-          <h2 class="font-semibold mb-3 text-purple-600">この銘柄を因果する銘柄</h2>
+          <h2 class="font-semibold mb-2 text-purple-600">この銘柄を因果する銘柄</h2>
           <div v-if="detail.caused_by.length" class="space-y-1">
             <div v-for="c in detail.caused_by" :key="c.code" class="flex items-center gap-2 text-sm">
               <RouterLink :to="`/stock/${c.code}`" class="text-blue-600 hover:underline">{{ c.code }}</RouterLink>
@@ -78,7 +78,7 @@
 
       <!-- 相関銘柄 -->
       <div class="card">
-        <h2 class="font-semibold mb-3">高相関銘柄</h2>
+        <h2 class="font-semibold mb-2">高相関銘柄</h2>
         <div v-if="detail.correlated.length" class="flex flex-wrap gap-2">
           <RouterLink
             v-for="c in detail.correlated"
@@ -94,7 +94,7 @@
 
       <!-- クラスター内銘柄 -->
       <div class="card" v-if="detail.community_members.length">
-        <h2 class="font-semibold mb-3">同クラスター銘柄</h2>
+        <h2 class="font-semibold mb-2">同クラスター銘柄</h2>
         <div class="flex flex-wrap gap-2">
           <RouterLink
             v-for="m in detail.community_members"
@@ -107,7 +107,7 @@
 
       <!-- 関連シグナル -->
       <div class="card" v-if="detail.signals.length">
-        <h2 class="font-semibold mb-3">関連シグナル</h2>
+        <h2 class="font-semibold mb-2">関連シグナル</h2>
         <div class="space-y-2">
           <div v-for="s in detail.signals" :key="s.id" class="flex items-center gap-3 text-sm border-t border-gray-200 pt-2">
             <span class="text-gray-500">{{ s.date }}</span>
@@ -178,7 +178,7 @@ watch(() => props.code, loadDetail);
 </script>
 
 <style scoped>
-.card { @apply bg-white rounded-lg p-4 border border-gray-200 shadow-sm; }
+.card { @apply bg-white rounded-lg p-3 border border-gray-200 shadow-sm; }
 .label { @apply text-gray-500 text-xs mb-1; }
 .value { @apply text-xl font-bold; }
 .badge { @apply px-2 py-0.5 rounded text-xs font-medium; }

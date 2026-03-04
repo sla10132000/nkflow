@@ -1,6 +1,6 @@
 <template>
-  <div class="space-y-6">
-    <h1 class="text-2xl font-bold">ニュース</h1>
+  <div class="space-y-3">
+    <h1 class="text-xl font-bold">ニュース</h1>
 
     <!-- フィルタ -->
     <div class="card flex flex-wrap gap-3 items-center">
@@ -21,17 +21,17 @@
     <div class="card">
       <div v-if="loading" class="text-gray-500 text-sm">読み込み中...</div>
       <div v-else-if="articles.length === 0" class="text-gray-600 text-sm">記事なし</div>
-      <div v-else class="space-y-3">
+      <div v-else class="space-y-2">
         <div
           v-for="article in articles"
           :key="article.id"
-          class="border-b border-gray-800 pb-3 last:border-0"
+          class="border-b border-gray-800 pb-2 last:border-0"
         >
-          <div class="flex items-start gap-3">
+          <div class="flex items-start gap-2">
             <img
               v-if="article.image_url"
               :src="article.image_url"
-              class="w-16 h-12 object-cover rounded flex-shrink-0 bg-gray-800"
+              class="w-12 h-10 object-cover rounded flex-shrink-0 bg-gray-800"
               alt=""
               @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')"
             />
@@ -137,3 +137,10 @@ function sentimentLabel(s: number) {
 watch(filterDate, load);
 onMounted(load);
 </script>
+
+<style scoped>
+.card { @apply bg-white rounded-lg p-3 border border-gray-200 shadow-sm; }
+.btn-primary { @apply bg-blue-600 text-white px-3 py-1 rounded text-sm; }
+.btn-secondary { @apply bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm; }
+.input { @apply bg-white border border-gray-300 rounded px-2 py-1 text-sm; }
+</style>
