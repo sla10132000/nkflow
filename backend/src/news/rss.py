@@ -10,12 +10,26 @@ import feedparser
 logger = logging.getLogger(__name__)
 
 FEEDS: dict[str, str] = {
-    "nhk_biz":      "https://www3.nhk.or.jp/rss/news/cat6.xml",
-    "nikkei_asia":  "https://asia.nikkei.com/rss/feed/nar",
-    "investing_fx": "https://www.investing.com/rss/news_25.rss",
-    "investing_jp": "https://www.investing.com/rss/news_301.rss",
-    "cnbc_markets": "https://www.cnbc.com/id/15838459/device/rss/rss.html",
-    "ft_markets":   "https://www.ft.com/markets?format=rss",
+    "nhk_biz":          "https://www3.nhk.or.jp/rss/news/cat6.xml",
+    "nikkei_asia":      "https://asia.nikkei.com/rss/feed/nar",
+    "investing_fx":     "https://www.investing.com/rss/news_25.rss",
+    "investing_jp":     "https://www.investing.com/rss/news_301.rss",
+    "cnbc_markets":     "https://www.cnbc.com/id/15838459/device/rss/rss.html",
+    "ft_markets":       "https://www.ft.com/markets?format=rss",
+    # 追加ソース (pubDate あり・ボットフレンドリー確認済み)
+    "bloomberg_mkts":   "https://feeds.bloomberg.com/markets/news.rss",
+    "bloomberg_tech":   "https://feeds.bloomberg.com/technology/news.rss",
+    "wsj_markets":      "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain",
+    "marketwatch":      "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+    "cnbc_finance":     "https://www.cnbc.com/id/10000664/device/rss/rss.html",
+    "cnbc_asia":        "https://www.cnbc.com/id/19836768/device/rss/rss.html",
+    "japan_today":      "https://japantoday.com/feed/atom",
+    "japan_times":      "https://www.japantimes.co.jp/feed/",
+    # wor.jp 日本語フィード (dc:date / JST・200確認済み)
+    "reuters_top_ja":   "https://assets.wor.jp/rss/rdf/reuters/top.rdf",
+    "reuters_econ_ja":  "https://assets.wor.jp/rss/rdf/reuters/economy.rdf",
+    "reuters_biz_ja":   "https://assets.wor.jp/rss/rdf/reuters/business.rdf",
+    "bloomberg_mkts_ja":"https://assets.wor.jp/rss/rdf/bloomberg/markets.rdf",
 }
 
 REQUEST_TIMEOUT = 10  # 秒
@@ -65,7 +79,11 @@ def _fetch_one(feed_id: str, url: str) -> list[dict]:
                 "seendate": _parse_date(entry),
                 "domain": feed_id,
                 "sourcename": feed.feed.get("title", feed_id),
-                "language": "Japanese" if feed_id.startswith("nhk") else "English",
+                "language": "Japanese" if (
+                    feed_id.startswith("nhk")
+                    or feed_id.endswith("_ja")
+                    or feed_id == "japan_today"
+                ) else "English",
                 "socialimage": _extract_image(entry),
             })
         logger.info(f"RSS {feed_id}: {len(articles)} 件取得")
