@@ -163,6 +163,29 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 sector_rotation TEXT
             );
 
+            -- === Phase 16: 市場圧力指標 ===
+            CREATE TABLE IF NOT EXISTS margin_trading_weekly (
+                week_date            TEXT NOT NULL,
+                market_code          TEXT NOT NULL DEFAULT 'ALL',
+                margin_buy_balance   REAL,
+                margin_sell_balance  REAL,
+                margin_ratio         REAL,
+                lending_buy_balance  REAL,
+                lending_sell_balance REAL,
+                pl_ratio_proxy       REAL,
+                PRIMARY KEY (week_date, market_code)
+            );
+
+            CREATE TABLE IF NOT EXISTS market_pressure_daily (
+                date                TEXT PRIMARY KEY,
+                pl_ratio            REAL,
+                pl_zone             TEXT,
+                buy_growth_4w       REAL,
+                margin_ratio        REAL,
+                margin_ratio_trend  REAL,
+                signal_flags        TEXT
+            );
+
             -- === Phase 14: バックテスト ===
             CREATE TABLE IF NOT EXISTS backtest_runs (
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -204,6 +227,106 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 sharpe_ratio   REAL,
                 calc_date      TEXT NOT NULL
             );
+
+            -- === Phase 17: セクターローテーション分析 ===
+            CREATE TABLE IF NOT EXISTS sector_daily_returns (
+                date         TEXT NOT NULL,
+                sector       TEXT NOT NULL,
+                return_rate  REAL,
+                stock_count  INTEGER,
+                PRIMARY KEY (date, sector)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_weekly_returns (
+                week_date    TEXT NOT NULL,
+                sector       TEXT NOT NULL,
+                return_rate  REAL,
+                rank         INTEGER,
+                PRIMARY KEY (week_date, sector)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_monthly_returns (
+                month_date   TEXT NOT NULL,
+                sector       TEXT NOT NULL,
+                return_rate  REAL,
+                rank         INTEGER,
+                PRIMARY KEY (month_date, sector)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_rotation_states (
+                period_date          TEXT NOT NULL,
+                period_type          TEXT NOT NULL DEFAULT 'weekly',
+                cluster_method       TEXT NOT NULL DEFAULT 'kmeans',
+                state_id             INTEGER NOT NULL,
+                state_name           TEXT,
+                centroid_top_sectors TEXT,
+                PRIMARY KEY (period_date, period_type, cluster_method)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_rotation_transitions (
+                from_state     INTEGER NOT NULL,
+                to_state       INTEGER NOT NULL,
+                probability    REAL,
+                count          INTEGER,
+                period_type    TEXT NOT NULL DEFAULT 'weekly',
+                cluster_method TEXT NOT NULL DEFAULT 'kmeans',
+                calc_date      TEXT,
+                PRIMARY KEY (from_state, to_state, period_type, cluster_method)
+            );
+
+            CREATE TABLE IF NOT EXISTS sector_rotation_predictions (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                calc_date            TEXT NOT NULL,
+                current_state_id     INTEGER,
+                current_state_name   TEXT,
+                predicted_state_id   INTEGER,
+                predicted_state_name TEXT,
+                confidence           REAL,
+                top_sectors          TEXT,
+                all_probabilities    TEXT,
+                model_accuracy       REAL
+            );
+
+            -- === Phase 18: ニュース記事 ===
+            CREATE TABLE IF NOT EXISTS news_articles (
+                id            TEXT PRIMARY KEY,
+                published_at  TEXT NOT NULL,
+                source        TEXT NOT NULL,
+                source_name   TEXT,
+                title         TEXT NOT NULL,
+                title_ja      TEXT,
+                url           TEXT NOT NULL UNIQUE,
+                language      TEXT DEFAULT 'en',
+                image_url     TEXT,
+                tickers_json  TEXT DEFAULT '[]',
+                sentiment     REAL,
+                created_at    TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_news_published ON news_articles(published_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_news_source ON news_articles(source);
+
+            CREATE TABLE IF NOT EXISTS news_ticker_map (
+                article_id  TEXT NOT NULL REFERENCES news_articles(id),
+                ticker      TEXT NOT NULL,
+                PRIMARY KEY (article_id, ticker)
+            );
+            CREATE INDEX IF NOT EXISTS idx_ntm_ticker ON news_ticker_map(ticker);
+
+            -- === Phase 20: 米国主要株価指数 ===
+            CREATE TABLE IF NOT EXISTS us_indices (
+                date      TEXT    NOT NULL,
+                ticker    TEXT    NOT NULL,
+                name      TEXT    NOT NULL,
+                open      REAL,
+                high      REAL,
+                low       REAL,
+                close     REAL    NOT NULL,
+                volume    INTEGER,
+                PRIMARY KEY (date, ticker)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_us_indices_ticker ON us_indices(ticker);
+            CREATE INDEX IF NOT EXISTS idx_us_indices_date ON us_indices(date DESC);
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")

@@ -39,10 +39,20 @@ def get_portfolio_db_path() -> str:
 # ──────────────────────────────────────────────
 
 def _download_portfolio(db_path: str) -> None:
-    """S3 から portfolio.db をダウンロードする。存在しない場合は空スキーマを作成する。"""
+    """S3 から portfolio.db をダウンロードする。存在しない場合は空スキーマを作成する。
+
+    S3_BUCKET 未設定時はローカルファイルをそのまま使用する (ローカル開発モード)。
+    """
     from scripts.migrate_phase15 import init_portfolio_db
 
-    bucket = os.environ["S3_BUCKET"]
+    bucket = os.environ.get("S3_BUCKET")
+    if not bucket:
+        # ローカル開発モード: ファイルがなければ初期スキーマを作成
+        if not os.path.exists(db_path):
+            logger.info("portfolio.db を新規作成します (ローカルモード)")
+            init_portfolio_db(db_path)
+        return
+
     s3 = boto3.client("s3")
     try:
         s3.download_file(bucket, S3_PORTFOLIO_KEY, db_path)
@@ -61,7 +71,11 @@ def _upload_portfolio(db_path: str) -> None:
         logger.warning("portfolio.db が存在しないためアップロードをスキップします")
         return
 
-    bucket = os.environ["S3_BUCKET"]
+    bucket = os.environ.get("S3_BUCKET")
+    if not bucket:
+        logger.info("S3_BUCKET 未設定のためアップロードをスキップします (ローカルモード)")
+        return
+
     s3 = boto3.client("s3")
     s3.upload_file(db_path, bucket, S3_PORTFOLIO_KEY)
     logger.info("portfolio.db を S3 にアップロードしました")
@@ -116,9 +130,12 @@ def writable_portfolio_connection() -> Generator[sqlite3.Connection, None, None]
 
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     try:
         yield conn
         conn.commit()
+        conn.execute("PRAGMA wal_checkpoint(FULL)")
         _upload_portfolio(db_path)
         _last_read_download_time = 0.0  # キャッシュを無効化して次回読み取り時に再ダウンロード
     except Exception:

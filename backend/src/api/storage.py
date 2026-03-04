@@ -25,6 +25,8 @@ def ensure_db() -> str:
     """
     SQLite を /tmp に用意する。キャッシュが有効ならダウンロードをスキップ。
 
+    S3_BUCKET 未設定時はローカルファイルをそのまま使用する (ローカル開発モード)。
+
     Returns:
         SQLite ファイルパス
     """
@@ -32,6 +34,15 @@ def ensure_db() -> str:
 
     db_path = get_db_path()
     now = time.time()
+
+    # ローカル開発モード: S3_BUCKET 未設定ならローカルファイルをそのまま使用
+    if not os.environ.get("S3_BUCKET"):
+        if os.path.exists(db_path):
+            return db_path
+        raise FileNotFoundError(
+            f"ローカルDBが見つかりません: {db_path}\n"
+            "  → make pull でS3からダウンロードしてください"
+        )
 
     if os.path.exists(db_path) and (now - _last_download_time) < _CACHE_TTL:
         return db_path

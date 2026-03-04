@@ -106,7 +106,7 @@ def client(s3_with_dbs, monkeypatch, tmp_path):
     importlib.reload(ps)
 
     from src.api.main import app
-    return TestClient(app, raise_server_exceptions=True)
+    yield TestClient(app, raise_server_exceptions=True)
 
 
 # ─────────────────────────────────────────────

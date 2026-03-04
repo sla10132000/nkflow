@@ -3,7 +3,7 @@ S3_BUCKET := nkflow-data-268914462689
 .PHONY: help \
         install install-backend install-frontend install-cdk \
         dev \
-        test lint \
+        test test-frontend lint lint-frontend \
         build build-frontend build-cdk \
         diff deploy deploy-cdk deploy-frontend \
         pull push push-db \
@@ -20,11 +20,15 @@ help:
 	@echo "  install-cdk       cdk: npm ci"
 	@echo ""
 	@echo "--- Dev ---"
-	@echo "  dev               フロントエンド開発サーバー起動 (vite)"
+	@echo "  dev               フロントエンド開発サーバー起動 (vite, :5173)"
+	@echo "  dev-api           バックエンド開発サーバー起動 (uvicorn, :8001)"
+	@echo "                    ※ 事前に make pull で stocks.db を取得すること"
 	@echo ""
 	@echo "--- Test / Lint ---"
 	@echo "  test              backend pytest"
+	@echo "  test-frontend     frontend vitest"
 	@echo "  lint              backend ruff"
+	@echo "  lint-frontend     frontend biome check"
 	@echo ""
 	@echo "--- Build ---"
 	@echo "  build             frontend + cdk をビルド"
@@ -41,8 +45,8 @@ help:
 	@echo "  push              git push origin main (GitHub Actions deploy をトリガー)"
 	@echo ""
 	@echo "--- DB ---"
-	@echo "  pull              S3 から /tmp/stocks.db をダウンロード"
-	@echo "  push-db           /tmp/stocks.db を S3 へアップロード"
+	@echo "  pull              S3 から stocks.db をダウンロード (worktree 対応)"
+	@echo "  push-db           stocks.db を S3 へアップロード (worktree 対応)"
 
 # -----------------------------------------------------------------------
 # Install
@@ -66,6 +70,11 @@ install-cdk:
 dev:
 	cd frontend && npm run dev
 
+# バックエンド開発サーバー (S3_BUCKET 未設定 = ローカルファイルモード)
+# 事前に: make pull  (stocks.db をS3からダウンロード)
+dev-api:
+	cd backend && SQLITE_PATH=$(SQLITE_LOCAL) .venv/bin/uvicorn src.api.main:app --host 127.0.0.1 --port 8001 --reload
+
 # -----------------------------------------------------------------------
 # Test / Lint
 # -----------------------------------------------------------------------
@@ -73,8 +82,14 @@ dev:
 test:
 	cd backend && .venv/bin/python -m pytest tests/ -v
 
+test-frontend:
+	cd frontend && npm test
+
 lint:
 	cd backend && .venv/bin/ruff check src/ tests/
+
+lint-frontend:
+	cd frontend && npm run lint
 
 # -----------------------------------------------------------------------
 # Build
@@ -118,12 +133,23 @@ push:
 
 # -----------------------------------------------------------------------
 # DB (SQLite)
+# Worktree 内では /tmp/nkflow-<name>/stocks.db に分離される
 # -----------------------------------------------------------------------
 
-# S3 から /tmp/stocks.db をダウンロード (ローカル分析用)
-pull:
-	aws s3 cp s3://$(S3_BUCKET)/data/stocks.db /tmp/stocks.db
+# Worktree 検出: .claude/worktrees/<name>/ 配下なら分離パスを使う
+_WT_MARKER := /.claude/worktrees/
+_WT_NAME := $(if $(findstring $(_WT_MARKER),$(CURDIR)),$(word 1,$(subst /, ,$(lastword $(subst $(_WT_MARKER), ,$(CURDIR))))))
+SQLITE_LOCAL := $(if $(_WT_NAME),/tmp/nkflow-$(_WT_NAME)/stocks.db,/tmp/stocks.db)
 
-# /tmp/stocks.db を S3 へアップロード (バックフィル後など)
+# S3 から SQLite をダウンロード (ローカル分析用)
+pull:
+	@mkdir -p $(dir $(SQLITE_LOCAL))
+	aws s3 cp s3://$(S3_BUCKET)/data/stocks.db $(SQLITE_LOCAL)
+	@echo "Downloaded to: $(SQLITE_LOCAL)"
+
+# SQLite を S3 へアップロード (バックフィル後など)
+# WAL チェックポイントを先に実行し、WAL の変更をメイン DB ファイルに書き込んでからアップロードする
 push-db:
-	aws s3 cp /tmp/stocks.db s3://$(S3_BUCKET)/data/stocks.db
+	sqlite3 $(SQLITE_LOCAL) "PRAGMA wal_checkpoint(TRUNCATE);"
+	aws s3 cp $(SQLITE_LOCAL) s3://$(S3_BUCKET)/data/stocks.db
+	@echo "Uploaded from: $(SQLITE_LOCAL)"

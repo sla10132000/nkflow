@@ -145,7 +145,7 @@ class TestFetchMarginBalance:
         """J-Quants v2 クライアントのモックを作成する"""
         import jquantsapi
         client = MagicMock(spec=jquantsapi.ClientV2)
-        client.get_mkt_margin_interest.return_value = df
+        client.get_mkt_margin_interest_range.return_value = df
         return client
 
     def test_inserts_rows(self, db_conn):
@@ -155,8 +155,8 @@ class TestFetchMarginBalance:
         df = pd.DataFrame({
             "Code": ["72030", "67580"],
             "Date": ["20250110", "20250110"],
-            "LongMarginTradeVolume": [1000000, 500000],
-            "ShortMarginTradeVolume": [100000, 80000],
+            "LongVol": [1000000, 500000],
+            "ShrtVol": [100000, 80000],
         })
         client = self._make_client(df)
 
@@ -173,8 +173,8 @@ class TestFetchMarginBalance:
         df = pd.DataFrame({
             "Code": ["72030"],
             "Date": ["20250110"],
-            "LongMarginTradeVolume": [1000000],
-            "ShortMarginTradeVolume": [100000],
+            "LongVol": [1000000],
+            "ShrtVol": [100000],
         })
         client = self._make_client(df)
 
@@ -193,8 +193,8 @@ class TestFetchMarginBalance:
         df = pd.DataFrame({
             "Code": ["72030", "99990"],  # 9999は未登録
             "Date": ["20250110", "20250110"],
-            "LongMarginTradeVolume": [1000000, 200000],
-            "ShortMarginTradeVolume": [100000, 50000],
+            "LongVol": [1000000, 200000],
+            "ShrtVol": [100000, 50000],
         })
         client = self._make_client(df)
 
@@ -208,7 +208,7 @@ class TestFetchMarginBalance:
 
         import jquantsapi
         client = MagicMock(spec=jquantsapi.ClientV2)
-        client.get_mkt_margin_interest.side_effect = AttributeError("not available")
+        client.get_mkt_margin_interest_range.side_effect = AttributeError("not available")
 
         rows = fetch_margin_balance(db_conn, target_date="2025-01-10", client=client)
 
@@ -225,125 +225,3 @@ class TestFetchMarginBalance:
         assert rows == 0
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# signals.py の Phase 13 シグナルテスト
-# ─────────────────────────────────────────────────────────────────────────────
-
-class TestMarginSqueezeSignals:
-    def test_generates_bearish_signal_on_high_ratio_and_decline(self, db_conn):
-        """信用倍率高 + 当日下落で bearish シグナルが生成される"""
-        from src.batch.signals import generate_margin_squeeze_signals
-
-        # 信用残高投入
-        db_conn.execute(
-            "INSERT INTO margin_balances (code, week_date, margin_buy, margin_sell, margin_ratio) "
-            "VALUES ('7203', '2025-01-06', 1000000, 80000, 12.5)"
-        )
-        # 当日価格 (下落)
-        db_conn.execute(
-            "INSERT INTO daily_prices (code, date, open, high, low, close, volume, return_rate) "
-            "VALUES ('7203', '2025-01-10', 3000, 3010, 2950, 2960, 5000000, -0.013)"
-        )
-        db_conn.commit()
-
-        count = generate_margin_squeeze_signals(db_conn, "2025-01-10")
-
-        assert count == 1
-        row = db_conn.execute(
-            "SELECT direction, signal_type FROM signals WHERE date='2025-01-10'"
-        ).fetchone()
-        assert row[0] == "bearish"
-        assert row[1] == "margin_squeeze"
-
-    def test_no_signal_when_ratio_low(self, db_conn):
-        """信用倍率が閾値未満なら生成しない"""
-        from src.batch.signals import generate_margin_squeeze_signals
-
-        db_conn.execute(
-            "INSERT INTO margin_balances (code, week_date, margin_buy, margin_sell, margin_ratio) "
-            "VALUES ('7203', '2025-01-06', 100000, 80000, 1.25)"
-        )
-        db_conn.execute(
-            "INSERT INTO daily_prices (code, date, open, high, low, close, volume, return_rate) "
-            "VALUES ('7203', '2025-01-10', 3000, 3010, 2950, 2960, 5000000, -0.013)"
-        )
-        db_conn.commit()
-
-        count = generate_margin_squeeze_signals(db_conn, "2025-01-10")
-
-        assert count == 0
-
-    def test_no_signal_when_no_margin_data(self, db_conn):
-        """信用残高データがない場合は生成しない"""
-        from src.batch.signals import generate_margin_squeeze_signals
-
-        count = generate_margin_squeeze_signals(db_conn, "2025-01-10")
-
-        assert count == 0
-
-
-class TestYenSensitivitySignals:
-    def test_generates_bullish_for_exporters_on_yen_weakening(self, db_conn):
-        """円安時に輸送用機器セクター銘柄に bullish シグナルが生成される"""
-        from src.batch.signals import generate_yen_sensitivity_signals
-
-        # USDJPY: 円安 (変動率 +1%)
-        db_conn.execute(
-            "INSERT INTO exchange_rates (date, pair, open, high, low, close, change_rate) "
-            "VALUES ('2025-01-10', 'USDJPY', 157.0, 158.5, 157.0, 158.5, 0.0095)"
-        )
-        db_conn.commit()
-
-        count = generate_yen_sensitivity_signals(db_conn, "2025-01-10")
-
-        # トヨタ (輸送用機器) → bullish シグナルが生成されるはず
-        assert count > 0
-        rows = db_conn.execute(
-            "SELECT direction, signal_type, code FROM signals WHERE date='2025-01-10'"
-        ).fetchall()
-        assert all(r[0] == "bullish" for r in rows)
-        assert all(r[1] == "yen_sensitivity" for r in rows)
-        codes = [r[2] for r in rows]
-        assert "7203" in codes  # トヨタ
-
-    def test_generates_bullish_for_airlines_on_yen_strengthening(self, db_conn):
-        """円高時に空運業セクター銘柄に bullish シグナルが生成される"""
-        from src.batch.signals import generate_yen_sensitivity_signals
-
-        # USDJPY: 円高 (変動率 -0.8%)
-        db_conn.execute(
-            "INSERT INTO exchange_rates (date, pair, open, high, low, close, change_rate) "
-            "VALUES ('2025-01-10', 'USDJPY', 158.0, 158.0, 156.5, 156.8, -0.0076)"
-        )
-        db_conn.commit()
-
-        count = generate_yen_sensitivity_signals(db_conn, "2025-01-10")
-
-        assert count > 0
-        codes = [r[0] for r in db_conn.execute(
-            "SELECT code FROM signals WHERE date='2025-01-10' AND signal_type='yen_sensitivity'"
-        ).fetchall()]
-        assert "9202" in codes  # ANA (空運業)
-
-    def test_no_signal_below_threshold(self, db_conn):
-        """変動率が閾値未満はシグナルなし"""
-        from src.batch.signals import generate_yen_sensitivity_signals
-
-        # 変動率 0.1% (< 0.5%)
-        db_conn.execute(
-            "INSERT INTO exchange_rates (date, pair, open, high, low, close, change_rate) "
-            "VALUES ('2025-01-10', 'USDJPY', 157.0, 157.2, 156.9, 157.1, 0.001)"
-        )
-        db_conn.commit()
-
-        count = generate_yen_sensitivity_signals(db_conn, "2025-01-10")
-
-        assert count == 0
-
-    def test_no_signal_when_no_fx_data(self, db_conn):
-        """当日の為替データがない場合はシグナルなし"""
-        from src.batch.signals import generate_yen_sensitivity_signals
-
-        count = generate_yen_sensitivity_signals(db_conn, "2025-01-10")
-
-        assert count == 0

@@ -1257,8 +1257,8 @@ backfill.py:
 ### 現在のステータス
 
 ```
-最終更新: 2026-03-01
-進行中Phase: -
+最終更新: 2026-03-03
+進行中Phase: Phase 18
 ブロッカー: なし
 備考:
   - Phase 1〜15 全て完了
@@ -1285,4 +1285,13 @@ backfill.py:
               GET/POST/DELETE /api/portfolio/holdings、
               GET/POST /api/portfolio/transactions、
               GET /api/portfolio/performance、GET /api/portfolio/signals 追加
+  - Phase 18: GDELT ニュース取得機能追加 (2-Lambda 分離アーキテクチャ)
+              news_articles/news_ticker_map テーブル追加 (migrate_phase18_news.py)、
+              nkflow-news-fetch Lambda 新規 (Dockerfile.news, src/news/gdelt.py, src/news/handler.py)、
+              EventBridge cron(50 8 ? * MON-FRI *) UTC = JST 17:50 で先行実行、
+              S3 news/raw/YYYY-MM-DD.json に raw JSON 保存、
+              batch handler.py Step 0 に normalize_news() 追加 (非ブロッキング)、
+              GET /api/news, GET /api/news/summary エンドポイント追加、
+              NewsView.vue 新規 (日付フィルタ・記事一覧)
+              設計詳細: feature_plan/gdelt_news_integration.md
 ```

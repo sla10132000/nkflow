@@ -15,9 +15,10 @@ make help            # 利用可能なコマンド一覧
 make deploy          # CDK + frontend を両方デプロイ (通常はこれ)
 make deploy-cdk      # CDK のみ (backend/Lambda/インフラ変更時)
 make deploy-frontend # Vue frontend のみビルド&S3同期
-make pull            # S3 → /tmp/stocks.db ダウンロード
-make push-db         # /tmp/stocks.db → S3 アップロード
+make pull            # S3 → stocks.db ダウンロード (worktree 対応)
+make push-db         # stocks.db → S3 アップロード (worktree 対応)
 make test            # pytest
+make test-frontend   # vitest
 make lint            # ruff
 ```
 
@@ -150,7 +151,66 @@ backend/src/
 - `conftest.py` が `S3_BUCKET=test-nkflow-bucket` 等のダミー環境変数を自動設定
 - 実 AWS アクセスなし。全テストはローカルで完結
 
+### SQLite 並列実行の安全ルール
+
+Worktree ごとに `SQLITE_PATH` が自動で分離される（`/tmp/nkflow-<worktree名>/stocks.db`）。
+ただし以下のルールを守ること:
+
+* `make push-db` は排他的に実行する — 同時に複数セッションで実行しない
+* DB スキーマ変更（マイグレーション）を含むタスクは並列実行しない
+* バックフィルスクリプト実行中は他セッションで同じ DB を操作しない
+* `make push-db` 実行前に、他セッションが S3 上の DB を更新していないか確認する
+* テスト (`make test`) は pytest `tmp_path` で隔離されるため並列実行しても安全
+
+#### WAL (Write-Ahead Log) の注意
+
+SQLite はデフォルトで WAL モードで動作する。バックフィル等でデータを書き込んだ後、
+WAL ファイル (`stocks.db-wal`) に変更が残った状態で `aws s3 cp` するとメインDBファイルのみが
+アップロードされ、変更が S3 に反映されない。
+
+**`make push-db` は内部で `PRAGMA wal_checkpoint(TRUNCATE)` を実行してから S3 にアップロードするため、
+直接 `aws s3 cp` を使わず必ず `make push-db` を使うこと。**
+
+直接 cp が必要な場合は事前に手動でチェックポイントすること:
+```bash
+sqlite3 /tmp/stocks.db "PRAGMA wal_checkpoint(TRUNCATE);"
+aws s3 cp /tmp/stocks.db s3://...
+```
+
 ### スキーマ変更時
 
 `backend/scripts/migrate_phaseXX.py` を作成して冪等なマイグレーションを実装する。
 `_download_sqlite` / `_init_sqlite_schema` が初回実行時に `scripts/init_sqlite.py` を呼ぶ。
+
+---
+
+## Design Documents
+
+`docs/` 配下に機能ごとの設計書がある。
+
+| ファイル | 対象機能 |
+|---|---|
+| `docs/spec.md` | プロジェクト全体設計 (Source of truth) |
+| `docs/migration_plan.md` | GCP→AWS 移行計画 |
+| `docs/fund_flow_dashboard.md` | 資金フローダッシュボード (NetworkView / FundFlowTimeline / FundFlowSankey) |
+| `docs/api_reference.md` | REST API 全エンドポイント定義 |
+
+### 設計書の更新ルール
+
+**以下のファイルを変更したとき、必ず対応する設計書も更新すること。**
+
+| 変更ファイル | 更新すべき設計書 |
+|---|---|
+| `backend/src/batch/statistics.py` (資金フロー部分) | `docs/fund_flow_dashboard.md` § 3.1 |
+| `backend/src/api/routers/network.py` | `docs/fund_flow_dashboard.md` § 3.2 |
+| `frontend/src/views/NetworkView.vue` | `docs/fund_flow_dashboard.md` § 4.1 |
+| `frontend/src/components/charts/FundFlowTimeline.vue` | `docs/fund_flow_dashboard.md` § 4.2 |
+| `frontend/src/components/charts/FundFlowSankey.vue` | `docs/fund_flow_dashboard.md` § 4.3 |
+| `frontend/src/types/index.ts` (FundFlow系型) | `docs/fund_flow_dashboard.md` § 5 |
+| `frontend/src/composables/useApi.ts` (FundFlow系) | `docs/fund_flow_dashboard.md` § 8 |
+
+**更新手順**:
+1. 変更内容を実装する
+2. 対応する設計書の該当セクションを修正する
+3. 設計書末尾の「最終更新」日付を更新する
+4. 両方をまとめて1コミットにする (レイヤー分離の原則は守りつつ、ドキュメントは実装と同一コミットで可)

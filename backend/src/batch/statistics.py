@@ -1,4 +1,5 @@
-"""統計分析モジュール: グレンジャー因果・リードラグ・資金フロー・レジーム判定"""
+"""統計分析モジュール: グレンジャー因果・リードラグ・資金フロー・レジーム判定・市場圧力"""
+import json
 import logging
 import sqlite3
 from datetime import date
@@ -7,6 +8,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
+from scipy.stats import linregress
 from statsmodels.tsa.stattools import grangercausalitytests
 
 from src.config import GRANGER_MAX_LAG, GRANGER_P_THRESHOLD
@@ -20,6 +22,7 @@ LEAD_LAG_THRESHOLD = 0.3  # クロス相関の最低閾値
 FUND_FLOW_WINDOW = 20   # 資金フローの比較ベースライン日数
 REGIME_SHORT_WINDOW = 5  # レジーム判定: 直近ボラ
 REGIME_LONG_WINDOW = 20  # レジーム判定: 比較ベースボラ
+MAX_GRANGER_STOCKS = 100  # 直近出来高上位 N 銘柄に限定 (ペア数 ≈ 4,950 → タイムアウト防止)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -109,6 +112,23 @@ def run_granger(db_path: str, calc_date: str, n_jobs: int = -1) -> int:
     if len(codes) < 2:
         logger.warning("グレンジャー検定: 銘柄数が不足しています")
         return 0
+
+    # 直近出来高上位 MAX_GRANGER_STOCKS 銘柄に絞る (タイムアウト防止)
+    if len(codes) > MAX_GRANGER_STOCKS:
+        conn2 = sqlite3.connect(db_path)
+        vol_df = pd.read_sql(
+            f"""
+            SELECT code, SUM(volume) AS total_vol FROM daily_prices
+            WHERE date IN ({",".join(f"'{d}'" for d in dates)}) AND code IN ({",".join(f"'{c}'" for c in codes)})
+            GROUP BY code ORDER BY total_vol DESC LIMIT {MAX_GRANGER_STOCKS}
+            """,
+            conn2,
+        )
+        conn2.close()
+        top_codes = set(vol_df["code"].tolist())
+        codes = [c for c in codes if c in top_codes]
+        pivot = pivot[codes]
+        logger.info(f"グレンジャー検定: {MAX_GRANGER_STOCKS} 銘柄に絞り込み")
 
     # 全ペアを生成
     pairs = [
@@ -218,6 +238,23 @@ def run_lead_lag(db_path: str, calc_date: str) -> int:
 
     if len(codes) < 2:
         return 0
+
+    # 直近出来高上位 MAX_GRANGER_STOCKS 銘柄に絞る (タイムアウト防止)
+    if len(codes) > MAX_GRANGER_STOCKS:
+        conn2 = sqlite3.connect(db_path)
+        vol_df = pd.read_sql(
+            f"""
+            SELECT code, SUM(volume) AS total_vol FROM daily_prices
+            WHERE date IN ({",".join(f"'{d}'" for d in dates)}) AND code IN ({",".join(f"'{c}'" for c in codes)})
+            GROUP BY code ORDER BY total_vol DESC LIMIT {MAX_GRANGER_STOCKS}
+            """,
+            conn2,
+        )
+        conn2.close()
+        top_codes = set(vol_df["code"].tolist())
+        codes = [c for c in codes if c in top_codes]
+        pivot = pivot[codes]
+        logger.info(f"リードラグ: {MAX_GRANGER_STOCKS} 銘柄に絞り込み")
 
     rows = []
     for i in range(len(codes)):
@@ -462,6 +499,289 @@ def determine_regime(db_path: str, target_date: str) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 市場圧力指標 (Phase 16)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _calc_pl_zone(pl_ratio: float) -> str:
+    """
+    評価損益率から市場圧力ゾーンを返す。
+
+    +15% 以上  → 'ceiling'   (天井警戒)
+    +5% 以上   → 'overheat'  (過熱)
+    0% 以上    → 'neutral'   (中立)
+    -10% 以上  → 'weak'      (弱含み)
+    -15% 以上  → 'sellin'    (投げ売り圏)
+    -15% 未満  → 'bottom'    (大底圏)
+    """
+    if pl_ratio >= 0.15:
+        return "ceiling"
+    if pl_ratio >= 0.05:
+        return "overheat"
+    if pl_ratio >= 0.0:
+        return "neutral"
+    if pl_ratio >= -0.10:
+        return "weak"
+    if pl_ratio >= -0.15:
+        return "sellin"
+    return "bottom"
+
+
+def run_market_pressure(db_path: str, target_date: str) -> int:
+    """
+    市場レベルの信用圧力指標を計算して margin_trading_weekly / market_pressure_daily に保存する。
+
+    処理:
+      1. 直近の week_date を margin_balances から取得
+      2. SUM(margin_buy), SUM(margin_sell) を集計 → margin_trading_weekly に保存
+      3. pl_ratio_proxy = 直近4週 daily_prices の return_rate を margin_buy で加重平均 × 4
+      4. buy_growth_4w = (現在 - 4週前) / 4週前
+      5. margin_ratio_trend = 直近4エントリの margin_ratio 傾き (linregress)
+      6. market_pressure_daily に INSERT OR REPLACE
+
+    Args:
+        db_path: SQLite ファイルパス
+        target_date: 'YYYY-MM-DD'
+    Returns:
+        書き込んだ行数 (1 = 成功、0 = データ不足でスキップ)
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    try:
+        # 直近の信用残高週次データを取得
+        latest_week = conn.execute(
+            "SELECT MAX(week_date) FROM margin_balances WHERE week_date <= ?",
+            (target_date,),
+        ).fetchone()[0]
+
+        if not latest_week:
+            logger.info("run_market_pressure: margin_balances データなし — スキップ")
+            return 0
+
+        # 市場合計集計
+        agg = conn.execute(
+            """
+            SELECT SUM(margin_buy)  AS total_buy,
+                   SUM(margin_sell) AS total_sell
+            FROM margin_balances
+            WHERE week_date = ?
+            """,
+            (latest_week,),
+        ).fetchone()
+
+        total_buy = float(agg["total_buy"] or 0)
+        total_sell = float(agg["total_sell"] or 0)
+        margin_ratio = total_buy / total_sell if total_sell > 0 else None
+
+        # pl_ratio_proxy: 直近4週の日次リターンを margin_buy で加重平均 × 4
+        # margin_buy は週次なので直近週のデータを代用
+        pl_ratio_proxy = _calc_pl_ratio_proxy(conn, latest_week, target_date)
+
+        # margin_trading_weekly に保存
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO margin_trading_weekly
+                (week_date, market_code, margin_buy_balance, margin_sell_balance,
+                 margin_ratio, pl_ratio_proxy)
+            VALUES (?, 'ALL', ?, ?, ?, ?)
+            """,
+            (latest_week, total_buy, total_sell, margin_ratio, pl_ratio_proxy),
+        )
+
+        # 4週前の buy_balance を取得
+        prev_4w = conn.execute(
+            """
+            SELECT margin_buy_balance FROM margin_trading_weekly
+            WHERE market_code = 'ALL' AND week_date < ?
+            ORDER BY week_date DESC
+            LIMIT 1
+            OFFSET 3
+            """,
+            (latest_week,),
+        ).fetchone()
+
+        buy_growth_4w: Optional[float] = None
+        if prev_4w and prev_4w[0] and float(prev_4w[0]) != 0:
+            buy_growth_4w = (total_buy - float(prev_4w[0])) / float(prev_4w[0])
+
+        # margin_ratio_trend: 直近4エントリの傾き (最低2件あれば計算)
+        recent_ratios = conn.execute(
+            """
+            SELECT margin_ratio FROM margin_trading_weekly
+            WHERE market_code = 'ALL' AND margin_ratio IS NOT NULL
+            ORDER BY week_date DESC
+            LIMIT 4
+            """,
+        ).fetchall()
+
+        margin_ratio_trend: Optional[float] = None
+        if len(recent_ratios) >= 2:
+            ys = [float(r[0]) for r in reversed(recent_ratios)]
+            xs = list(range(len(ys)))
+            slope, *_ = linregress(xs, ys)
+            margin_ratio_trend = float(slope)
+
+        # pl_zone と signal_flags
+        pl_zone = _calc_pl_zone(pl_ratio_proxy) if pl_ratio_proxy is not None else "neutral"
+        # 信用過熱: 過熱/天井ゾーン かつ 信用倍率が高水準 (>= 6.0)
+        credit_overheating = (
+            pl_zone in ("ceiling", "overheat")
+            and margin_ratio is not None
+            and margin_ratio >= 6.0
+        )
+        signal_flags = json.dumps({"credit_overheating": credit_overheating})
+
+        # market_pressure_daily に保存 (週次値を当日に伝播)
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO market_pressure_daily
+                (date, pl_ratio, pl_zone, buy_growth_4w, margin_ratio,
+                 margin_ratio_trend, signal_flags)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                target_date,
+                pl_ratio_proxy,
+                pl_zone,
+                buy_growth_4w,
+                margin_ratio,
+                margin_ratio_trend,
+                signal_flags,
+            ),
+        )
+        conn.commit()
+
+    finally:
+        conn.close()
+
+    logger.info(f"市場圧力指標を保存: {target_date}, pl_zone={pl_zone}")
+    return 1
+
+
+def _backfill_market_pressure(db_path: str) -> int:
+    """
+    margin_balances に存在するが market_pressure_daily にない週のデータをバックフィルする。
+    初回導入時や長期間バッチが停止していた場合に履歴データを補完する。
+
+    Returns:
+        補完した行数
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        missing_weeks = conn.execute(
+            """
+            SELECT DISTINCT mb.week_date
+            FROM margin_balances mb
+            WHERE NOT EXISTS (
+                SELECT 1 FROM market_pressure_daily mpd
+                WHERE mpd.date = mb.week_date
+            )
+            ORDER BY mb.week_date
+            """
+        ).fetchall()
+    finally:
+        conn.close()
+
+    if not missing_weeks:
+        return 0
+
+    filled = 0
+    for row in missing_weeks:
+        filled += run_market_pressure(db_path, row["week_date"])
+
+    if filled:
+        logger.info(f"市場圧力バックフィル: {filled} 週分補完")
+    return filled
+
+
+def _calc_pl_ratio_proxy(
+    conn: sqlite3.Connection,
+    latest_week: str,
+    target_date: str,
+) -> Optional[float]:
+    """
+    信用評価損益率の近似値を返す。
+
+    計算方法:
+      - 最新の信用残高報告日 (latest_week) 以降の累積リターンを margin_buy で加重平均
+      - 「信用残高が公表された時点から今日まで、含み損益はどれだけか」を近似
+      - margin_buy が大きい銘柄ほど市場全体の含み損益に影響するため加重平均で算出
+      - 報告日直後 (当日) は window が 0 のため、フォールバックとして直近20営業日窓を使用
+
+    Args:
+        conn: SQLite 接続
+        latest_week: 最新の信用残高週次日付 ('YYYY-MM-DD')
+        target_date: 集計対象日 ('YYYY-MM-DD')
+
+    Returns:
+        評価損益率 (小数、例: 0.05 = +5%) または None (データ不足)
+    """
+    # 一次計算: latest_week から target_date までの累積リターン
+    rows = conn.execute(
+        """
+        SELECT mb.code,
+               mb.margin_buy,
+               SUM(dp.return_rate) AS cum_return,
+               COUNT(dp.date)      AS n_days
+        FROM margin_balances mb
+        JOIN daily_prices dp ON mb.code = dp.code
+        WHERE mb.week_date = ?
+          AND dp.date > ?
+          AND dp.date <= ?
+          AND dp.return_rate IS NOT NULL
+          AND mb.margin_buy > 0
+        GROUP BY mb.code
+        """,
+        (latest_week, latest_week, target_date),
+    ).fetchall()
+
+    # latest_week と target_date が同日、またはデータが不足している場合は
+    # フォールバック: 直近20営業日窓 (従来の計算方式)
+    if not rows or sum(r[3] for r in rows) == 0:
+        cutoff = conn.execute(
+            """
+            SELECT date FROM (
+                SELECT DISTINCT date FROM daily_prices WHERE date <= ?
+            ) ORDER BY date DESC
+            LIMIT 1
+            OFFSET 19
+            """,
+            (target_date,),
+        ).fetchone()
+        if not cutoff:
+            return None
+        cutoff_date = cutoff[0]
+        rows = conn.execute(
+            """
+            SELECT mb.code,
+                   mb.margin_buy,
+                   SUM(dp.return_rate) AS cum_return,
+                   COUNT(dp.date)      AS n_days
+            FROM margin_balances mb
+            JOIN daily_prices dp ON mb.code = dp.code
+            WHERE mb.week_date = ?
+              AND dp.date > ?
+              AND dp.date <= ?
+              AND dp.return_rate IS NOT NULL
+              AND mb.margin_buy > 0
+            GROUP BY mb.code
+            HAVING COUNT(dp.date) >= 5
+            """,
+            (latest_week, cutoff_date, target_date),
+        ).fetchall()
+        if not rows:
+            return None
+
+    total_weight = sum(float(r[1]) for r in rows)
+    if total_weight == 0:
+        return None
+
+    weighted_sum = sum(float(r[1]) * float(r[2]) for r in rows)
+    return weighted_sum / total_weight
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # エントリポイント
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -500,5 +820,11 @@ def run_all(
 
     n_flow = run_fund_flow(db_path, target_date)
     logger.info(f"資金フロー: {n_flow} 件")
+
+    n_pressure = run_market_pressure(db_path, target_date)
+    logger.info(f"市場圧力: {n_pressure} 件")
+
+    # market_pressure_daily が少ない場合に過去週をバックフィル
+    _backfill_market_pressure(db_path)
 
     logger.info("=== run_all 完了 ===")

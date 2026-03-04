@@ -3,14 +3,14 @@
 EventBridge Scheduler から呼び出される。
 
 実行順序:
+  0. fetch_news.normalize_news() - S3 raw ニュース → SQLite 正規化 (Phase 18)
   1. storage.get_credentials()   - SSM から J-Quants クレデンシャル取得
   2. storage.download()          - S3 から SQLite / KùzuDB を復元
   3. fetch.fetch_daily()         - J-Quants から当日 OHLCV を取得
   4. compute.compute_all()       - DuckDB 計算 (騰落率・相関)
   5. statistics.run_all()        - 統計分析 (グレンジャー・リードラグ・資金フロー)
   6. graph.update_and_query()    - KùzuDB グラフ更新・探索
-  7. signals.generate()          - 予測シグナル生成
-  8. storage.upload()            - S3 へ永続化 (必ず実行)
+  7. storage.upload()            - S3 へ永続化 (必ず実行)
 
 エラーハンドリング:
   - 各ステップを try/except で囲む
@@ -41,7 +41,7 @@ def handler(event: dict, context: Any) -> dict:
         Lambda レスポンス dict
     """
     from src.config import JQUANTS_PLAN, KUZU_PATH, SQLITE_PATH
-    from src.batch import compute, fetch, fetch_external, graph, notifier, signals, statistics, storage, tracker
+    from src.batch import compute, fetch, fetch_external, fetch_news, graph, notifier, sector_rotation, statistics, storage
 
     # 処理対象日の決定
     target_date: str | None = event.get("target_date") or os.environ.get("TARGET_DATE")
@@ -63,7 +63,6 @@ def handler(event: dict, context: Any) -> dict:
 
     errors: list[str] = []
     stocks_updated = 0
-    signals_generated = 0
 
     # ── 1. SSM から API キー取得 ──────────────────────────────────
     try:
@@ -82,6 +81,14 @@ def handler(event: dict, context: Any) -> dict:
     conn = sqlite3.connect(SQLITE_PATH)
 
     try:
+        # ── 0. ニュース正規化 (Phase 18, 非ブロッキング) ──────────
+        try:
+            news_count = fetch_news.normalize_news(conn, target_date)
+            logger.info(f"fetch_news.normalize_news: {news_count} 件")
+        except Exception as e:
+            logger.error(f"fetch_news.normalize_news 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_news: {e}")
+
         # ── 3. データ取得 ─────────────────────────────────────────
         try:
             stocks_updated = fetch.fetch_daily(conn, target_date)
@@ -98,8 +105,7 @@ def handler(event: dict, context: Any) -> dict:
             logger.info(f"{target_date} は取引日ではありません — 処理をスキップします")
             return {
                 "statusCode": 200,
-                "body": {"date": target_date, "stocks_updated": 0,
-                         "signals_generated": 0, "errors": []},
+                "body": {"date": target_date, "stocks_updated": 0, "errors": []},
             }
 
         logger.info(f"fetch_daily: {stocks_updated} 件取得")
@@ -118,6 +124,14 @@ def handler(event: dict, context: Any) -> dict:
         except Exception as e:
             logger.error(f"fetch_margin_balance 失敗 (処理は継続): {e}")
             errors.append(f"fetch_margin_balance: {e}")
+
+        # ── 3.6. 米国株指数取得 (Phase 20) ───────────────────────
+        try:
+            us_result = fetch_external.fetch_us_indices(SQLITE_PATH)
+            logger.info(f"fetch_us_indices: {us_result}")
+        except Exception as e:
+            logger.error(f"fetch_us_indices 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_us_indices: {e}")
 
         # ── 4. DuckDB 計算 ────────────────────────────────────────
         try:
@@ -141,21 +155,12 @@ def handler(event: dict, context: Any) -> dict:
             logger.error(f"update_and_query 失敗 (処理は継続): {e}")
             errors.append(f"graph: {e}")
 
-        # ── 7. シグナル生成 ───────────────────────────────────────
+        # ── 7. セクターローテーション分析 (Phase 17) ─────────────
         try:
-            signals_generated = signals.generate(SQLITE_PATH, target_date, graph_results)
-            logger.info(f"signals.generate: {signals_generated} 件")
+            sector_rotation.run_all(SQLITE_PATH, target_date)
         except Exception as e:
-            logger.error(f"signals.generate 失敗 (処理は継続): {e}")
-            errors.append(f"signals: {e}")
-
-        # ── 7.5. シグナル的中率追跡 (Phase 11) ───────────────────
-        try:
-            tracked = tracker.run_all(SQLITE_PATH, target_date)
-            logger.info(f"tracker.run_all: {tracked} 件評価")
-        except Exception as e:
-            logger.error(f"tracker.run_all 失敗 (処理は継続): {e}")
-            errors.append(f"tracker: {e}")
+            logger.error(f"sector_rotation.run_all 失敗 (処理は継続): {e}")
+            errors.append(f"sector_rotation: {e}")
 
     finally:
         conn.close()
@@ -174,7 +179,6 @@ def handler(event: dict, context: Any) -> dict:
                 target_date,
                 {
                     "stocks_updated": stocks_updated,
-                    "signals_generated": signals_generated,
                     "errors": errors,
                 },
             )
@@ -192,7 +196,6 @@ def handler(event: dict, context: Any) -> dict:
         "body": {
             "date": target_date,
             "stocks_updated": stocks_updated,
-            "signals_generated": signals_generated,
             "errors": errors,
         },
     }

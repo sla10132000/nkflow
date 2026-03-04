@@ -67,7 +67,7 @@ def download(
 
 
 def _download_sqlite(sqlite_path: str) -> None:
-    """S3 から SQLite をダウンロードする。初回はスキーマ初期化。"""
+    """S3 から SQLite をダウンロードする。初回はスキーマ初期化。既存DBはマイグレーション適用。"""
     os.makedirs(os.path.dirname(sqlite_path) or ".", exist_ok=True)
 
     s3 = boto3.client("s3")
@@ -77,13 +77,16 @@ def _download_sqlite(sqlite_path: str) -> None:
         # WAL モードを有効化
         conn = sqlite3.connect(sqlite_path)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.close()
     except ClientError as e:
         if e.response["Error"]["Code"] in ("NoSuchKey", "404"):
             logger.warning("SQLite が S3 に存在しません (初回実行) — スキーマを初期化します")
-            _init_sqlite_schema(sqlite_path)
         else:
             raise
+
+    # CREATE TABLE IF NOT EXISTS のため冪等 — 新 Phase のテーブルを常に適用
+    _init_sqlite_schema(sqlite_path)
 
 
 def _init_sqlite_schema(sqlite_path: str) -> None:

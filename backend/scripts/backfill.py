@@ -90,7 +90,11 @@ def _fetch_historical(
     import jquantsapi as _jq
     is_v2 = isinstance(client, _jq.ClientV2)
 
-    # v2 で範囲指定が利用可能か 1 回テストして判断
+    # v2: get_eq_bars_daily_range (start_dt/end_dt) で月単位一括取得を試みる
+    if is_v2 and hasattr(client, "get_eq_bars_daily_range"):
+        return _fetch_historical_range(sqlite_path, client, start_date, end_date, registered, rate_limit_sec)
+
+    # v2 で範囲指定が利用可能か 1 回テストして判断 (旧フォールバック)
     use_daily_loop = False
     if is_v2:
         probe_d = end_date.strftime("%Y%m%d")
@@ -104,7 +108,7 @@ def _fetch_historical(
     if use_daily_loop:
         return _fetch_historical_daily(sqlite_path, client, start_date, end_date, registered, rate_limit_sec)
 
-    # ── 月単位チャンク ──────────────────────────────────────────────
+    # ── 月単位チャンク (v1 Client 用) ──────────────────────────────
     monthly_ranges = _generate_monthly_ranges(start_date, end_date)
     total_rows = 0
 
@@ -112,10 +116,7 @@ def _fetch_historical(
         logger.info(f"  [{i}/{len(monthly_ranges)}] {from_d[:4]}-{from_d[4:6]} を取得中...")
 
         try:
-            if is_v2:
-                df = client.get_eq_bars_daily(from_yyyymmdd=from_d, to_yyyymmdd=to_d)
-            else:
-                df = client.get_prices_daily_quotes(from_yyyymmdd=from_d, to_yyyymmdd=to_d)
+            df = client.get_prices_daily_quotes(from_yyyymmdd=from_d, to_yyyymmdd=to_d)
         except Exception as e:
             logger.warning(f"  API エラー ({from_d}〜{to_d}): {e} — スキップ")
             if rate_limit_sec > 0:
@@ -137,8 +138,55 @@ def _fetch_historical(
     return total_rows
 
 
-def _save_price_df(df, is_v2: bool, registered: set, sqlite_path: str) -> int:
-    """DataFrame を正規化して SQLite に保存し、保存行数を返す。"""
+def _fetch_historical_range(
+    sqlite_path: str,
+    client,
+    start_date: date,
+    end_date: date,
+    registered: set,
+    rate_limit_sec: float,
+) -> int:
+    """
+    get_eq_bars_daily_range (start_dt/end_dt) を使って月単位で価格データを取得する。
+    Standard/Premium プランで使用可能。1 API コールで 1 ヶ月分を取得するため高速。
+    持続接続を使用してDB破損を防ぐ。
+    """
+    monthly_ranges = _generate_monthly_ranges(start_date, end_date)
+    total_rows = 0
+
+    # 持続接続を使用 (月ごとに接続を開閉するとDB破損の原因になる)
+    conn = sqlite3.connect(sqlite_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    try:
+        for i, (from_d, to_d) in enumerate(monthly_ranges, 1):
+            logger.info(f"  [{i}/{len(monthly_ranges)}] {from_d[:4]}-{from_d[4:6]} を取得中...")
+            try:
+                df = client.get_eq_bars_daily_range(start_dt=from_d, end_dt=to_d)
+            except Exception as e:
+                logger.warning(f"  API エラー ({from_d}〜{to_d}): {e} — スキップ")
+                time.sleep(max(rate_limit_sec, 30.0))
+                continue
+
+            # レート制限回避: standard/premium プランでも月間に最低10秒スリープ
+            time.sleep(max(rate_limit_sec, 10.0))
+
+            if df is None or df.empty:
+                logger.info(f"  {from_d}〜{to_d}: データなし")
+                continue
+
+            saved = _save_price_df_conn(df, is_v2=True, registered=registered, conn=conn)
+            total_rows += saved
+            logger.info(f"    → {saved} 行保存")
+    finally:
+        conn.close()
+
+    logger.info(f"  合計: {total_rows} 行取得・保存")
+    return total_rows
+
+
+def _normalize_price_df(df, is_v2: bool, registered: set):
+    """DataFrame を正規化して rows リストを返す。"""
     import pandas as pd
 
     if is_v2:
@@ -154,7 +202,7 @@ def _save_price_df(df, is_v2: bool, registered: set, sqlite_path: str) -> int:
     df["code"] = df["code"].astype(str).str.replace(r"0$", "", regex=True).str.zfill(4)
     df = df[df["code"].isin(registered)].copy()
     if df.empty:
-        return 0
+        return []
 
     df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
     for col in ["return_rate", "price_range", "range_pct", "relative_strength"]:
@@ -163,9 +211,36 @@ def _save_price_df(df, is_v2: bool, registered: set, sqlite_path: str) -> int:
     cols = ["code", "date", "open", "high", "low", "close", "volume",
             "return_rate", "price_range", "range_pct", "relative_strength"]
     df = df.reindex(columns=cols)
-    rows = [tuple(r) for r in df.itertuples(index=False, name=None)]
+    return [tuple(r) for r in df.itertuples(index=False, name=None)]
+
+
+def _save_price_df_conn(df, is_v2: bool, registered: set, conn: sqlite3.Connection) -> int:
+    """持続接続を使ってDataFrameを保存する。"""
+    rows = _normalize_price_df(df, is_v2, registered)
+    if not rows:
+        return 0
+    conn.executemany(
+        """
+        INSERT OR REPLACE INTO daily_prices
+            (code, date, open, high, low, close, volume,
+             return_rate, price_range, range_pct, relative_strength)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        rows,
+    )
+    conn.commit()
+    return len(rows)
+
+
+def _save_price_df(df, is_v2: bool, registered: set, sqlite_path: str) -> int:
+    """DataFrame を正規化して SQLite に保存し、保存行数を返す。(後方互換用)"""
+    rows = _normalize_price_df(df, is_v2, registered)
+    if not rows:
+        return 0
 
     conn = sqlite3.connect(sqlite_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.executemany(
         """
         INSERT OR REPLACE INTO daily_prices
@@ -205,29 +280,35 @@ def _fetch_historical_daily(
     n = len(weekdays)
     logger.info(f"  日次ループ: 平日 {n} 日分を取得します (概算 {n * rate_limit_sec / 60:.0f} 分)")
 
-    for i, d in enumerate(weekdays, 1):
-        date_str = d.strftime("%Y%m%d")
-        try:
-            if is_v2:
-                df = client.get_eq_bars_daily(date_yyyymmdd=date_str)
-            else:
-                df = client.get_prices_daily_quotes(date=d.isoformat())
-        except Exception as e:
-            logger.warning(f"  [{i}/{n}] {date_str} エラー: {e} — スキップ")
+    conn = sqlite3.connect(sqlite_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    try:
+        for i, d in enumerate(weekdays, 1):
+            date_str = d.strftime("%Y%m%d")
+            try:
+                if is_v2:
+                    df = client.get_eq_bars_daily(date_yyyymmdd=date_str)
+                else:
+                    df = client.get_prices_daily_quotes(date=d.isoformat())
+            except Exception as e:
+                logger.warning(f"  [{i}/{n}] {date_str} エラー: {e} — スキップ")
+                if rate_limit_sec > 0:
+                    time.sleep(rate_limit_sec)
+                continue
+
             if rate_limit_sec > 0:
                 time.sleep(rate_limit_sec)
-            continue
 
-        if rate_limit_sec > 0:
-            time.sleep(rate_limit_sec)
+            if df is None or df.empty:
+                continue  # 休場日
 
-        if df is None or df.empty:
-            continue  # 休場日
-
-        saved = _save_price_df(df, is_v2, registered, sqlite_path)
-        total_rows += saved
-        if saved > 0 and (i % 20 == 0 or i == n):
-            logger.info(f"  [{i}/{n}] {date_str} 完了 (累計 {total_rows} 行)")
+            saved = _save_price_df_conn(df, is_v2, registered, conn)
+            total_rows += saved
+            if saved > 0 and (i % 20 == 0 or i == n):
+                logger.info(f"  [{i}/{n}] {date_str} 完了 (累計 {total_rows} 行)")
+    finally:
+        conn.close()
 
     return total_rows
 

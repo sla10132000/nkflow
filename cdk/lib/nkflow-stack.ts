@@ -30,7 +30,15 @@ export class NkflowStack extends Stack {
       bucketName: `nkflow-data-${this.account}`,
       removalPolicy: RemovalPolicy.RETAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      versioned: false,
+      versioned: true,
+      lifecycleRules: [
+        {
+          // SQLite バックアップ: 非最新バージョンを7世代まで保持し、それ以上は削除
+          prefix: 'data/stocks.db',
+          noncurrentVersionExpiration: Duration.days(1),
+          noncurrentVersionsToRetain: 7,
+        },
+      ],
     });
 
     // ─────────────────────────────────────────────────────────────
@@ -76,10 +84,20 @@ export class NkflowStack extends Stack {
       actions: ['ssm:GetParameter'],
       resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/nkflow/*`],
     }));
+    // Phase 18: ニュース raw データ読み取り権限 (fetch_news.normalize_news で使用)
+    batchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject'],
+      resources: [`${dataBucket.bucketArn}/news/raw/*`],
+    }));
     // Phase 12: SNS publish 権限
     batchRole.addToPolicy(new iam.PolicyStatement({
       actions: ['sns:Publish'],
       resources: [notificationTopic.topicArn],
+    }));
+    // Phase 18: AWS Translate 翻訳権限
+    batchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['translate:TranslateText'],
+      resources: ['*'],
     }));
 
     // ─────────────────────────────────────────────────────────────
@@ -125,7 +143,7 @@ export class NkflowStack extends Stack {
       role: batchRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
-        JQUANTS_PLAN: 'free',
+        JQUANTS_PLAN: 'standard',
         SNS_TOPIC_ARN: notificationTopic.topicArn,
       },
     });
@@ -141,9 +159,13 @@ export class NkflowStack extends Stack {
       }),
       memorySize: 512,
       timeout: Duration.seconds(30),
+      ephemeralStorageSize: cdk.Size.mebibytes(2048),
       role: apiRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
+        // CACHE_BUST: Lambda 環境変数を手動更新する際に S3_BUCKET が消えるのを防ぐためここで管理する。
+        // キャッシュを強制破棄したい場合はこの値を変更して cdk deploy する。
+        CACHE_BUST: '1',
       },
     });
 
@@ -156,8 +178,72 @@ export class NkflowStack extends Stack {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 9. Lambda (通知) — Phase 12
+    // 9. IAM ロール / Lambda / Scheduler (news-fetch) — Phase 18
     // ─────────────────────────────────────────────────────────────
+    const newsFetchRole = new iam.Role(this, 'NkflowNewsFetchRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+    // news/raw/* への読み書きのみ許可
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:PutObject', 's3:GetObject'],
+      resources: [`${dataBucket.bucketArn}/news/raw/*`],
+    }));
+    // stocks.db の読み書き (正規化後にアップロードするため)
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject', 's3:PutObject'],
+      resources: [`${dataBucket.bucketArn}/data/stocks.db`],
+    }));
+    // Amazon Translate (英語記事の日本語翻訳)
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['translate:TranslateText'],
+      resources: ['*'],
+    }));
+    // 全クエリ失敗時の SNS 通知
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [notificationTopic.topicArn],
+    }));
+
+    const newsFetchLambda = new lambda.DockerImageFunction(this, 'NkflowNewsFetchLambda', {
+      functionName: 'nkflow-news-fetch',
+      code: lambda.DockerImageCode.fromImageAsset(BACKEND, {
+        file: 'Dockerfile.news',
+        platform: Platform.LINUX_AMD64,
+      }),
+      memorySize: 512,
+      timeout: Duration.seconds(300),
+      role: newsFetchRole,
+      environment: {
+        S3_BUCKET: dataBucket.bucketName,
+        SNS_TOPIC_ARN: notificationTopic.topicArn,
+      },
+    });
+
+    // EventBridge Scheduler: 毎時 0 分 (1時間ごと)
+    const newsFetchSchedulerRole = new iam.Role(this, 'NkflowNewsFetchSchedulerRole', {
+      assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
+    });
+    newsFetchLambda.grantInvoke(newsFetchSchedulerRole);
+
+    new scheduler.CfnSchedule(this, 'NkflowNewsFetchSchedule', {
+      name: 'nkflow-news-fetch',
+      scheduleExpression: 'rate(1 hour)',
+      scheduleExpressionTimezone: 'UTC',
+      flexibleTimeWindow: { mode: 'OFF' },
+      target: {
+        arn: newsFetchLambda.functionArn,
+        roleArn: newsFetchSchedulerRole.roleArn,
+        input: JSON.stringify({}),
+      },
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // 10. Lambda (通知) — Phase 12
+    // ─────────────────────────────────────────────────────────────
+
     const notificationLambda = new lambda.DockerImageFunction(this, 'NkflowNotificationLambda', {
       functionName: 'nkflow-notification',
       code: lambda.DockerImageCode.fromImageAsset(BACKEND, {

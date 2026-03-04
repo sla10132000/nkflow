@@ -1,56 +1,196 @@
 export interface Stock {
-  code: string
-  name: string
-  sector: string
+	code: string;
+	name: string;
+	sector: string;
 }
 
 export interface DailyPrice {
-  code: string
-  date: string
-  open: number
-  high: number
-  low: number
-  close: number
-  volume: number
-  return_rate: number
-  price_range: number
+	code: string;
+	date: string;
+	open: number;
+	high: number;
+	low: number;
+	close: number;
+	volume: number;
+	return_rate: number;
+	price_range: number;
 }
 
 export interface Signal {
-  id: number
-  date: string
-  signal_type: string
-  code: string | null
-  sector: string | null
-  direction: 'bullish' | 'bearish'
-  confidence: number
-  reasoning: Record<string, unknown>
+	id: number;
+	date: string;
+	signal_type: string;
+	code: string | null;
+	sector: string | null;
+	direction: "bullish" | "bearish";
+	confidence: number;
+	reasoning: Record<string, unknown>;
 }
 
 export interface NetworkData {
-  nodes: { id: string; label: string; group: string; size: number }[]
-  edges: { from: string; to: string; value: number; arrows?: string }[]
+	nodes: { id: string; label: string; group: string; size: number }[];
+	edges: {
+		from: string;
+		to: string;
+		value: number;
+		arrows?: string;
+		edge_count?: number;
+		coefficient?: number;
+	}[];
 }
 
 export interface DailySummary {
-  date: string
-  nikkei_close: number
-  nikkei_return: number
-  regime: string
-  top_gainers: (Stock & { return_rate: number })[]
-  top_losers: (Stock & { return_rate: number })[]
-  active_signals: number
-  sector_rotation: { sector: string; avg_return: number; total_volume: number }[]
+	date: string;
+	nikkei_close: number;
+	nikkei_return: number;
+	regime: string;
+	top_gainers: (Stock & { return_rate: number })[];
+	top_losers: (Stock & { return_rate: number })[];
+	active_signals: number;
+	sector_rotation: {
+		sector: string;
+		avg_return: number;
+		total_volume: number;
+	}[];
 }
 
+export interface FundFlowTimeseriesValue {
+	count: number;
+	avg_spread: number;
+}
+
+export interface FundFlowTimeseriesSeries {
+	label: string;
+	sector_from: string;
+	sector_to: string;
+	values: FundFlowTimeseriesValue[];
+}
+
+export interface FundFlowTimeseries {
+	periods: string[];
+	start_dates: string[];
+	series: FundFlowTimeseriesSeries[];
+}
+
+export interface FundFlowCumulativePeriod {
+	key: string;
+	start_date: string;
+	regime: "risk_on" | "risk_off" | "neutral" | string;
+}
+
+export interface FundFlowCumulativeSeries {
+	label: string;
+	sector_from: string;
+	sector_to: string;
+	cumulative_spread: number[];
+	sector_cumulative_return: number[];
+}
+
+export interface FundFlowCumulative {
+	base_date: string;
+	periods: FundFlowCumulativePeriod[];
+	series: FundFlowCumulativeSeries[];
+}
+
+export interface MarketPressureTimeseries {
+	dates: string[];
+	pl_ratio: (number | null)[];
+	pl_zone: string[];
+	buy_growth_4w: (number | null)[];
+	margin_ratio: (number | null)[];
+	margin_ratio_trend: (number | null)[];
+	signal_flags: Array<{ credit_overheating?: boolean }>;
+}
+
+// ─── Phase 17: セクターローテーション ───────────────────────────────────────
+
+export interface SectorReturnEntry {
+	period: string;
+	sector: string;
+	return_rate: number;
+	rank: number;
+}
+
+export interface SectorRotationHeatmap {
+	periods: string[];
+	sectors: string[];
+	data: SectorReturnEntry[];
+}
+
+export interface SectorRotationState {
+	period: string;
+	state_id: number;
+	state_name: string;
+	top_sectors: { sector: string; avg_return: number }[];
+}
+
+export interface SectorRotationStates {
+	states: SectorRotationState[];
+}
+
+export interface SectorRotationTransition {
+	from_state: number;
+	to_state: number;
+	probability: number;
+	count: number;
+}
+
+export interface SectorRotationTransitions {
+	transitions: SectorRotationTransition[];
+	state_names: Record<number, string>;
+	avg_durations: Record<number, number>;
+}
+
+export interface SectorRotationPrediction {
+	available: boolean;
+	calc_date?: string;
+	current?: { state_id: number; state_name: string };
+	prediction?: { state_id: number; state_name: string; confidence: number };
+	top_sectors?: { sector: string; avg_return: number }[];
+	all_probabilities?: {
+		state_id: number;
+		state_name: string;
+		probability: number;
+	}[];
+	model_accuracy?: number;
+}
+
+// ─── Phase 18: ニュース ───────────────────────────────────────────────────────
+
+export interface NewsArticle {
+	id: string;
+	published_at: string;
+	source: string;
+	source_name: string | null;
+	title: string;
+	title_ja: string | null;
+	url: string;
+	language: string;
+	image_url: string | null;
+	sentiment: number | null;
+}
+
+export interface NewsSummary {
+	date: string | null;
+	total: number;
+	sources: { source: string; count: number }[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface StockDetail {
-  code: string
-  name: string
-  sector: string
-  latest: DailyPrice | null
-  causes: { code: string; name: string; lag_days: number; p_value: number }[]
-  caused_by: { code: string; name: string; lag_days: number; p_value: number }[]
-  correlated: { code: string; name: string; coefficient: number }[]
-  community_members: { code: string; name: string }[]
-  signals: Signal[]
+	code: string;
+	name: string;
+	sector: string;
+	latest: DailyPrice | null;
+	causes: { code: string; name: string; lag_days: number; p_value: number }[];
+	caused_by: {
+		code: string;
+		name: string;
+		lag_days: number;
+		p_value: number;
+	}[];
+	correlated: { code: string; name: string; coefficient: number }[];
+	community_members: { code: string; name: string }[];
+	signals: Signal[];
 }
