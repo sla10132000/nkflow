@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen flex flex-col">
-    <nav class="bg-white border-b border-gray-200 shadow-sm px-4 py-3">
-      <div class="max-w-screen-2xl mx-auto flex items-center gap-6">
+    <nav class="bg-white border-b border-gray-200 shadow-sm px-2 py-1.5">
+      <div class="max-w-screen-2xl mx-auto flex items-center gap-4">
         <RouterLink to="/" class="text-lg font-bold text-gray-900">nkflow</RouterLink>
         <RouterLink to="/" class="nav-link">概要</RouterLink>
         <RouterLink to="/news" class="nav-link">ニュース</RouterLink>
@@ -10,7 +10,7 @@
         <RouterLink to="/network" class="nav-link">資金フロー</RouterLink>
       </div>
     </nav>
-    <main class="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-4">
+    <main class="flex-1 max-w-screen-2xl mx-auto w-full px-2 py-2">
       <RouterView />
     </main>
   </div>
