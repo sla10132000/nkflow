@@ -177,6 +177,18 @@ const chartOptions = computed(() => ({
 	},
 }));
 
+/**
+ * ゾーンの値域境界: yMax (上端の閾値) / yMin (下端の閾値)
+ * null = チャートエリア端まで延伸
+ */
+const ZONE_THRESHOLDS: Record<string, { yMin: number | null; yMax: number | null }> = {
+	ceiling:  { yMin: 0.15,  yMax: null  },  // +15% 以上
+	overheat: { yMin: 0.05,  yMax: 0.15  },  // +5% 〜 +15%
+	neutral:  { yMin: 0,     yMax: 0.05  },  // 0% 〜 +5%
+	weak:     { yMin: -0.10, yMax: 0     },  // -10% 〜 0%
+	bottom:   { yMin: null,  yMax: -0.10 },  // -10% 以下
+};
+
 /** ゾーン背景色帯 + ラベル plugin */
 const zoneBgPlugin = {
 	id: "nkflowPressureZoneBg",
@@ -184,26 +196,39 @@ const zoneBgPlugin = {
 		ctx: CanvasRenderingContext2D;
 		chartArea: {
 			top: number;
+			bottom: number;
 			left: number;
 			width: number;
 			height: number;
 		} | null;
+		scales: { y: { getPixelForValue: (v: number) => number } };
 	}) {
 		const zones = data.value?.pl_zone;
 		if (!zones?.length) return;
-		const { ctx, chartArea } = chart;
+		const { ctx, chartArea, scales } = chart;
 		if (!chartArea) return;
 		const bw = chartArea.width / zones.length;
 		ctx.save();
 
-		// 背景色帯
+		// 背景色帯: ゾーンに対応した Y 範囲のみ塗る
 		zones.forEach((zone, i) => {
+			const bounds = ZONE_THRESHOLDS[zone];
+			// topPixel: yMax 閾値のピクセル位置 (null = チャート上端)
+			const topPixel = bounds?.yMax != null
+				? Math.max(chartArea.top, scales.y.getPixelForValue(bounds.yMax))
+				: chartArea.top;
+			// bottomPixel: yMin 閾値のピクセル位置 (null = チャート下端)
+			const bottomPixel = bounds?.yMin != null
+				? Math.min(chartArea.bottom, scales.y.getPixelForValue(bounds.yMin))
+				: chartArea.bottom;
+			if (bottomPixel <= topPixel) return; // 表示範囲外
+
 			ctx.fillStyle = ZONE_BG[zone] ?? "rgba(107,114,128,0.05)";
 			ctx.fillRect(
 				chartArea.left + i * bw,
-				chartArea.top,
+				topPixel,
 				bw,
-				chartArea.height,
+				bottomPixel - topPixel,
 			);
 		});
 
