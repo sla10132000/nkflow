@@ -18,59 +18,6 @@
       </span>
     </div>
 
-    <!-- コントロール -->
-    <div class="flex flex-wrap gap-3 items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-      <div class="flex rounded-lg overflow-hidden border border-gray-300 text-xs font-medium">
-        <button
-          v-for="ft in fundFlowFilters" :key="ft.value"
-          @click="setFundFlowFilter(ft.value)"
-          class="px-4 py-1.5 transition-colors"
-          :class="fundFlowFilter === ft.value
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'"
-        >{{ ft.label }}</button>
-      </div>
-
-      <!-- 期間 -->
-      <div v-if="fundFlowFilter === 'period'" class="flex gap-2">
-        <button v-for="p in periods" :key="p" @click="setPeriod(p)"
-          class="btn-tab" :class="{ 'btn-tab-active': period === p }">{{ p }}</button>
-      </div>
-
-      <!-- 範囲 -->
-      <template v-else-if="fundFlowFilter === 'range'">
-        <div class="flex gap-1">
-          <button v-for="pr in rangePresets" :key="pr.label" @click="applyRangePreset(pr)"
-            class="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
-          >{{ pr.label }}</button>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="flex flex-col gap-0.5">
-            <label class="text-[10px] text-gray-500 leading-none">From</label>
-            <input v-model="dateFrom" @change="loadNetwork" type="date" class="date-input" />
-          </div>
-          <span class="text-gray-500 text-sm mt-3">→</span>
-          <div class="flex flex-col gap-0.5">
-            <label class="text-[10px] text-gray-500 leading-none">To</label>
-            <input v-model="dateTo" @change="loadNetwork" type="date" class="date-input" />
-          </div>
-        </div>
-      </template>
-
-      <!-- 日付 -->
-      <template v-else-if="fundFlowFilter === 'date'">
-        <div class="flex gap-1">
-          <button v-for="pr in datePresets" :key="pr.label" @click="applyDatePreset(pr)"
-            class="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
-          >{{ pr.label }}</button>
-        </div>
-        <div class="flex flex-col gap-0.5">
-          <label class="text-[10px] text-gray-500 leading-none">日付</label>
-          <input v-model="dateSingle" @change="loadNetwork" type="date" class="date-input" />
-        </div>
-      </template>
-    </div>
-
     <!-- ① 市場圧力ゲージ -->
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
       <h2 class="text-sm font-semibold text-gray-700 mb-3">市場圧力 (信用評価損益)</h2>
@@ -118,51 +65,108 @@
       </div>
     </div>
 
-    <!-- ⑤ メイン: サンキー図 -->
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-      <h2 class="text-sm font-semibold text-gray-700 mb-1">資金の合流 — サンキー図</h2>
-      <p class="text-xs text-gray-400 mb-3">帯の幅 = フロー発生回数（太いほど強い流れ）</p>
-      <div v-if="loading" class="flex items-center justify-center h-32 text-gray-500 text-sm">読み込み中...</div>
-      <div v-else-if="error" class="flex items-center justify-center h-32 text-red-600 text-sm">{{ error }}</div>
-      <FundFlowSankey v-else-if="networkData" :edges="networkData.edges" />
-    </div>
+    <!-- ⑤ 資金フロー分析 (フィルタ + サンキー + ネットワーク) -->
+    <div class="rounded-lg border border-blue-200 bg-blue-50/30 space-y-3 p-3">
+      <!-- フィルタ -->
+      <div class="flex flex-wrap gap-3 items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-sm font-semibold text-gray-700">資金フロー分析</h2>
+        <div class="flex rounded-lg overflow-hidden border border-gray-300 text-xs font-medium">
+          <button
+            v-for="ft in fundFlowFilters" :key="ft.value"
+            @click="setFundFlowFilter(ft.value)"
+            class="px-4 py-1.5 transition-colors"
+            :class="fundFlowFilter === ft.value
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'"
+          >{{ ft.label }}</button>
+        </div>
 
-    <!-- ⑥ サブ: ネットワーク（折りたたみ） -->
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
-      <button
-        @click="showNetwork = !showNetwork"
-        class="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-      >
-        <span class="font-medium">ネットワーク <span class="text-xs text-gray-400 ml-1">解析用</span></span>
-        <span class="text-gray-400">{{ showNetwork ? '▲' : '▼' }}</span>
-      </button>
+        <!-- 期間 -->
+        <div v-if="fundFlowFilter === 'period'" class="flex gap-2">
+          <button v-for="p in periods" :key="p" @click="setPeriod(p)"
+            class="btn-tab" :class="{ 'btn-tab-active': period === p }">{{ p }}</button>
+        </div>
 
-      <div v-if="showNetwork" class="border-t border-gray-200">
-        <div class="flex gap-4 h-[520px] p-3">
-          <div class="flex-1 overflow-hidden rounded">
-            <GraphView
-              v-if="networkData && networkData.nodes.length > 0"
-              :data="networkData"
-              :directed="true"
-              :anchor-mode="!!anchorDate"
-              @node-click="onNodeClick"
-              class="w-full h-full"
-            />
-            <div v-else class="flex items-center justify-center h-full text-gray-500 text-sm">
-              {{ loading ? '読み込み中...' : '該当期間に資金フローなし' }}
+        <!-- 範囲 -->
+        <template v-else-if="fundFlowFilter === 'range'">
+          <div class="flex gap-1">
+            <button v-for="pr in rangePresets" :key="pr.label" @click="applyRangePreset(pr)"
+              class="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
+            >{{ pr.label }}</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex flex-col gap-0.5">
+              <label class="text-[10px] text-gray-500 leading-none">From</label>
+              <input v-model="dateFrom" @change="loadNetwork" type="date" class="date-input" />
+            </div>
+            <span class="text-gray-500 text-sm mt-3">→</span>
+            <div class="flex flex-col gap-0.5">
+              <label class="text-[10px] text-gray-500 leading-none">To</label>
+              <input v-model="dateTo" @change="loadNetwork" type="date" class="date-input" />
             </div>
           </div>
+        </template>
 
-          <!-- 選択セクター詳細 -->
-          <div v-if="selectedNode" class="w-48 bg-gray-100 rounded p-3 text-xs text-gray-600 space-y-1 shrink-0">
-            <p class="font-semibold text-gray-800 mb-2">{{ selectedNode }}</p>
-            <p>接続: {{ connectedEdges }}本</p>
-            <p>流入: {{ inflowCount }}本</p>
-            <p>流出: {{ outflowCount }}本</p>
+        <!-- 日付 -->
+        <template v-else-if="fundFlowFilter === 'date'">
+          <div class="flex gap-1">
+            <button v-for="pr in datePresets" :key="pr.label" @click="applyDatePreset(pr)"
+              class="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
+            >{{ pr.label }}</button>
           </div>
-        </div>
-        <div class="px-4 pb-3 text-xs text-gray-400">
-          エッジ太さ: 出現頻度 / 矢印: 資金フロー方向 / ノード枠: 流入集中度
+          <div class="flex flex-col gap-0.5">
+            <label class="text-[10px] text-gray-500 leading-none">日付</label>
+            <input v-model="dateSingle" @change="loadNetwork" type="date" class="date-input" />
+          </div>
+        </template>
+      </div>
+
+      <!-- サンキー図 -->
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-1">資金の合流 — サンキー図</h3>
+        <p class="text-xs text-gray-400 mb-3">帯の幅 = フロー発生回数（太いほど強い流れ）</p>
+        <div v-if="loading" class="flex items-center justify-center h-32 text-gray-500 text-sm">読み込み中...</div>
+        <div v-else-if="error" class="flex items-center justify-center h-32 text-red-600 text-sm">{{ error }}</div>
+        <FundFlowSankey v-else-if="networkData" :edges="networkData.edges" />
+      </div>
+
+      <!-- ネットワーク（折りたたみ） -->
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <button
+          @click="showNetwork = !showNetwork"
+          class="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <span class="font-medium">ネットワーク <span class="text-xs text-gray-400 ml-1">解析用</span></span>
+          <span class="text-gray-400">{{ showNetwork ? '▲' : '▼' }}</span>
+        </button>
+
+        <div v-if="showNetwork" class="border-t border-gray-200">
+          <div class="flex gap-4 h-[520px] p-3">
+            <div class="flex-1 overflow-hidden rounded">
+              <GraphView
+                v-if="networkData && networkData.nodes.length > 0"
+                :data="networkData"
+                :directed="true"
+                :anchor-mode="!!anchorDate"
+                @node-click="onNodeClick"
+                class="w-full h-full"
+              />
+              <div v-else class="flex items-center justify-center h-full text-gray-500 text-sm">
+                {{ loading ? '読み込み中...' : '該当期間に資金フローなし' }}
+              </div>
+            </div>
+
+            <!-- 選択セクター詳細 -->
+            <div v-if="selectedNode" class="w-48 bg-gray-100 rounded p-3 text-xs text-gray-600 space-y-1 shrink-0">
+              <p class="font-semibold text-gray-800 mb-2">{{ selectedNode }}</p>
+              <p>接続: {{ connectedEdges }}本</p>
+              <p>流入: {{ inflowCount }}本</p>
+              <p>流出: {{ outflowCount }}本</p>
+            </div>
+          </div>
+          <div class="px-4 pb-3 text-xs text-gray-400">
+            エッジ太さ: 出現頻度 / 矢印: 資金フロー方向 / ノード枠: 流入集中度
+          </div>
         </div>
       </div>
     </div>
