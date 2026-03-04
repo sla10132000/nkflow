@@ -136,7 +136,7 @@
       </div>
 
       <!-- クラスター内銘柄 -->
-      <div class="card" v-if="detail.community_members.length">
+      <div class="card" v-if="detail.community_members?.length">
         <h2 class="font-semibold mb-2">同クラスター銘柄</h2>
         <div class="flex flex-wrap gap-2">
           <RouterLink
