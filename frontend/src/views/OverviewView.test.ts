@@ -77,6 +77,49 @@ describe("OverviewView", () => {
 		expect(mockApi.getSummary).toHaveBeenCalledWith(1);
 	});
 
+	it("getNews が昨日の日付・limit=3 で呼び出される", async () => {
+		mockApi.getSummary.mockResolvedValue({});
+		mountView();
+		await flushPromises();
+		expect(mockApi.getNews).toHaveBeenCalledWith(
+			expect.objectContaining({ limit: 3 }),
+		);
+	});
+
+	it("ニュースが取得できた場合に表示される", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [],
+		});
+		mockApi.getNews.mockResolvedValue([
+			{
+				id: "n1",
+				published_at: "2026-03-03T06:00:00Z",
+				source: "reuters",
+				source_name: "Reuters",
+				title: "Toyota raises forecast",
+				title_ja: "トヨタが業績予想を上方修正",
+				url: "https://example.com/1",
+				language: "ja",
+				image_url: null,
+				sentiment: 0.8,
+			},
+		]);
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.text()).toContain("昨日の主なニュース");
+		expect(wrapper.text()).toContain("トヨタが業績予想を上方修正");
+		expect(wrapper.text()).toContain("Reuters");
+	});
+
 	it("読み込み中の表示", () => {
 		mockApi.getSummary.mockReturnValue(new Promise(() => {})); // never resolves
 		const wrapper = mountView();

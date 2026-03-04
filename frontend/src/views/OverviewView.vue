@@ -5,7 +5,52 @@
     <div v-if="loading" class="text-gray-500">読み込み中...</div>
     <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
-    <template v-else-if="summary">
+    <!-- 昨日の主なニュース -->
+    <div v-if="topNews.length" class="card">
+      <h2 class="font-semibold mb-3 text-gray-700">
+        昨日の主なニュース
+        <span class="text-xs text-gray-400 ml-2 font-normal">{{ yesterdayLabel }}</span>
+      </h2>
+      <ul class="space-y-3">
+        <li v-for="article in topNews" :key="article.id" class="flex gap-3 items-start">
+          <img
+            v-if="article.image_url"
+            :src="article.image_url"
+            alt=""
+            class="w-14 h-14 object-cover rounded flex-shrink-0 bg-gray-100"
+            @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
+          />
+          <div v-else class="w-14 h-14 bg-gray-100 rounded flex-shrink-0" />
+          <div class="min-w-0">
+            <a
+              :href="article.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm font-medium text-blue-700 hover:underline leading-snug line-clamp-2"
+            >
+              {{ article.title_ja ?? article.title }}
+            </a>
+            <div class="mt-1 flex items-center gap-2 text-xs text-gray-400">
+              <span>{{ article.source_name ?? article.source }}</span>
+              <span>{{ formatTime(article.published_at) }}</span>
+              <span
+                v-if="article.sentiment != null"
+                :class="sentimentClass(article.sentiment)"
+                class="px-1.5 py-0.5 rounded-full font-medium"
+              >
+                {{ article.sentiment > 0.1 ? '+' : article.sentiment < -0.1 ? '−' : '中立' }}
+                {{ article.sentiment > 0.1 || article.sentiment < -0.1 ? Math.abs(article.sentiment).toFixed(1) : '' }}
+              </span>
+            </div>
+          </div>
+        </li>
+      </ul>
+      <div class="mt-3 text-right">
+        <RouterLink to="/news" class="text-xs text-blue-600 hover:underline">すべてのニュースを見る →</RouterLink>
+      </div>
+    </div>
+
+    <template v-if="summary">
       <!-- 上部サマリカード -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="card">
@@ -75,14 +120,27 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { useApi } from "../composables/useApi";
-import type { DailySummary } from "../types";
 import HeatMap from "../components/charts/HeatMap.vue";
+import { useApi } from "../composables/useApi";
+import type { DailySummary, NewsArticle } from "../types";
 
 const api = useApi();
 const loading = ref(true);
 const error = ref("");
 const summary = ref<DailySummary | null>(null);
+const topNews = ref<NewsArticle[]>([]);
+
+// JST で昨日の日付を求める
+function getYesterdayJST(): string {
+	const now = new Date();
+	const jstOffset = 9 * 60 * 60 * 1000;
+	const jstNow = new Date(now.getTime() + jstOffset);
+	jstNow.setUTCDate(jstNow.getUTCDate() - 1);
+	return jstNow.toISOString().slice(0, 10);
+}
+
+const yesterday = getYesterdayJST();
+const yesterdayLabel = yesterday;
 
 const sectorData = computed(() => {
 	if (!summary.value?.sector_rotation) return [];
@@ -113,10 +171,33 @@ function regimeClass(regime: string | null | undefined) {
 	return "text-amber-600";
 }
 
+function formatTime(publishedAt: string): string {
+	try {
+		const d = new Date(publishedAt);
+		return d.toLocaleTimeString("ja-JP", {
+			hour: "2-digit",
+			minute: "2-digit",
+			timeZone: "Asia/Tokyo",
+		});
+	} catch {
+		return "";
+	}
+}
+
+function sentimentClass(s: number): string {
+	if (s > 0.1) return "bg-green-100 text-green-700";
+	if (s < -0.1) return "bg-red-100 text-red-700";
+	return "bg-gray-100 text-gray-500";
+}
+
 onMounted(async () => {
 	try {
-		const data = await api.getSummary(1);
-		summary.value = Array.isArray(data) ? data[0] : data;
+		const [summaryData, newsData] = await Promise.all([
+			api.getSummary(1),
+			api.getNews({ date: yesterday, limit: 3 }),
+		]);
+		summary.value = Array.isArray(summaryData) ? summaryData[0] : summaryData;
+		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 3) : [];
 	} catch (e: unknown) {
 		error.value = e instanceof Error ? e.message : "データ取得失敗";
 	} finally {
