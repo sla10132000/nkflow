@@ -1,137 +1,112 @@
 <template>
-  <div class="space-y-3">
-    <h1 class="text-xl font-bold">概要</h1>
+  <div class="space-y-2">
+    <h1 class="text-lg font-bold">概要</h1>
 
     <div v-if="loading" class="text-gray-500">読み込み中...</div>
     <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
     <!-- 昨日の主なニュース -->
     <div v-if="topNews.length" class="card">
-      <h2 class="font-semibold mb-2 text-gray-700">
-        昨日の主なニュース
-        <span class="text-xs text-gray-400 ml-2 font-normal">{{ yesterdayLabel }}</span>
-      </h2>
-      <ul class="space-y-2">
-        <li v-for="article in topNews" :key="article.id">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="text-sm font-semibold text-gray-700">
+          昨日の主なニュース
+          <span class="text-xs text-gray-400 ml-1 font-normal">{{ yesterdayLabel }}</span>
+        </h2>
+        <RouterLink to="/news" class="text-xs text-blue-600 hover:underline whitespace-nowrap">すべて見る →</RouterLink>
+      </div>
+      <ul class="space-y-1">
+        <li v-for="article in topNews" :key="article.id" class="flex items-baseline gap-2">
           <a
             :href="article.url"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-sm font-medium text-blue-700 hover:underline leading-snug line-clamp-2"
+            class="text-sm text-blue-700 hover:underline leading-tight line-clamp-1 flex-1 min-w-0"
           >
             {{ article.title_ja ?? article.title }}
           </a>
-          <div class="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
-            <span>{{ article.source_name ?? article.source }}</span>
-            <span>{{ formatTime(article.published_at) }}</span>
-            <span
-              v-if="article.sentiment != null"
-              :class="sentimentClass(article.sentiment)"
-              class="px-1.5 py-0.5 rounded-full font-medium"
-            >
-              {{ article.sentiment > 0.1 ? '+' : article.sentiment < -0.1 ? '−' : '中立' }}
-              {{ article.sentiment > 0.1 || article.sentiment < -0.1 ? Math.abs(article.sentiment).toFixed(1) : '' }}
-            </span>
-          </div>
+          <span class="text-xs text-gray-400 whitespace-nowrap">
+            {{ article.source_name ?? article.source }} {{ formatTime(article.published_at) }}
+          </span>
         </li>
       </ul>
-      <div class="mt-2 text-right">
-        <RouterLink to="/news" class="text-xs text-blue-600 hover:underline">すべてのニュースを見る →</RouterLink>
-      </div>
     </div>
 
     <template v-if="summary">
-      <!-- 上部サマリカード -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div class="card">
+      <!-- サマリ + 恐怖指数を1行に統合 -->
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
+        <div class="card card-compact">
           <div class="label">日付</div>
-          <div class="value text-base">{{ summary.date }}</div>
+          <div class="value-sm">{{ summary.date }}</div>
         </div>
-        <div class="card">
+        <div class="card card-compact">
           <div class="label">日経終値</div>
-          <div class="value">{{ summary.nikkei_close?.toLocaleString() ?? '—' }}</div>
+          <div class="value-sm">{{ summary.nikkei_close?.toLocaleString() ?? '—' }}</div>
         </div>
-        <div class="card">
+        <div class="card card-compact">
           <div class="label">騰落率</div>
-          <div class="value" :class="returnClass(summary.nikkei_return)">
+          <div class="value-sm" :class="returnClass(summary.nikkei_return)">
             {{ formatReturn(summary.nikkei_return) }}
           </div>
         </div>
-        <div class="card">
+        <div class="card card-compact">
           <div class="label">レジーム</div>
-          <div class="value" :class="regimeClass(summary.regime)">{{ summary.regime ?? '—' }}</div>
+          <div class="value-sm" :class="regimeClass(summary.regime)">{{ summary.regime ?? '—' }}</div>
         </div>
-      </div>
-
-      <!-- 恐怖指数 -->
-      <div v-if="fearIndices" class="card">
-        <h2 class="font-semibold mb-2 text-gray-700">恐怖指数</h2>
-        <div class="grid grid-cols-2 gap-3">
-          <!-- VIX -->
-          <div class="flex flex-col gap-0.5" v-if="fearIndices.vix">
-            <div class="text-xs text-gray-500">VIX（米国）</div>
-            <div class="text-2xl font-bold" :class="vixClass(fearIndices.vix.value)">
-              {{ fearIndices.vix.value.toFixed(2) }}
-            </div>
-            <div class="text-xs" :class="fearIndices.vix.change_pct != null && fearIndices.vix.change_pct >= 0 ? 'text-red-500' : 'text-green-500'">
-              <span v-if="fearIndices.vix.change_pct != null">
-                {{ fearIndices.vix.change_pct >= 0 ? '+' : '' }}{{ fearIndices.vix.change_pct.toFixed(2) }}%
+        <!-- VIX -->
+        <div v-if="fearIndices" class="card card-compact">
+          <div class="label">VIX</div>
+          <template v-if="fearIndices.vix">
+            <div class="value-sm" :class="vixClass(fearIndices.vix.value)">
+              {{ fearIndices.vix.value.toFixed(1) }}
+              <span v-if="fearIndices.vix.change_pct != null" class="text-xs font-normal" :class="fearIndices.vix.change_pct >= 0 ? 'text-red-500' : 'text-green-500'">
+                {{ fearIndices.vix.change_pct >= 0 ? '+' : '' }}{{ fearIndices.vix.change_pct.toFixed(1) }}%
               </span>
             </div>
-            <div class="text-xs text-gray-400">{{ fearIndices.vix.date }}</div>
-          </div>
-          <div v-else class="flex flex-col gap-0.5">
-            <div class="text-xs text-gray-500">VIX（米国）</div>
-            <div class="text-gray-400 text-sm">データなし</div>
-          </div>
-
-          <!-- BTC Fear & Greed -->
-          <div class="flex flex-col gap-0.5" v-if="fearIndices.btc_fear_greed">
-            <div class="text-xs text-gray-500">BTC Fear &amp; Greed</div>
-            <div class="text-2xl font-bold" :class="fngClass(fearIndices.btc_fear_greed.value)">
+          </template>
+          <div v-else class="text-gray-400 text-xs">—</div>
+        </div>
+        <!-- BTC Fear & Greed -->
+        <div v-if="fearIndices" class="card card-compact">
+          <div class="label">Fear&amp;Greed</div>
+          <template v-if="fearIndices.btc_fear_greed">
+            <div class="value-sm" :class="fngClass(fearIndices.btc_fear_greed.value)">
               {{ fearIndices.btc_fear_greed.value }}
+              <span class="text-xs font-normal">{{ fearIndices.btc_fear_greed.classification }}</span>
             </div>
-            <div class="text-xs font-medium" :class="fngClass(fearIndices.btc_fear_greed.value)">
-              {{ fearIndices.btc_fear_greed.classification }}
-            </div>
-            <div class="text-xs text-gray-400">{{ fearIndices.btc_fear_greed.date }}</div>
-          </div>
-          <div v-else class="flex flex-col gap-0.5">
-            <div class="text-xs text-gray-500">BTC Fear &amp; Greed</div>
-            <div class="text-gray-400 text-sm">データなし</div>
-          </div>
+          </template>
+          <div v-else class="text-gray-400 text-xs">—</div>
         </div>
       </div>
 
       <!-- 上昇/下落上位 -->
-      <div class="grid md:grid-cols-2 gap-3">
+      <div class="grid md:grid-cols-2 gap-2">
         <div class="card">
-          <h2 class="font-semibold mb-2 text-green-600">上昇上位</h2>
-          <table class="w-full text-sm">
-            <thead><tr class="text-gray-500 text-left"><th>コード</th><th>名称</th><th class="text-right">騰落率</th></tr></thead>
+          <h2 class="text-sm font-semibold mb-1 text-green-600">上昇上位</h2>
+          <table class="w-full text-xs">
+            <thead><tr class="text-gray-500 text-left"><th class="pb-0.5">コード</th><th class="pb-0.5">名称</th><th class="pb-0.5 text-right">騰落率</th></tr></thead>
             <tbody>
-              <tr v-for="g in summary.top_gainers" :key="g.code" class="border-t border-gray-200">
-                <td class="py-1">
+              <tr v-for="g in summary.top_gainers" :key="g.code" class="border-t border-gray-100">
+                <td class="py-0.5">
                   <RouterLink :to="`/stock/${g.code}`" class="text-blue-600 hover:underline">{{ g.code }}</RouterLink>
                 </td>
-                <td class="py-1 text-gray-700 truncate max-w-[120px]">{{ g.name }}</td>
-                <td class="py-1 text-right text-green-600">{{ formatReturn(g.return_rate) }}</td>
+                <td class="py-0.5 text-gray-700 truncate max-w-[140px]">{{ g.name }}</td>
+                <td class="py-0.5 text-right text-green-600 font-medium">{{ formatReturn(g.return_rate) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <div class="card">
-          <h2 class="font-semibold mb-2 text-red-600">下落上位</h2>
-          <table class="w-full text-sm">
-            <thead><tr class="text-gray-500 text-left"><th>コード</th><th>名称</th><th class="text-right">騰落率</th></tr></thead>
+          <h2 class="text-sm font-semibold mb-1 text-red-600">下落上位</h2>
+          <table class="w-full text-xs">
+            <thead><tr class="text-gray-500 text-left"><th class="pb-0.5">コード</th><th class="pb-0.5">名称</th><th class="pb-0.5 text-right">騰落率</th></tr></thead>
             <tbody>
-              <tr v-for="l in summary.top_losers" :key="l.code" class="border-t border-gray-200">
-                <td class="py-1">
+              <tr v-for="l in summary.top_losers" :key="l.code" class="border-t border-gray-100">
+                <td class="py-0.5">
                   <RouterLink :to="`/stock/${l.code}`" class="text-blue-600 hover:underline">{{ l.code }}</RouterLink>
                 </td>
-                <td class="py-1 text-gray-700 truncate max-w-[120px]">{{ l.name }}</td>
-                <td class="py-1 text-right text-red-600">{{ formatReturn(l.return_rate) }}</td>
+                <td class="py-0.5 text-gray-700 truncate max-w-[140px]">{{ l.name }}</td>
+                <td class="py-0.5 text-right text-red-600 font-medium">{{ formatReturn(l.return_rate) }}</td>
               </tr>
             </tbody>
           </table>
@@ -140,9 +115,9 @@
 
       <!-- セクターヒートマップ -->
       <div class="card">
-        <h2 class="font-semibold mb-2">セクター騰落率</h2>
+        <h2 class="text-sm font-semibold mb-1">セクター騰落率</h2>
         <HeatMap v-if="sectorData.length" :sectors="sectorData" />
-        <div v-else class="text-gray-500 text-sm">データなし</div>
+        <div v-else class="text-gray-500 text-xs">データなし</div>
       </div>
     </template>
   </div>
@@ -254,7 +229,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.card { @apply bg-white rounded-lg p-3 border border-gray-200 shadow-sm; }
-.label { @apply text-gray-500 text-xs mb-1; }
-.value { @apply text-xl font-bold; }
+.card { @apply bg-white rounded-lg p-2 border border-gray-200 shadow-sm; }
+.card-compact { @apply py-1.5 px-2; }
+.label { @apply text-gray-500 text-xs leading-tight; }
+.value-sm { @apply text-base font-bold leading-tight; }
 </style>

@@ -156,10 +156,9 @@ describe("OverviewView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("恐怖指数");
 		expect(wrapper.text()).toContain("VIX");
-		expect(wrapper.text()).toContain("21.58");
-		expect(wrapper.text()).toContain("BTC Fear");
+		expect(wrapper.text()).toContain("21.6");
+		expect(wrapper.text()).toContain("Fear&Greed");
 		expect(wrapper.text()).toContain("10");
 		expect(wrapper.text()).toContain("Extreme Fear");
 	});
