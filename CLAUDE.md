@@ -193,6 +193,7 @@ aws s3 cp /tmp/stocks.db s3://...
 | `docs/spec.md` | プロジェクト全体設計 (Source of truth) |
 | `docs/migration_plan.md` | GCP→AWS 移行計画 |
 | `docs/fund_flow_dashboard.md` | 資金フローダッシュボード (NetworkView / FundFlowTimeline / FundFlowSankey) |
+| `docs/api_reference.md` | REST API 全エンドポイント定義 |
 
 ### 設計書の更新ルール
 
