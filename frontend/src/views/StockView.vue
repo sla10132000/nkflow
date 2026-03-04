@@ -95,9 +95,9 @@
       <div class="grid md:grid-cols-2 gap-3">
         <div class="card">
           <h2 class="font-semibold mb-2 text-blue-600">この銘柄が因果する銘柄</h2>
-          <div v-if="detail.causes.length" class="space-y-1">
-            <div v-for="c in detail.causes" :key="c.code" class="flex items-center gap-2 text-sm">
-              <RouterLink :to="`/stock/${c.code}`" class="text-blue-600 hover:underline">{{ c.code }}</RouterLink>
+          <div v-if="detail.causes?.length" class="space-y-1">
+            <div v-for="c in detail.causes" :key="c.target" class="flex items-center gap-2 text-sm">
+              <RouterLink :to="`/stock/${c.target}`" class="text-blue-600 hover:underline">{{ c.target }}</RouterLink>
               <span class="text-gray-600 truncate flex-1">{{ c.name }}</span>
               <span class="text-gray-500 text-xs">lag {{ c.lag_days }}d</span>
               <span class="text-gray-500 text-xs">p={{ c.p_value?.toFixed(3) }}</span>
@@ -108,9 +108,9 @@
 
         <div class="card">
           <h2 class="font-semibold mb-2 text-purple-600">この銘柄を因果する銘柄</h2>
-          <div v-if="detail.caused_by.length" class="space-y-1">
-            <div v-for="c in detail.caused_by" :key="c.code" class="flex items-center gap-2 text-sm">
-              <RouterLink :to="`/stock/${c.code}`" class="text-blue-600 hover:underline">{{ c.code }}</RouterLink>
+          <div v-if="detail.caused_by?.length" class="space-y-1">
+            <div v-for="c in detail.caused_by" :key="c.source" class="flex items-center gap-2 text-sm">
+              <RouterLink :to="`/stock/${c.source}`" class="text-blue-600 hover:underline">{{ c.source }}</RouterLink>
               <span class="text-gray-600 truncate flex-1">{{ c.name }}</span>
               <span class="text-gray-500 text-xs">lag {{ c.lag_days }}d</span>
             </div>
@@ -122,25 +122,25 @@
       <!-- 相関銘柄 -->
       <div class="card">
         <h2 class="font-semibold mb-2">高相関銘柄</h2>
-        <div v-if="detail.correlated.length" class="flex flex-wrap gap-2">
+        <div v-if="detail.correlated?.length" class="flex flex-wrap gap-2">
           <RouterLink
             v-for="c in detail.correlated"
-            :key="c.code"
-            :to="`/stock/${c.code}`"
+            :key="c.peer_code"
+            :to="`/stock/${c.peer_code}`"
             class="px-2 py-1 bg-gray-100 rounded text-sm hover:bg-gray-200 transition-colors"
           >
-            {{ c.code }} <span class="text-gray-500 text-xs">{{ (c.coefficient * 100).toFixed(0) }}%</span>
+            {{ c.peer_code }} <span class="text-gray-500 text-xs">{{ (c.coefficient * 100).toFixed(0) }}%</span>
           </RouterLink>
         </div>
         <div v-else class="text-gray-500 text-sm">なし</div>
       </div>
 
       <!-- クラスター内銘柄 -->
-      <div class="card" v-if="detail.community_members?.length">
+      <div class="card" v-if="detail.cluster?.members?.length">
         <h2 class="font-semibold mb-2">同クラスター銘柄</h2>
         <div class="flex flex-wrap gap-2">
           <RouterLink
-            v-for="m in detail.community_members"
+            v-for="m in detail.cluster!.members"
             :key="m.code"
             :to="`/stock/${m.code}`"
             class="px-2 py-1 bg-gray-100 rounded text-sm hover:bg-gray-200 transition-colors"
