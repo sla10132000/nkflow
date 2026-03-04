@@ -41,7 +41,7 @@ def handler(event: dict, context: Any) -> dict:
         Lambda レスポンス dict
     """
     from src.config import JQUANTS_PLAN, KUZU_PATH, SQLITE_PATH
-    from src.batch import compute, fetch, fetch_external, fetch_news, graph, notifier, sector_rotation, statistics, storage, td_sequential
+    from src.batch import compute, fetch, fetch_external, fetch_news, graph, notifier, sector_rotation, signals, statistics, storage, td_sequential
 
     # 処理対象日の決定
     target_date: str | None = event.get("target_date") or os.environ.get("TARGET_DATE")
@@ -63,6 +63,7 @@ def handler(event: dict, context: Any) -> dict:
 
     errors: list[str] = []
     stocks_updated = 0
+    signals_generated = 0
 
     # ── 1. SSM から API キー取得 ──────────────────────────────────
     try:
@@ -184,6 +185,14 @@ def handler(event: dict, context: Any) -> dict:
             logger.error(f"sector_rotation.run_all 失敗 (処理は継続): {e}")
             errors.append(f"sector_rotation: {e}")
 
+        # ── 7.5. シグナル生成 (mega_trend_follow) ────────────────
+        try:
+            signals_generated = signals.generate(SQLITE_PATH, target_date, graph_results)
+            logger.info(f"signals.generate: {signals_generated} 件")
+        except Exception as e:
+            logger.error(f"signals.generate 失敗 (処理は継続): {e}")
+            errors.append(f"signals: {e}")
+
     finally:
         conn.close()
 
@@ -218,6 +227,7 @@ def handler(event: dict, context: Any) -> dict:
         "body": {
             "date": target_date,
             "stocks_updated": stocks_updated,
+            "signals_generated": signals_generated,
             "errors": errors,
         },
     }
