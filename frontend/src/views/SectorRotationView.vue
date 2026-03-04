@@ -180,6 +180,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useApi } from "../composables/useApi";
+import SectorReturnHeatmap from "../components/charts/SectorReturnHeatmap.vue";
+import SectorRotationTimeline from "../components/charts/SectorRotationTimeline.vue";
 import type {
 	SectorRotationPrediction,
 	SectorRotationTransitions,

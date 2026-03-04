@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useApi } from "../../composables/useApi";
 import type { SectorRotationState } from "../../types";
 
@@ -124,5 +124,6 @@ async function load() {
 	}
 }
 
+watch(() => [props.limit, props.clusterMethod], load);
 onMounted(load);
 </script>
