@@ -4,7 +4,7 @@
 
     <!-- サマリ -->
     <div class="card">
-      <h2 class="text-sm font-semibold text-gray-400 mb-3">本日のニュース (Phase 18)</h2>
+      <h2 class="text-sm font-semibold text-gray-400 mb-3">本日のニュース</h2>
       <div v-if="summaryLoading" class="text-gray-500 text-sm">読み込み中...</div>
       <div v-else-if="summary" class="flex flex-wrap gap-6 text-sm">
         <div>
