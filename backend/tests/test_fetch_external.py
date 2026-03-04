@@ -225,3 +225,78 @@ class TestFetchMarginBalance:
         assert rows == 0
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 日経225終値取得テスト
+# ─────────────────────────────────────────────────────────────────────────────
+
+FAKE_N225_RESPONSE = {
+    "chart": {
+        "result": [{
+            "timestamp": [1735689600, 1735776000],  # 2025-01-01〜02
+            "indicators": {
+                "quote": [{
+                    "open":  [39000.0, 39100.0],
+                    "high":  [39200.0, 39300.0],
+                    "low":   [38900.0, 39000.0],
+                    "close": [39150.0, 39250.0],
+                }]
+            }
+        }]
+    }
+}
+
+
+class TestFetchNikkeiClose:
+    def test_saves_nikkei_close_to_daily_summary(self, db_conn):
+        """正常取得時に daily_summary.nikkei_close が保存される"""
+        from src.batch.fetch_external import fetch_nikkei_close
+
+        with patch("requests.get") as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.json.return_value = FAKE_N225_RESPONSE
+            mock_resp.raise_for_status.return_value = None
+            mock_get.return_value = mock_resp
+
+            result = fetch_nikkei_close(db_conn, target_date="2025-01-03")
+
+        assert result is True
+        row = db_conn.execute(
+            "SELECT nikkei_close FROM daily_summary WHERE date = '2025-01-03'"
+        ).fetchone()
+        assert row is not None
+        assert row[0] == pytest.approx(39250.0)
+
+    def test_upserts_existing_row(self, db_conn):
+        """既存の daily_summary 行があっても nikkei_close を上書きする"""
+        from src.batch.fetch_external import fetch_nikkei_close
+
+        db_conn.execute(
+            "INSERT INTO daily_summary (date, nikkei_return) VALUES ('2025-01-03', -0.01)"
+        )
+        db_conn.commit()
+
+        with patch("requests.get") as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.json.return_value = FAKE_N225_RESPONSE
+            mock_resp.raise_for_status.return_value = None
+            mock_get.return_value = mock_resp
+
+            fetch_nikkei_close(db_conn, target_date="2025-01-03")
+
+        row = db_conn.execute(
+            "SELECT nikkei_close, nikkei_return FROM daily_summary WHERE date = '2025-01-03'"
+        ).fetchone()
+        assert row[0] == pytest.approx(39250.0)
+        assert row[1] == pytest.approx(-0.01)  # nikkei_return が保持されている
+
+    def test_returns_false_on_api_failure(self, db_conn):
+        """APIエラー時は False を返し例外を投げない"""
+        from src.batch.fetch_external import fetch_nikkei_close
+
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = Exception("timeout")
+            result = fetch_nikkei_close(db_conn, target_date="2025-01-03")
+
+        assert result is False
+
+

@@ -119,6 +119,12 @@ def handler(event: dict, context: Any) -> dict:
             errors.append(f"fetch_exchange_rates: {e}")
 
         try:
+            fetch_external.fetch_nikkei_close(conn, target_date)
+        except Exception as e:
+            logger.error(f"fetch_nikkei_close 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_nikkei_close: {e}")
+
+        try:
             margin_rows = fetch_external.fetch_margin_balance(conn, target_date)
             logger.info(f"fetch_margin_balance: {margin_rows} 行")
         except Exception as e:

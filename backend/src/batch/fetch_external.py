@@ -68,6 +68,44 @@ def _fetch_fx_ohlcv(symbol: str, days: int = 30) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def fetch_nikkei_close(conn: sqlite3.Connection, target_date: Optional[str] = None) -> bool:
+    """
+    Yahoo Finance から日経225 (^N225) の終値を取得し daily_summary に保存する。
+
+    Args:
+        conn: SQLite 接続
+        target_date: 'YYYY-MM-DD'。省略時は今日
+
+    Returns:
+        更新できた場合 True
+    """
+    if target_date is None:
+        target_date = date.today().isoformat()
+
+    df = _fetch_fx_ohlcv("^N225", days=5)
+    if df.empty:
+        logger.warning("日経225: データ取得できませんでした")
+        return False
+
+    row = df[df["date"] <= target_date].sort_values("date").tail(1)
+    if row.empty:
+        logger.warning(f"日経225: {target_date} 以前のデータなし")
+        return False
+
+    close_val = float(row["close"].iloc[0])
+    conn.execute(
+        """
+        INSERT INTO daily_summary (date, nikkei_close)
+        VALUES (?, ?)
+        ON CONFLICT(date) DO UPDATE SET nikkei_close = excluded.nikkei_close
+        """,
+        (target_date, close_val),
+    )
+    conn.commit()
+    logger.info(f"日経225終値: {target_date} = {close_val}")
+    return True
+
+
 def fetch_exchange_rates(
     conn: sqlite3.Connection,
     target_date: Optional[str] = None,
