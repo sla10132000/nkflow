@@ -2,18 +2,6 @@
   <div class="space-y-6">
     <h1 class="text-2xl font-bold">ニュース</h1>
 
-    <!-- サマリ -->
-    <div class="card">
-      <h2 class="text-sm font-semibold text-gray-400 mb-3">本日のニュース</h2>
-      <div v-if="summaryLoading" class="text-gray-500 text-sm">読み込み中...</div>
-      <div v-else-if="summary" class="flex flex-wrap gap-6 text-sm">
-        <div v-for="s in summary.sources.slice(0, 5)" :key="s.source" class="text-gray-300">
-          <span class="text-gray-500">{{ s.source }}</span>
-          <span class="ml-1">{{ s.count }}</span>
-        </div>
-      </div>
-    </div>
-
     <!-- フィルタ -->
     <div class="card flex flex-wrap gap-3 items-center">
       <button
@@ -74,14 +62,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useApi } from "../composables/useApi";
-import type { NewsArticle, NewsSummary } from "../types";
+import type { NewsArticle } from "../types";
 
 const api = useApi();
 
 const articles = ref<NewsArticle[]>([]);
-const summary = ref<NewsSummary | null>(null);
 const loading = ref(false);
-const summaryLoading = ref(false);
 
 function todayJst() {
 	return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
@@ -104,20 +90,12 @@ const datePresets = computed(() => [
 
 async function load() {
 	loading.value = true;
-	summaryLoading.value = true;
 	try {
 		const params: { date?: string; limit?: number } = { limit: 50 };
 		if (filterDate.value) params.date = filterDate.value;
-
-		const [arts, sum] = await Promise.all([
-			api.getNews(params),
-			api.getNewsSummary(filterDate.value || undefined),
-		]);
-		articles.value = arts;
-		summary.value = sum;
+		articles.value = await api.getNews(params);
 	} finally {
 		loading.value = false;
-		summaryLoading.value = false;
 	}
 }
 
