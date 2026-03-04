@@ -122,54 +122,63 @@
         </template>
       </div>
 
-      <!-- 資金の合流 — サンキー図 -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
-        <div class="flex items-baseline gap-2 mb-2">
-          <h3 class="text-sm font-semibold text-gray-700">資金の合流 — サンキー図</h3>
-          <span class="text-xs text-gray-400">帯の幅 = フロー発生回数（太いほど強い流れ）</span>
-        </div>
-        <div v-if="loading" class="flex items-center justify-center h-32 text-gray-500 text-sm">読み込み中...</div>
-        <div v-else-if="error" class="flex items-center justify-center h-32 text-red-600 text-sm">{{ error }}</div>
-        <FundFlowSankey v-else-if="networkData" :edges="networkData.edges" />
-        <div v-else class="flex items-center justify-center h-32 text-gray-400 text-sm">データなし</div>
-      </div>
-
-      <!-- ネットワーク（折りたたみ） -->
+      <!-- タブ切替: サンキー図 / ネットワーク -->
       <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
-      <button
-        @click="showNetwork = !showNetwork"
-        class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-      >
-        <span class="font-medium">ネットワーク <span class="text-xs text-gray-400 ml-1">解析用</span></span>
-        <span class="text-gray-400">{{ showNetwork ? '▲' : '▼' }}</span>
-      </button>
-      <div v-if="showNetwork" class="border-t border-gray-200">
-        <div class="flex gap-3 h-[520px] p-3">
-          <div class="flex-1 overflow-hidden rounded">
-            <GraphView
-              v-if="networkData && networkData.nodes.length > 0"
-              :data="networkData"
-              :directed="true"
-              :anchor-mode="!!anchorDate"
-              @node-click="onNodeClick"
-              class="w-full h-full"
-            />
-            <div v-else class="flex items-center justify-center h-full text-gray-500 text-sm">
-              {{ loading ? '読み込み中...' : '該当期間に資金フローなし' }}
+        <!-- タブヘッダー -->
+        <div class="flex border-b border-gray-200">
+          <button
+            @click="activeVisualizationTab = 'sankey'"
+            class="px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px"
+            :class="activeVisualizationTab === 'sankey'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'"
+          >サンキー図</button>
+          <button
+            @click="activeVisualizationTab = 'network'"
+            class="px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px"
+            :class="activeVisualizationTab === 'network'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'"
+          >ネットワーク</button>
+        </div>
+
+        <!-- サンキー図タブ -->
+        <div v-if="activeVisualizationTab === 'sankey'" class="p-3">
+          <p class="text-xs text-gray-400 mb-2">帯の幅 = フロー発生回数（太いほど強い流れ）</p>
+          <div v-if="loading" class="flex items-center justify-center h-32 text-gray-500 text-sm">読み込み中...</div>
+          <div v-else-if="error" class="flex items-center justify-center h-32 text-red-600 text-sm">{{ error }}</div>
+          <FundFlowSankey v-else-if="networkData" :edges="networkData.edges" />
+          <div v-else class="flex items-center justify-center h-32 text-gray-400 text-sm">データなし</div>
+        </div>
+
+        <!-- ネットワークタブ -->
+        <div v-else-if="activeVisualizationTab === 'network'">
+          <div class="flex gap-3 h-[520px] p-3">
+            <div class="flex-1 overflow-hidden rounded">
+              <GraphView
+                v-if="networkData && networkData.nodes.length > 0"
+                :data="networkData"
+                :directed="true"
+                :anchor-mode="!!anchorDate"
+                @node-click="onNodeClick"
+                class="w-full h-full"
+              />
+              <div v-else class="flex items-center justify-center h-full text-gray-500 text-sm">
+                {{ loading ? '読み込み中...' : '該当期間に資金フローなし' }}
+              </div>
+            </div>
+            <div v-if="selectedNode" class="w-44 bg-gray-50 rounded border border-gray-200 p-3 text-xs text-gray-600 space-y-1 shrink-0">
+              <p class="font-semibold text-gray-800 mb-2">{{ selectedNode }}</p>
+              <p>接続: {{ connectedEdges }}本</p>
+              <p>流入: {{ inflowCount }}本</p>
+              <p>流出: {{ outflowCount }}本</p>
             </div>
           </div>
-          <div v-if="selectedNode" class="w-44 bg-gray-50 rounded border border-gray-200 p-3 text-xs text-gray-600 space-y-1 shrink-0">
-            <p class="font-semibold text-gray-800 mb-2">{{ selectedNode }}</p>
-            <p>接続: {{ connectedEdges }}本</p>
-            <p>流入: {{ inflowCount }}本</p>
-            <p>流出: {{ outflowCount }}本</p>
+          <div class="px-4 pb-2.5 text-xs text-gray-400">
+            エッジ太さ: 出現頻度 / 矢印: 資金フロー方向 / ノード枠: 流入集中度
           </div>
         </div>
-        <div class="px-4 pb-2.5 text-xs text-gray-400">
-          エッジ太さ: 出現頻度 / 矢印: 資金フロー方向 / ノード枠: 流入集中度
-        </div>
       </div>
-    </div>
   </div>
   </div>
 </template>
@@ -192,7 +201,7 @@ const loading = ref(false);
 const error = ref("");
 const networkData = ref<NetworkData | null>(null);
 const selectedNode = ref<string | null>(null);
-const showNetwork = ref(false);
+const activeVisualizationTab = ref<"sankey" | "network">("sankey");
 const showPressureTimeline = ref(true);
 const pressureDays = ref(90);
 const period = ref("20d");

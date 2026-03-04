@@ -77,11 +77,34 @@ describe("NetworkView", () => {
 		expect(wrapper.text()).toContain("時系列フロー");
 	});
 
-	it("サンキー図セクションが表示される", async () => {
+	it("サンキー図タブが表示される", async () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("資金の合流 — サンキー図");
+		expect(wrapper.text()).toContain("サンキー図");
+		expect(wrapper.text()).toContain("ネットワーク");
+	});
+
+	it("デフォルトでサンキー図タブがアクティブ", async () => {
+		const wrapper = mountView();
+		await flushPromises();
+
+		const sankeyTab = wrapper.findAll("button").find((b) => b.text() === "サンキー図");
+		expect(sankeyTab?.classes()).toContain("text-blue-600");
+	});
+
+	it("ネットワークタブに切り替えるとグラフが表示される", async () => {
+		mockApi.getNetwork.mockResolvedValue({
+			nodes: [{ id: "7203", label: "7203", group: "輸送用機器" }],
+			edges: [],
+		});
+		const wrapper = mountView();
+		await flushPromises();
+
+		const networkTab = wrapper.findAll("button").find((b) => b.text() === "ネットワーク");
+		await networkTab?.trigger("click");
+
+		expect(wrapper.find("[data-testid='graph-stub']").exists()).toBe(true);
 	});
 
 	it("信用圧力タイムラインが表示される", async () => {
