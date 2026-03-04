@@ -11,7 +11,7 @@
          class="flex items-center justify-center h-48 text-gray-500 text-sm">
       データなし
     </div>
-    <div v-else class="overflow-x-auto">
+    <div v-else class="overflow-x-auto relative" @mouseleave="tooltip.visible = false">
       <table class="text-xs w-full border-collapse">
         <thead>
           <tr>
@@ -20,22 +20,31 @@
             </th>
             <th
               v-for="p in data.periods" :key="p"
-              class="text-center text-gray-500 font-normal px-0.5 py-0.5 whitespace-nowrap min-w-[3.5rem]"
+              class="text-center font-normal px-0.5 py-0.5 whitespace-nowrap min-w-[3.5rem]"
+              :class="tooltip.visible && tooltip.period === p ? 'text-blue-600 bg-blue-50' : 'text-gray-500'"
             >
               {{ formatPeriod(p) }}
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="sector in data.sectors" :key="sector" class="hover:bg-gray-50">
-            <td class="text-gray-700 px-1 py-0.5 sticky left-0 bg-white z-10 whitespace-nowrap">
+          <tr
+            v-for="sector in data.sectors" :key="sector"
+            :class="tooltip.visible && tooltip.sector === sector ? 'bg-blue-50' : 'hover:bg-gray-50'"
+          >
+            <td
+              class="px-1 py-0.5 sticky left-0 z-10 whitespace-nowrap transition-colors"
+              :class="tooltip.visible && tooltip.sector === sector
+                ? 'text-blue-700 bg-blue-50 font-semibold'
+                : 'text-gray-700 bg-white font-normal'"
+            >
               {{ sector }}
             </td>
             <td
               v-for="p in data.periods" :key="p"
               class="text-center py-0.5 px-0.5 cursor-default"
               :style="cellStyle(sector, p)"
-              :title="`${sector} ${p}: ${formatReturn(getEntry(sector, p)?.return_rate)}`"
+              @mouseenter="(e) => showTooltip(e, sector, p)"
             >
               <span class="text-[10px] font-mono">
                 {{ formatReturn(getEntry(sector, p)?.return_rate) }}
@@ -58,11 +67,29 @@
         <span>強</span>
       </div>
     </div>
+
+    <!-- フローティングツールチップ -->
+    <Teleport to="body">
+      <div
+        v-if="tooltip.visible"
+        class="fixed z-50 pointer-events-none px-2.5 py-1.5 rounded-md shadow-lg text-xs border border-gray-200 bg-white"
+        :style="{ left: `${tooltip.x + 14}px`, top: `${tooltip.y - 8}px` }"
+      >
+        <div class="font-semibold text-gray-800">{{ tooltip.sector }}</div>
+        <div class="text-gray-400 text-[10px]">{{ tooltip.periodLabel }}</div>
+        <div
+          class="font-mono font-bold mt-0.5 text-sm"
+          :class="(tooltip.returnRate ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'"
+        >
+          {{ tooltip.returnLabel }}
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useApi } from "../../composables/useApi";
 import type { SectorReturnEntry, SectorRotationHeatmap } from "../../types";
 
@@ -75,6 +102,29 @@ const api = useApi();
 const loading = ref(false);
 const data = ref<SectorRotationHeatmap | null>(null);
 const error = ref(false);
+
+const tooltip = reactive({
+	visible: false,
+	x: 0,
+	y: 0,
+	sector: "",
+	period: "",
+	periodLabel: "",
+	returnRate: null as number | null,
+	returnLabel: "",
+});
+
+function showTooltip(e: MouseEvent, sector: string, period: string) {
+	const entry = getEntry(sector, period);
+	tooltip.visible = true;
+	tooltip.x = e.clientX;
+	tooltip.y = e.clientY;
+	tooltip.sector = sector;
+	tooltip.period = period;
+	tooltip.periodLabel = formatPeriod(period);
+	tooltip.returnRate = entry?.return_rate ?? null;
+	tooltip.returnLabel = formatReturn(entry?.return_rate);
+}
 
 // (sector, period) → entry の高速ルックアップ
 const entryMap = computed(() => {
