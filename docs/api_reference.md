@@ -985,6 +985,46 @@ vis-network 互換のネットワークデータを返す。
 
 ---
 
+## 14. Fear Indices — 恐怖指数 (Phase 21)
+
+### `GET /api/fear-indices/latest`
+
+最新の恐怖指数を返す。VIX は `us_indices` テーブルから取得、BTC Fear & Greed は `crypto_fear_greed` テーブルから取得。
+
+**Response** `200 OK`
+
+```json
+{
+  "vix": {
+    "value": 21.58,
+    "change_pct": -1.2,
+    "date": "2026-03-04"
+  },
+  "btc_fear_greed": {
+    "value": 10,
+    "classification": "Extreme Fear",
+    "date": "2026-03-04"
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `vix` | object \| null | VIX 最新値。データなしの場合 null |
+| `vix.value` | float | 現在の VIX 値 |
+| `vix.change_pct` | float \| null | 前日比変化率 (%) |
+| `vix.date` | string | データ日付 (YYYY-MM-DD) |
+| `btc_fear_greed` | object \| null | Bitcoin Fear & Greed Index。データなしの場合 null |
+| `btc_fear_greed.value` | int | 0〜100 のスコア |
+| `btc_fear_greed.classification` | string | ラベル (Extreme Fear / Fear / Neutral / Greed / Extreme Greed) |
+| `btc_fear_greed.date` | string | データ日付 (YYYY-MM-DD) |
+
+**VIX ソース**: Yahoo Finance `^VIX` (バッチで日次取得、`us_indices` テーブルに保存)
+
+**BTC Fear & Greed ソース**: Alternative.me API (`https://api.alternative.me/fng/`)、バッチで日次取得
+
+---
+
 ## 共通仕様
 
 ### エラーレスポンス
@@ -1012,4 +1052,4 @@ vis-network 互換のネットワークデータを返す。
 
 ---
 
-最終更新: 2026-03-04
+最終更新: 2026-03-05

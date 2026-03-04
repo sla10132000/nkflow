@@ -49,6 +49,13 @@ US_INDEX_TICKERS: dict[str, str] = {
 }
 US_INDEX_INITIAL_PERIOD = "10y"
 
+# 恐怖指数 (Phase 21): VIX は us_indices テーブルに保存
+FEAR_INDEX_TICKERS: dict[str, str] = {
+    "^VIX": "VIX",
+}
+# BTC Fear & Greed Index
+ALTERNATIVE_ME_FNG_URL = "https://api.alternative.me/fng/"
+
 # 分析パラメータ
 CORRELATION_PERIODS = [20, 60, 120]
 GRANGER_MAX_LAG = 5

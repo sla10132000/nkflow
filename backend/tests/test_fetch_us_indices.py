@@ -61,7 +61,7 @@ class TestFetchUsIndices:
         assert "us_indices" in tables
 
     def test_inserts_data(self, db_path):
-        """3ティッカー × 3日 = 9行が挿入されること"""
+        """4ティッカー (US 3 + VIX 1) × 3日 = 12行が挿入されること"""
         with patch("requests.get") as mock_get:
             mock_get.return_value = _mock_get_ok()
             from src.batch.fetch_external import fetch_us_indices
@@ -71,10 +71,10 @@ class TestFetchUsIndices:
         count = conn.execute("SELECT COUNT(*) FROM us_indices").fetchone()[0]
         conn.close()
 
-        # 3 tickers × 3 rows each
-        assert count == 9
-        assert result["rows_inserted"] == 9
-        assert len(result["tickers"]) == 3
+        # 4 tickers (^GSPC, ^DJI, ^IXIC, ^VIX) × 3 rows each
+        assert count == 12
+        assert result["rows_inserted"] == 12
+        assert len(result["tickers"]) == 4
 
     def test_incremental_update(self, db_path):
         """既存データがある場合、差分のみ取得して重複しないこと"""
@@ -102,7 +102,7 @@ class TestFetchUsIndices:
         # 2025-01-01 は既存、01-02・01-03 が新規 → 合計3行
         assert gspc_count == 3
         # 新規挿入は01-02, 01-03 の2行
-        assert result["rows_inserted"] <= 8  # 2 for ^GSPC + 3*2 for others
+        assert result["rows_inserted"] <= 11  # 2 for ^GSPC + 3*3 for others (^DJI, ^IXIC, ^VIX)
 
     def test_handles_error_gracefully(self, db_path):
         """yfinance エラー時に例外を投げず、status=ok を返すこと"""

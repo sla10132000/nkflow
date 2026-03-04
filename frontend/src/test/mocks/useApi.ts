@@ -12,8 +12,12 @@ export function createMockApi() {
 		getNetwork: vi.fn().mockResolvedValue({ nodes: [], edges: [] }),
 		getStock: vi.fn().mockResolvedValue(null),
 		getStocks: vi.fn().mockResolvedValue([]),
-		getFundFlowTimeseries: vi.fn().mockResolvedValue({ periods: [], series: [] }),
-		getFundFlowCumulative: vi.fn().mockResolvedValue({ base_date: "", series: [] }),
+		getFundFlowTimeseries: vi
+			.fn()
+			.mockResolvedValue({ periods: [], series: [] }),
+		getFundFlowCumulative: vi
+			.fn()
+			.mockResolvedValue({ base_date: "", series: [] }),
 		getMarketPressureTimeseries: vi.fn().mockResolvedValue({
 			dates: [],
 			pl_ratio: [],
@@ -23,16 +27,21 @@ export function createMockApi() {
 			buy_growth_4w: [],
 			signal_flags: [],
 		}),
-		getSectorRotationHeatmap: vi.fn().mockResolvedValue({ periods: [], sectors: [] }),
+		getSectorRotationHeatmap: vi
+			.fn()
+			.mockResolvedValue({ periods: [], sectors: [] }),
 		getSectorRotationStates: vi.fn().mockResolvedValue([]),
 		getSectorRotationTransitions: vi.fn().mockResolvedValue({
 			state_names: {},
 			transitions: [],
 			avg_durations: {},
 		}),
-		getSectorRotationPrediction: vi.fn().mockResolvedValue({ available: false }),
+		getSectorRotationPrediction: vi
+			.fn()
+			.mockResolvedValue({ available: false }),
 		getNews: vi.fn().mockResolvedValue([]),
 		getNewsSummary: vi.fn().mockResolvedValue(null),
+		getFearIndices: vi.fn().mockResolvedValue(null), // Phase 21
 	};
 }
 

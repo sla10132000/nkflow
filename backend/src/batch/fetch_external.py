@@ -238,12 +238,13 @@ def _fetch_index_ohlcv(symbol: str, start_date: Optional[str] = None) -> pd.Data
 
 def fetch_us_indices(db_path: str) -> dict:
     """
-    米国主要株価指数の OHLCV を取得し SQLite の us_indices テーブルに保存する。
+    米国主要株価指数と恐怖指数の OHLCV を取得し SQLite の us_indices テーブルに保存する。
 
     - 差分更新: テーブル内の最新日付以降のみ取得
     - 初回: 直近5年分を一括取得
     - 取引日のみ保存 (NaN 行はスキップ)
     - エラー時も他ティッカーの処理は継続
+    - 対象: US_INDEX_TICKERS + FEAR_INDEX_TICKERS (VIX 等)
 
     Args:
         db_path: SQLite ファイルパス
@@ -251,14 +252,17 @@ def fetch_us_indices(db_path: str) -> dict:
     Returns:
         {"status": "ok", "rows_inserted": N, "tickers": [...]}
     """
-    from src.config import US_INDEX_TICKERS
+    from src.config import FEAR_INDEX_TICKERS, US_INDEX_TICKERS
+
+    # 米国株価指数 + 恐怖指数を同じテーブルに保存
+    combined_tickers = {**US_INDEX_TICKERS, **FEAR_INDEX_TICKERS}
 
     conn = sqlite3.connect(db_path)
     total_rows = 0
     tickers_done: list[str] = []
 
     try:
-        for ticker, name in US_INDEX_TICKERS.items():
+        for ticker, name in combined_tickers.items():
             try:
                 latest = conn.execute(
                     "SELECT MAX(date) FROM us_indices WHERE ticker = ?", (ticker,)
@@ -316,6 +320,77 @@ def fetch_us_indices(db_path: str) -> dict:
         conn.close()
 
     return {"status": "ok", "rows_inserted": total_rows, "tickers": tickers_done}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BTC Fear & Greed Index (Phase 21)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def fetch_crypto_fear_greed(db_path: str, days: int = 30) -> int:
+    """
+    Alternative.me の Bitcoin Fear & Greed Index を取得し
+    SQLite の crypto_fear_greed テーブルに保存する。
+
+    - 差分更新: 既存の最新日以降のみ挿入
+    - エラー時は 0 を返す
+
+    Args:
+        db_path: SQLite ファイルパス
+        days: 取得日数 (デフォルト 30)
+
+    Returns:
+        挿入・更新した行数
+    """
+    from src.config import ALTERNATIVE_ME_FNG_URL
+
+    try:
+        resp = requests.get(
+            ALTERNATIVE_ME_FNG_URL,
+            params={"limit": days, "format": "json"},
+            headers=_YAHOO_HEADERS,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        logger.warning(f"BTC Fear & Greed 取得失敗: {e}")
+        return 0
+
+    records = data.get("data", [])
+    if not records:
+        logger.info("BTC Fear & Greed: データなし")
+        return 0
+
+    conn = sqlite3.connect(db_path)
+    rows_inserted = 0
+    try:
+        for record in records:
+            try:
+                ts = int(record["timestamp"])
+                date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+                value = int(record["value"])
+                classification = record["value_classification"]
+                created_at = datetime.now(timezone.utc).isoformat()
+
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO crypto_fear_greed
+                        (date, value, value_classification, created_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (date_str, value, classification, created_at),
+                )
+                rows_inserted += 1
+            except (KeyError, ValueError, TypeError) as e:
+                logger.warning(f"BTC Fear & Greed レコード解析失敗: {e}")
+                continue
+
+        conn.commit()
+        logger.info(f"crypto_fear_greed: {rows_inserted} 行挿入")
+    finally:
+        conn.close()
+
+    return rows_inserted
 
 
 # ─────────────────────────────────────────────────────────────────────────────

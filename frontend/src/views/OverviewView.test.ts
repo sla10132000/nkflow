@@ -133,6 +133,37 @@ describe("OverviewView", () => {
 		expect(wrapper.text()).toContain("Network Error");
 	});
 
+	it("恐怖指数が表示される", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [],
+		});
+		mockApi.getFearIndices.mockResolvedValue({
+			vix: { value: 21.58, change_pct: -1.2, date: "2026-03-04" },
+			btc_fear_greed: {
+				value: 10,
+				classification: "Extreme Fear",
+				date: "2026-03-04",
+			},
+		});
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.text()).toContain("恐怖指数");
+		expect(wrapper.text()).toContain("VIX");
+		expect(wrapper.text()).toContain("21.58");
+		expect(wrapper.text()).toContain("BTC Fear");
+		expect(wrapper.text()).toContain("10");
+		expect(wrapper.text()).toContain("Extreme Fear");
+	});
+
 	it("セクター騰落率セクションが表示される", async () => {
 		mockApi.getSummary.mockResolvedValue({
 			date: "2026-03-04",

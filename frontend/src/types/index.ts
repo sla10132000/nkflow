@@ -176,6 +176,17 @@ export interface NewsSummary {
 	sources: { source: string; count: number }[];
 }
 
+// ─── Phase 21: 恐怖指数 ───────────────────────────────────────────────────────
+
+export interface FearIndices {
+	vix: { value: number; change_pct: number | null; date: string } | null;
+	btc_fear_greed: {
+		value: number;
+		classification: string;
+		date: string;
+	} | null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface StockDetail {

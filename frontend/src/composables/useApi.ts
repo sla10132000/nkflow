@@ -89,4 +89,7 @@ export const useApi = () => ({
 		api
 			.get("/api/news/summary", { params: date ? { date } : undefined })
 			.then((r) => r.data),
+
+	// Phase 21: 恐怖指数
+	getFearIndices: () => api.get("/api/fear-indices/latest").then((r) => r.data),
 });

@@ -327,6 +327,14 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
 
             CREATE INDEX IF NOT EXISTS idx_us_indices_ticker ON us_indices(ticker);
             CREATE INDEX IF NOT EXISTS idx_us_indices_date ON us_indices(date DESC);
+
+            -- === 仮想通貨恐怖指数 (Phase 21) ===
+            CREATE TABLE IF NOT EXISTS crypto_fear_greed (
+                date                   TEXT PRIMARY KEY,
+                value                  INTEGER NOT NULL,
+                value_classification   TEXT NOT NULL,
+                created_at             TEXT
+            );
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")

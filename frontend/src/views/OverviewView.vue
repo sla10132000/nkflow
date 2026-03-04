@@ -63,6 +63,46 @@
         </div>
       </div>
 
+      <!-- 恐怖指数 -->
+      <div v-if="fearIndices" class="card">
+        <h2 class="font-semibold mb-2 text-gray-700">恐怖指数</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <!-- VIX -->
+          <div class="flex flex-col gap-0.5" v-if="fearIndices.vix">
+            <div class="text-xs text-gray-500">VIX（米国）</div>
+            <div class="text-2xl font-bold" :class="vixClass(fearIndices.vix.value)">
+              {{ fearIndices.vix.value.toFixed(2) }}
+            </div>
+            <div class="text-xs" :class="fearIndices.vix.change_pct != null && fearIndices.vix.change_pct >= 0 ? 'text-red-500' : 'text-green-500'">
+              <span v-if="fearIndices.vix.change_pct != null">
+                {{ fearIndices.vix.change_pct >= 0 ? '+' : '' }}{{ fearIndices.vix.change_pct.toFixed(2) }}%
+              </span>
+            </div>
+            <div class="text-xs text-gray-400">{{ fearIndices.vix.date }}</div>
+          </div>
+          <div v-else class="flex flex-col gap-0.5">
+            <div class="text-xs text-gray-500">VIX（米国）</div>
+            <div class="text-gray-400 text-sm">データなし</div>
+          </div>
+
+          <!-- BTC Fear & Greed -->
+          <div class="flex flex-col gap-0.5" v-if="fearIndices.btc_fear_greed">
+            <div class="text-xs text-gray-500">BTC Fear &amp; Greed</div>
+            <div class="text-2xl font-bold" :class="fngClass(fearIndices.btc_fear_greed.value)">
+              {{ fearIndices.btc_fear_greed.value }}
+            </div>
+            <div class="text-xs font-medium" :class="fngClass(fearIndices.btc_fear_greed.value)">
+              {{ fearIndices.btc_fear_greed.classification }}
+            </div>
+            <div class="text-xs text-gray-400">{{ fearIndices.btc_fear_greed.date }}</div>
+          </div>
+          <div v-else class="flex flex-col gap-0.5">
+            <div class="text-xs text-gray-500">BTC Fear &amp; Greed</div>
+            <div class="text-gray-400 text-sm">データなし</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 上昇/下落上位 -->
       <div class="grid md:grid-cols-2 gap-3">
         <div class="card">
@@ -112,13 +152,14 @@
 import { computed, onMounted, ref } from "vue";
 import HeatMap from "../components/charts/HeatMap.vue";
 import { useApi } from "../composables/useApi";
-import type { DailySummary, NewsArticle } from "../types";
+import type { DailySummary, FearIndices, NewsArticle } from "../types";
 
 const api = useApi();
 const loading = ref(true);
 const error = ref("");
 const summary = ref<DailySummary | null>(null);
 const topNews = ref<NewsArticle[]>([]);
+const fearIndices = ref<FearIndices | null>(null);
 
 // JST で昨日の日付を求める
 function getYesterdayJST(): string {
@@ -180,14 +221,30 @@ function sentimentClass(s: number): string {
 	return "bg-gray-100 text-gray-500";
 }
 
+// VIX: 低い = 安心(緑), 高い = 危険(赤)
+function vixClass(value: number): string {
+	if (value < 20) return "text-green-600";
+	if (value < 30) return "text-amber-500";
+	return "text-red-600";
+}
+
+// BTC Fear & Greed: 高い(Greed) = 緑, 低い(Fear) = 赤
+function fngClass(value: number): string {
+	if (value > 60) return "text-green-600";
+	if (value > 40) return "text-amber-500";
+	return "text-red-600";
+}
+
 onMounted(async () => {
 	try {
-		const [summaryData, newsData] = await Promise.all([
+		const [summaryData, newsData, fearData] = await Promise.all([
 			api.getSummary(1),
 			api.getNews({ date: yesterday, limit: 3 }),
+			api.getFearIndices().catch(() => null),
 		]);
 		summary.value = Array.isArray(summaryData) ? summaryData[0] : summaryData;
 		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 3) : [];
+		fearIndices.value = fearData;
 	} catch (e: unknown) {
 		error.value = e instanceof Error ? e.message : "データ取得失敗";
 	} finally {

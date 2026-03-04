@@ -300,3 +300,81 @@ class TestFetchNikkeiClose:
         assert result is False
 
 
+
+
+class TestFetchCryptoFearGreed:
+    """fetch_crypto_fear_greed のテスト"""
+
+    FAKE_FNG_RESPONSE = {
+        "data": [
+            {"value": "45", "value_classification": "Fear", "timestamp": "1772582400"},
+            {"value": "52", "value_classification": "Neutral", "timestamp": "1772496000"},
+        ],
+        "metadata": {"error": None},
+    }
+
+    @pytest.fixture
+    def db_path(self, tmp_path):
+        path = str(tmp_path / "test.db")
+        init_sqlite(path)
+        return path
+
+    def _mock_get_ok(self):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = self.FAKE_FNG_RESPONSE
+        mock_resp.raise_for_status.return_value = None
+        return mock_resp
+
+    def test_inserts_rows(self, db_path):
+        """正常レスポンスで crypto_fear_greed テーブルに行が挿入される"""
+        from src.batch.fetch_external import fetch_crypto_fear_greed
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = self._mock_get_ok()
+            rows = fetch_crypto_fear_greed(db_path, days=2)
+
+        assert rows == 2
+        conn = sqlite3.connect(db_path)
+        count = conn.execute("SELECT COUNT(*) FROM crypto_fear_greed").fetchone()[0]
+        conn.close()
+        assert count == 2
+
+    def test_stores_classification(self, db_path):
+        """value_classification が正しく保存される"""
+        from src.batch.fetch_external import fetch_crypto_fear_greed
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = self._mock_get_ok()
+            fetch_crypto_fear_greed(db_path, days=2)
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT value, value_classification FROM crypto_fear_greed ORDER BY date DESC LIMIT 1"
+        ).fetchone()
+        conn.close()
+        assert row[0] == 45
+        assert row[1] == "Fear"
+
+    def test_returns_zero_on_api_failure(self, db_path):
+        """API失敗時は 0 を返し例外を投げない"""
+        from src.batch.fetch_external import fetch_crypto_fear_greed
+
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = Exception("connection error")
+            rows = fetch_crypto_fear_greed(db_path, days=2)
+
+        assert rows == 0
+
+    def test_upserts_existing_row(self, db_path):
+        """同じ日付の行は重複しない (UPSERT)"""
+        from src.batch.fetch_external import fetch_crypto_fear_greed
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = self._mock_get_ok()
+            fetch_crypto_fear_greed(db_path, days=2)
+            fetch_crypto_fear_greed(db_path, days=2)
+
+        conn = sqlite3.connect(db_path)
+        count = conn.execute("SELECT COUNT(*) FROM crypto_fear_greed").fetchone()[0]
+        conn.close()
+        assert count == 2  # 重複なし

@@ -131,13 +131,21 @@ def handler(event: dict, context: Any) -> dict:
             logger.error(f"fetch_margin_balance 失敗 (処理は継続): {e}")
             errors.append(f"fetch_margin_balance: {e}")
 
-        # ── 3.6. 米国株指数取得 (Phase 20) ───────────────────────
+        # ── 3.6. 米国株指数・VIX取得 (Phase 20/21) ───────────────
         try:
             us_result = fetch_external.fetch_us_indices(SQLITE_PATH)
             logger.info(f"fetch_us_indices: {us_result}")
         except Exception as e:
             logger.error(f"fetch_us_indices 失敗 (処理は継続): {e}")
             errors.append(f"fetch_us_indices: {e}")
+
+        # ── 3.7. BTC Fear & Greed 取得 (Phase 21) ────────────────
+        try:
+            fng_rows = fetch_external.fetch_crypto_fear_greed(SQLITE_PATH)
+            logger.info(f"fetch_crypto_fear_greed: {fng_rows} 行")
+        except Exception as e:
+            logger.error(f"fetch_crypto_fear_greed 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_crypto_fear_greed: {e}")
 
         # ── 4. DuckDB 計算 ────────────────────────────────────────
         try:
