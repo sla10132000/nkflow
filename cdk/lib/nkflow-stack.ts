@@ -94,6 +94,11 @@ export class NkflowStack extends Stack {
       actions: ['sns:Publish'],
       resources: [notificationTopic.topicArn],
     }));
+    // Phase 18: AWS Translate 翻訳権限
+    batchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['translate:TranslateText'],
+      resources: ['*'],
+    }));
 
     // ─────────────────────────────────────────────────────────────
     // 5. IAM ロール (API)
