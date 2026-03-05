@@ -3,7 +3,7 @@
     <div
       v-for="item in sectors"
       :key="item.sector"
-      class="rounded p-2 text-center text-xs font-medium flex flex-col justify-center min-h-[56px]"
+      class="rounded py-1 px-1 text-center text-xs font-medium flex flex-col justify-center min-h-[40px]"
       :style="{ backgroundColor: bgColor(item.avg_return) }"
     >
       <div class="truncate text-white font-semibold">{{ shortName(item.sector) }}</div>
@@ -24,7 +24,7 @@ interface SectorItem {
 const props = defineProps<{ sectors: SectorItem[] }>();
 
 const gridStyle = computed(() => ({
-	gridTemplateColumns: `repeat(${Math.min(props.sectors.length, 6)}, minmax(0, 1fr))`,
+	gridTemplateColumns: `repeat(${Math.min(props.sectors.length, 8)}, minmax(0, 1fr))`,
 }));
 
 function bgColor(r: number): string {
@@ -43,6 +43,6 @@ function formatReturn(r: number): string {
 }
 
 function shortName(s: string): string {
-	return s.length > 8 ? `${s.slice(0, 7)}…` : s;
+	return s.length > 7 ? `${s.slice(0, 6)}…` : s;
 }
 </script>

@@ -15,18 +15,18 @@
         <RouterLink to="/news" class="text-xs text-blue-600 hover:underline whitespace-nowrap">すべて見る →</RouterLink>
       </div>
       <ul class="space-y-1">
-        <li v-for="article in topNews" :key="article.id" class="flex items-baseline gap-2">
+        <li v-for="article in topNews" :key="article.id" class="flex items-baseline gap-1.5 min-w-0">
+          <span class="text-xs text-gray-400 whitespace-nowrap shrink-0">
+            {{ article.source_name ?? article.source }} {{ formatTime(article.published_at) }}
+          </span>
           <a
             :href="article.url"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-sm text-blue-700 hover:underline leading-tight line-clamp-1 flex-1 min-w-0"
+            class="text-sm text-blue-700 hover:underline leading-tight truncate flex-1 min-w-0"
           >
             {{ article.title_ja ?? article.title }}
           </a>
-          <span class="text-xs text-gray-400 whitespace-nowrap">
-            {{ article.source_name ?? article.source }} {{ formatTime(article.published_at) }}
-          </span>
         </li>
       </ul>
     </div>
