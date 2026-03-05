@@ -80,7 +80,7 @@ describe("OverviewView", () => {
 		mockApi.getSummary.mockResolvedValue({});
 		mountView();
 		await flushPromises();
-		expect(mockApi.getSummary).toHaveBeenCalledWith(5);
+		expect(mockApi.getSummary).toHaveBeenCalledWith(30);
 	});
 
 	it("getNews が昨日の日付・limit=3 で呼び出される", async () => {

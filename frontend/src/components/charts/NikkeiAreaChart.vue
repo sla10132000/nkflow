@@ -18,15 +18,12 @@ const api = useApi();
 const chartContainer = ref<HTMLDivElement>();
 let chart: IChartApi | null = null;
 let candleSeries: ISeriesApi<"Candlestick"> | null = null;
-let resizeObserver: ResizeObserver | null = null;
 
 function initChart() {
 	if (!chartContainer.value) return;
-	const rect = chartContainer.value.getBoundingClientRect();
 
 	chart = createChart(chartContainer.value, {
-		width: rect.width,
-		height: 160,
+		autoSize: true,
 		layout: {
 			textColor: "#6b7280",
 			background: { type: ColorType.Solid, color: "#ffffff" },
@@ -73,15 +70,6 @@ function initChart() {
 		wickDownColor: "#dc2626",
 	});
 
-	resizeObserver = new ResizeObserver((entries) => {
-		if (!chart || !entries.length) return;
-		const { width, height } = entries[0].contentRect;
-		if (width > 0 && height > 0) {
-			chart.resize(width, height);
-		}
-	});
-	resizeObserver.observe(chartContainer.value);
-
 	loadData();
 }
 
@@ -111,10 +99,6 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-	if (resizeObserver) {
-		resizeObserver.disconnect();
-		resizeObserver = null;
-	}
 	if (chart) {
 		chart.remove();
 		chart = null;

@@ -48,7 +48,7 @@ describe("HeatMap", () => {
 			{ sector: "情報・通信・サービス業", avg_return: 0.01 },
 		]);
 
-		expect(wrapper.text()).toContain("情報・通信・サ…");
+		expect(wrapper.text()).toContain("情報・通信・…");
 	});
 
 	it("空配列でもエラーにならない", () => {
@@ -63,7 +63,7 @@ describe("HeatMap", () => {
 		}));
 		const wrapper = mountHeatMap(sectors);
 		const style = wrapper.find("div.grid").attributes("style");
-		expect(style).toContain("repeat(6,");
+		expect(style).toContain("repeat(8,");
 	});
 
 	it("セクター数が6未満ならその数がカラム数", () => {
