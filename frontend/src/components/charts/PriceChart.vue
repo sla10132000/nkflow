@@ -112,36 +112,36 @@ function initChart() {
 		width: rect.width,
 		height: rect.height,
 		layout: {
-			textColor: "#9ca3af",
-			background: { type: ColorType.Solid, color: "#131722" },
+			textColor: "#374151",
+			background: { type: ColorType.Solid, color: "#ffffff" },
 			fontFamily: "system-ui, sans-serif",
 			fontSize: 11,
 			attributionLogo: false,
 		},
 		grid: {
-			vertLines: { color: "rgba(255,255,255,0.05)", style: 1 },
-			horzLines: { color: "rgba(255,255,255,0.05)", style: 1 },
+			vertLines: { color: "#f3f4f6", style: 1 },
+			horzLines: { color: "#f3f4f6", style: 1 },
 		},
 		crosshair: {
 			mode: 0,
 			vertLine: {
 				width: 1,
-				color: "rgba(156, 163, 175, 0.4)",
+				color: "rgba(107, 114, 128, 0.4)",
 				labelBackgroundColor: "#374151",
 			},
 			horzLine: {
 				width: 1,
-				color: "rgba(156, 163, 175, 0.4)",
+				color: "rgba(107, 114, 128, 0.4)",
 				labelBackgroundColor: "#374151",
 			},
 		},
 		rightPriceScale: {
-			borderColor: "rgba(255,255,255,0.1)",
+			borderColor: "#e5e7eb",
 			autoScale: true,
 			scaleMargins: { top: 0.1, bottom: 0.1 },
 		},
 		timeScale: {
-			borderColor: "rgba(255,255,255,0.1)",
+			borderColor: "#e5e7eb",
 			timeVisible: false,
 			fixLeftEdge: true,
 			fixRightEdge: true,
@@ -149,10 +149,10 @@ function initChart() {
 	});
 
 	candleSeries = chart.addSeries(CandlestickSeries, {
-		upColor: "#26a69a",
-		downColor: "#ef5350",
-		wickUpColor: "#26a69a",
-		wickDownColor: "#ef5350",
+		upColor: "#22c55e",
+		downColor: "#ef4444",
+		wickUpColor: "#16a34a",
+		wickDownColor: "#dc2626",
 		borderVisible: false,
 	});
 
