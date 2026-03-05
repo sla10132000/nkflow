@@ -7,7 +7,10 @@
       <div class="relative">
         <input
           v-model="searchInput"
-          @keyup.enter="onEnter"
+          @keydown.down.prevent="moveSelection(1)"
+          @keydown.up.prevent="moveSelection(-1)"
+          @keydown.enter="onEnter"
+          @keydown.escape="showDropdown = false"
           @input="onInput"
           @blur="hideDropdownDelayed"
           @focus="onFocus"
@@ -21,10 +24,12 @@
           class="absolute z-50 top-full left-0 mt-1 w-80 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-y-auto text-sm"
         >
           <li
-            v-for="stock in suggestions"
+            v-for="(stock, index) in suggestions"
             :key="stock.code"
             @mousedown.prevent="selectStock(stock)"
-            class="px-3 py-2 cursor-pointer hover:bg-blue-50 flex gap-2 items-center"
+            @mousemove="selectedIndex = index"
+            class="px-3 py-2 cursor-pointer flex gap-2 items-center"
+            :class="index === selectedIndex ? 'bg-blue-100' : 'hover:bg-blue-50'"
           >
             <span class="font-mono text-blue-700 w-12 shrink-0">{{ stock.code }}</span>
             <span class="text-gray-800 truncate flex-1">{{ stock.name }}</span>
@@ -98,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
 import { useApi } from "../composables/useApi";
 import type { DailyPrice, Stock } from "../types";
@@ -113,6 +118,7 @@ const loading = ref(false);
 const error = ref("");
 const activePeriod = ref(60);
 const showDropdown = ref(false);
+const selectedIndex = ref(-1);
 
 const periods = [
 	{ label: "1M", days: 20 },
@@ -133,6 +139,8 @@ const suggestions = computed(() => {
 		.slice(0, 10);
 });
 
+watch(suggestions, () => { selectedIndex.value = -1; });
+
 const chartTitle = computed(() => {
 	if (selectedStock.value) {
 		return `${selectedStock.value.code} ${selectedStock.value.name} 終値`;
@@ -152,6 +160,12 @@ function onInput() {
 	showDropdown.value = true;
 	selectedStock.value = null;
 	selectedCode.value = "";
+	selectedIndex.value = -1;
+}
+
+function moveSelection(dir: number) {
+	if (!showDropdown.value || !suggestions.value.length) return;
+	selectedIndex.value = Math.max(-1, Math.min(suggestions.value.length - 1, selectedIndex.value + dir));
 }
 
 function onFocus() {
@@ -173,6 +187,11 @@ function selectStock(stock: Stock) {
 }
 
 function onEnter() {
+	// キーボードで選択中の候補がある場合はそれを使う
+	if (selectedIndex.value >= 0 && suggestions.value[selectedIndex.value]) {
+		selectStock(suggestions.value[selectedIndex.value]);
+		return;
+	}
 	const q = searchInput.value.trim();
 	if (!q) return;
 	// コード完全一致

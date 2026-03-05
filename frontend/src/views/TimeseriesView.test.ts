@@ -98,6 +98,35 @@ describe("TimeseriesView", () => {
 		expect(wrapper.text()).toContain("トヨタ自動車");
 	});
 
+	it("下矢印キーでドロップダウンの最初の候補がハイライトされる", async () => {
+		mockApi.getPrices.mockResolvedValue([]);
+		const wrapper = mountView();
+		await flushPromises();
+		const input = wrapper.find("input");
+		await input.setValue("7");
+		await input.trigger("input");
+
+		await input.trigger("keydown", { key: "ArrowDown", code: "ArrowDown" });
+
+		const items = wrapper.findAll("li");
+		expect(items[0].classes()).toContain("bg-blue-100");
+	});
+
+	it("下矢印+Enterでハイライト中の候補を選択してチャートを取得する", async () => {
+		mockApi.getPrices.mockResolvedValue([]);
+		const wrapper = mountView();
+		await flushPromises();
+		const input = wrapper.find("input");
+		await input.setValue("7");
+		await input.trigger("input");
+
+		await input.trigger("keydown", { key: "ArrowDown", code: "ArrowDown" });
+		await input.trigger("keydown", { key: "Enter", code: "Enter" });
+		await flushPromises();
+
+		expect(mockApi.getPrices).toHaveBeenCalledWith("7203", expect.any(String));
+	});
+
 	it("データテーブルの日本語ヘッダーが表示される", async () => {
 		mockApi.getPrices.mockResolvedValue([
 			{
