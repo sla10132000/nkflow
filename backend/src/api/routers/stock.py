@@ -1,9 +1,9 @@
 """GET /api/stock/{code}"""
-import json
 from sqlite3 import Connection
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
+from src.api.helpers import require_stock, safe_json_loads
 from src.api.storage import get_connection
 
 router = APIRouter()
@@ -21,13 +21,7 @@ def get_stocks(conn: Connection = Depends(get_connection)):
 @router.get("/stock/{code}")
 def get_stock(code: str, conn: Connection = Depends(get_connection)):
     """銘柄詳細: 基本情報 + 因果連鎖 + 相関銘柄 + クラスター + 関連シグナル。"""
-    stock = conn.execute(
-        "SELECT code, name, sector FROM stocks WHERE code = ?", (code,)
-    ).fetchone()
-    if not stock:
-        raise HTTPException(status_code=404, detail=f"銘柄 {code} が見つかりません")
-
-    stock = dict(stock)
+    stock = require_stock(conn, code)
 
     # 直近30日の価格データ
     prices = conn.execute(
@@ -117,11 +111,7 @@ def get_stock(code: str, conn: Connection = Depends(get_connection)):
     parsed_sigs = []
     for sig in sigs:
         s = dict(sig)
-        if s["reasoning"]:
-            try:
-                s["reasoning"] = json.loads(s["reasoning"])
-            except (json.JSONDecodeError, TypeError):
-                pass
+        s["reasoning"] = safe_json_loads(s["reasoning"])
         parsed_sigs.append(s)
     stock["signals"] = parsed_sigs
 

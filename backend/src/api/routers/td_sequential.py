@@ -1,10 +1,14 @@
 """GET /api/td-sequential/{code} — TD Sequential (Phase 22)"""
+import logging
+import sqlite3
 from sqlite3 import Connection
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
+from src.api.helpers import require_stock
 from src.api.storage import get_connection
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -25,11 +29,7 @@ def get_td_sequential(
         List[{date, setup_bull, setup_bear, countdown_bull, countdown_bear}]
         0 はそのカウントが非アクティブであることを示す。
     """
-    stock = conn.execute(
-        "SELECT code FROM stocks WHERE code = ?", (code,)
-    ).fetchone()
-    if not stock:
-        raise HTTPException(status_code=404, detail=f"銘柄 {code} が見つかりません")
+    require_stock(conn, code)
 
     try:
         rows = conn.execute(
@@ -42,7 +42,8 @@ def get_td_sequential(
             """,
             (code, days),
         ).fetchall()
-    except Exception:
+    except sqlite3.OperationalError:
+        logger.warning("td_sequential テーブルが存在しません (code=%s)", code)
         return []
 
     result = [dict(r) for r in rows]
@@ -61,11 +62,7 @@ def get_td_sequential_latest(
     Returns:
         {date, setup_bull, setup_bear, countdown_bull, countdown_bear} | null
     """
-    stock = conn.execute(
-        "SELECT code FROM stocks WHERE code = ?", (code,)
-    ).fetchone()
-    if not stock:
-        raise HTTPException(status_code=404, detail=f"銘柄 {code} が見つかりません")
+    require_stock(conn, code)
 
     try:
         row = conn.execute(
@@ -78,7 +75,8 @@ def get_td_sequential_latest(
             """,
             (code,),
         ).fetchone()
-    except Exception:
+    except sqlite3.OperationalError:
+        logger.warning("td_sequential テーブルが存在しません (code=%s)", code)
         return None
 
     return dict(row) if row else None

@@ -5,8 +5,9 @@ import sqlite3
 from datetime import date
 from typing import Optional
 
-import duckdb
 import pandas as pd
+
+from src.batch.db import duckdb_sqlite
 
 from src.config import CORRELATION_PERIODS, CORRELATION_THRESHOLD
 
@@ -28,40 +29,37 @@ def compute_returns(db_path: str, target_date: Optional[str] = None) -> int:
     Returns:
         更新した行数
     """
-    duck = duckdb.connect()
-    duck.execute(f"ATTACH '{db_path}' AS sq (TYPE SQLITE)")
-
     date_filter = f"AND date = '{target_date}'" if target_date else ""
 
-    df = duck.execute(
-        f"""
-        WITH lagged AS (
+    with duckdb_sqlite(db_path) as duck:
+        df = duck.execute(
+            f"""
+            WITH lagged AS (
+                SELECT
+                    code,
+                    date,
+                    open,
+                    high,
+                    low,
+                    close,
+                    LAG(close) OVER (PARTITION BY code ORDER BY date) AS prev_close
+                FROM sq.daily_prices
+            )
             SELECT
                 code,
                 date,
-                open,
-                high,
-                low,
-                close,
-                LAG(close) OVER (PARTITION BY code ORDER BY date) AS prev_close
-            FROM sq.daily_prices
-        )
-        SELECT
-            code,
-            date,
-            CASE WHEN prev_close > 0
-                 THEN (close - prev_close) / prev_close
-                 ELSE NULL END                              AS return_rate,
-            (high - low)                                   AS price_range,
-            CASE WHEN open > 0
-                 THEN (high - low) / open
-                 ELSE NULL END                             AS range_pct
-        FROM lagged
-        WHERE prev_close IS NOT NULL
-        {date_filter}
-        """
-    ).df()
-    duck.close()
+                CASE WHEN prev_close > 0
+                     THEN (close - prev_close) / prev_close
+                     ELSE NULL END                              AS return_rate,
+                (high - low)                                   AS price_range,
+                CASE WHEN open > 0
+                     THEN (high - low) / open
+                     ELSE NULL END                             AS range_pct
+            FROM lagged
+            WHERE prev_close IS NOT NULL
+            {date_filter}
+            """
+        ).df()
 
     if df.empty:
         return 0
@@ -147,20 +145,17 @@ def compute_correlations(db_path: str, calc_date: str) -> int:
     Returns:
         保存したエッジ総数
     """
-    duck = duckdb.connect()
-    duck.execute(f"ATTACH '{db_path}' AS sq (TYPE SQLITE)")
-
     max_period = max(CORRELATION_PERIODS)
-    df = duck.execute(
-        f"""
-        SELECT code, date, return_rate
-        FROM sq.daily_prices
-        WHERE date <= '{calc_date}'
-          AND return_rate IS NOT NULL
-        ORDER BY date
-        """
-    ).df()
-    duck.close()
+    with duckdb_sqlite(db_path) as duck:
+        df = duck.execute(
+            f"""
+            SELECT code, date, return_rate
+            FROM sq.daily_prices
+            WHERE date <= '{calc_date}'
+              AND return_rate IS NOT NULL
+            ORDER BY date
+            """
+        ).df()
 
     if df.empty:
         return 0
@@ -232,25 +227,22 @@ def compute_sector_summary(db_path: str, target_date: str) -> None:
         db_path: SQLite ファイルパス
         target_date: 'YYYY-MM-DD'
     """
-    duck = duckdb.connect()
-    duck.execute(f"ATTACH '{db_path}' AS sq (TYPE SQLITE)")
-
-    df = duck.execute(
-        f"""
-        SELECT
-            s.sector,
-            AVG(dp.return_rate)  AS avg_return,
-            SUM(dp.volume)       AS total_volume,
-            COUNT(*)             AS stock_count
-        FROM sq.daily_prices dp
-        JOIN sq.stocks s ON dp.code = s.code
-        WHERE dp.date = '{target_date}'
-          AND dp.return_rate IS NOT NULL
-        GROUP BY s.sector
-        ORDER BY avg_return DESC
-        """
-    ).df()
-    duck.close()
+    with duckdb_sqlite(db_path) as duck:
+        df = duck.execute(
+            f"""
+            SELECT
+                s.sector,
+                AVG(dp.return_rate)  AS avg_return,
+                SUM(dp.volume)       AS total_volume,
+                COUNT(*)             AS stock_count
+            FROM sq.daily_prices dp
+            JOIN sq.stocks s ON dp.code = s.code
+            WHERE dp.date = '{target_date}'
+              AND dp.return_rate IS NOT NULL
+            GROUP BY s.sector
+            ORDER BY avg_return DESC
+            """
+        ).df()
 
     if df.empty:
         return

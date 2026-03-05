@@ -29,21 +29,44 @@ FX_PAIRS = [
 # 為替レート
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _fetch_fx_ohlcv(symbol: str, days: int = 30) -> pd.DataFrame:
+def _fetch_yahoo_ohlcv(
+    symbol: str,
+    *,
+    days: Optional[int] = None,
+    range_str: Optional[str] = None,
+    start_date: Optional[str] = None,
+    include_volume: bool = False,
+    timeout: int = 10,
+) -> pd.DataFrame:
     """
     Yahoo Finance から指定シンボルの日次 OHLCV を取得する。
 
+    期間指定は以下のいずれか (排他):
+      - days: 直近 N 日分 (range パラメータ)
+      - range_str: Yahoo Finance range 文字列 (例: "5y")
+      - start_date: 'YYYY-MM-DD' 以降を period1/period2 で取得
+
     Args:
-        symbol: Yahoo Finance シンボル (例: "USDJPY=X")
-        days: 取得日数
+        symbol: Yahoo Finance シンボル (例: "USDJPY=X", "^GSPC")
+        include_volume: True なら volume カラムを含める
+        timeout: HTTP タイムアウト秒
 
     Returns:
-        columns=[date, open, high, low, close] の DataFrame。取得失敗時は空
+        columns=[date, open, high, low, close(, volume)] の DataFrame。取得失敗時は空
     """
     url = _YAHOO_CHART_URL.format(symbol=symbol)
-    params = {"interval": "1d", "range": f"{days}d"}
+
+    if start_date is not None:
+        start_ts = int(datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+        end_ts = int(datetime.now(timezone.utc).timestamp())
+        params: dict = {"interval": "1d", "period1": start_ts, "period2": end_ts}
+    elif range_str is not None:
+        params = {"interval": "1d", "range": range_str}
+    else:
+        params = {"interval": "1d", "range": f"{days or 30}d"}
+
     try:
-        resp = requests.get(url, params=params, headers=_YAHOO_HEADERS, timeout=10)
+        resp = requests.get(url, params=params, headers=_YAHOO_HEADERS, timeout=timeout)
         resp.raise_for_status()
         data = resp.json()
     except Exception as e:
@@ -55,13 +78,17 @@ def _fetch_fx_ohlcv(symbol: str, days: int = 30) -> pd.DataFrame:
         timestamps = result["timestamp"]
         ohlcv = result["indicators"]["quote"][0]
 
-        df = pd.DataFrame({
-            "date": [datetime.fromtimestamp(t, tz=__import__("datetime").timezone.utc).strftime("%Y-%m-%d") for t in timestamps],
+        cols: dict = {
+            "date":  [datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d") for t in timestamps],
             "open":  ohlcv.get("open",  [None] * len(timestamps)),
             "high":  ohlcv.get("high",  [None] * len(timestamps)),
             "low":   ohlcv.get("low",   [None] * len(timestamps)),
             "close": ohlcv.get("close", [None] * len(timestamps)),
-        })
+        }
+        if include_volume:
+            cols["volume"] = ohlcv.get("volume", [None] * len(timestamps))
+
+        df = pd.DataFrame(cols)
         return df.dropna(subset=["close"])
     except (KeyError, IndexError, TypeError) as e:
         logger.warning(f"Yahoo Finance レスポンス解析失敗 ({symbol}): {e}")
@@ -83,7 +110,7 @@ def fetch_nikkei_close(conn: sqlite3.Connection, target_date: Optional[str] = No
     if target_date is None:
         target_date = date.today().isoformat()
 
-    df = _fetch_fx_ohlcv("^N225", days=5)
+    df = _fetch_yahoo_ohlcv("^N225", days=5)
     if df.empty:
         logger.warning("日経225: データ取得できませんでした")
         return False
@@ -149,7 +176,7 @@ def fetch_exchange_rates(
     total_rows = 0
 
     for yahoo_symbol, pair_name in FX_PAIRS:
-        df = _fetch_fx_ohlcv(yahoo_symbol, days=30)
+        df = _fetch_yahoo_ohlcv(yahoo_symbol, days=30)
         if df.empty:
             logger.warning(f"{pair_name}: データ取得できませんでした")
             continue
@@ -212,50 +239,12 @@ def fetch_exchange_rates(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _fetch_index_ohlcv(symbol: str, start_date: Optional[str] = None) -> pd.DataFrame:
-    """
-    Yahoo Finance から指定シンボルの日次 OHLCV + volume を取得する。
-
-    Args:
-        symbol: Yahoo Finance シンボル (例: "^GSPC")
-        start_date: 'YYYY-MM-DD'。省略時は US_INDEX_INITIAL_PERIOD 分を取得
-
-    Returns:
-        columns=[date, open, high, low, close, volume] の DataFrame。取得失敗時は空
-    """
+    """Yahoo Finance から指数の OHLCV+volume を取得する (_fetch_yahoo_ohlcv のラッパー)。"""
     from src.config import US_INDEX_INITIAL_PERIOD
-    url = _YAHOO_CHART_URL.format(symbol=symbol)
-    if start_date is None:
-        params: dict = {"interval": "1d", "range": US_INDEX_INITIAL_PERIOD}
-    else:
-        start_ts = int(datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
-        end_ts = int(datetime.now(timezone.utc).timestamp())
-        params = {"interval": "1d", "period1": start_ts, "period2": end_ts}
 
-    try:
-        resp = requests.get(url, params=params, headers=_YAHOO_HEADERS, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception as e:
-        logger.warning(f"Yahoo Finance 取得失敗 ({symbol}): {e}")
-        return pd.DataFrame()
-
-    try:
-        result = data["chart"]["result"][0]
-        timestamps = result["timestamp"]
-        ohlcv = result["indicators"]["quote"][0]
-
-        df = pd.DataFrame({
-            "date":   [datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d") for t in timestamps],
-            "open":   ohlcv.get("open",   [None] * len(timestamps)),
-            "high":   ohlcv.get("high",   [None] * len(timestamps)),
-            "low":    ohlcv.get("low",    [None] * len(timestamps)),
-            "close":  ohlcv.get("close",  [None] * len(timestamps)),
-            "volume": ohlcv.get("volume", [None] * len(timestamps)),
-        })
-        return df.dropna(subset=["close"])
-    except (KeyError, IndexError, TypeError) as e:
-        logger.warning(f"Yahoo Finance レスポンス解析失敗 ({symbol}): {e}")
-        return pd.DataFrame()
+    if start_date is not None:
+        return _fetch_yahoo_ohlcv(symbol, start_date=start_date, include_volume=True, timeout=15)
+    return _fetch_yahoo_ohlcv(symbol, range_str=US_INDEX_INITIAL_PERIOD, include_volume=True, timeout=15)
 
 
 def fetch_us_indices(db_path: str) -> dict:

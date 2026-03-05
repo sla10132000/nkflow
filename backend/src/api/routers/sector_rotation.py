@@ -1,10 +1,13 @@
 """GET /api/sector-rotation/* エンドポイント (Phase 17)"""
-import json
+import logging
 from sqlite3 import Connection
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.api.helpers import safe_json_loads
 from src.api.storage import get_connection
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -68,15 +71,13 @@ def get_sector_performance(
             "SELECT sector_rotation FROM daily_summary ORDER BY date DESC LIMIT 1"
         ).fetchone()
         if row and row[0]:
-            try:
-                data = json.loads(row[0])
+            data = safe_json_loads(row[0])
+            if data:
                 return [
                     {"sector": d["sector"], "avg_return": d.get("avg_return", 0)}
                     for d in data
                     if "sector" in d
                 ]
-            except Exception:
-                pass
 
     return [{"sector": r[0], "avg_return": r[1] or 0} for r in rows]
 
@@ -161,7 +162,7 @@ def get_sector_rotation_states(
                 "period": r[0],
                 "state_id": r[1],
                 "state_name": r[2],
-                "top_sectors": json.loads(r[3]) if r[3] else [],
+                "top_sectors": safe_json_loads(r[3], default=[]),
             }
             for r in reversed(rows)
         ]
@@ -268,7 +269,7 @@ def get_sector_rotation_prediction(
             "state_name": row[4],
             "confidence": row[5],
         },
-        "top_sectors": json.loads(row[6]) if row[6] else [],
-        "all_probabilities": json.loads(row[7]) if row[7] else [],
+        "top_sectors": safe_json_loads(row[6], default=[]),
+        "all_probabilities": safe_json_loads(row[7], default=[]),
         "model_accuracy": row[8],
     }

@@ -5,6 +5,7 @@ from sqlite3 import Connection
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.api.helpers import period_sql_expr
 from src.api.storage import get_connection
 
 router = APIRouter()
@@ -128,12 +129,7 @@ def get_fund_flow_timeseries(
     granularity: "week" | "month"
     limit: 取得する期間数 (最新 limit 週 / 月)
     """
-    if granularity not in ("week", "month"):
-        raise HTTPException(status_code=400, detail="granularity は week または month のいずれかです")
-
-    period_expr = (
-        "strftime('%Y-W%W', date)" if granularity == "week" else "strftime('%Y-%m', date)"
-    )
+    period_expr = period_sql_expr(granularity)
 
     rows = conn.execute(
         f"""
@@ -210,12 +206,7 @@ def get_fund_flow_cumulative(
 
     granularity: "week" | "month"
     """
-    if granularity not in ("week", "month"):
-        raise HTTPException(status_code=400, detail="granularity は week または month のいずれかです")
-
-    period_expr = (
-        "strftime('%Y-W%W', date)" if granularity == "week" else "strftime('%Y-%m', date)"
-    )
+    period_expr = period_sql_expr(granularity)
 
     # 1. base_date 以降のファンドフローを期間 × ペア別に集計
     flow_rows = conn.execute(

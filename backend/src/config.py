@@ -71,9 +71,18 @@ FEAR_INDEX_TICKERS: dict[str, str] = {
 # BTC Fear & Greed Index
 ALTERNATIVE_ME_FNG_URL = "https://api.alternative.me/fng/"
 
-# 分析パラメータ
+# 分析パラメータ — 相関・因果
 CORRELATION_PERIODS = [20, 60, 120]
 GRANGER_MAX_LAG = 5
 GRANGER_P_THRESHOLD = 0.05
 CORRELATION_THRESHOLD = 0.5
 COMMUNITY_RESOLUTION = 1.0
+
+# 分析パラメータ — 統計分析ウィンドウ (batch/statistics.py で使用)
+GRANGER_WINDOW = 60          # グレンジャー検定に使う直近営業日数
+LEAD_LAG_MAX = 5             # クロス相関の最大ラグ数
+LEAD_LAG_THRESHOLD = 0.3     # クロス相関の最低閾値
+FUND_FLOW_WINDOW = 20        # 資金フローの比較ベースライン日数
+REGIME_SHORT_WINDOW = 5      # レジーム判定: 直近ボラ
+REGIME_LONG_WINDOW = 20      # レジーム判定: 比較ベースボラ
+MAX_GRANGER_STOCKS = 100     # 直近出来高上位 N 銘柄に限定

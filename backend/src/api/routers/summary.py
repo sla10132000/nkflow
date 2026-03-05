@@ -1,9 +1,8 @@
 """GET /api/summary"""
-import json
-
 from fastapi import APIRouter, Depends
 from sqlite3 import Connection
 
+from src.api.helpers import safe_json_loads
 from src.api.storage import get_connection
 
 router = APIRouter()
@@ -78,11 +77,7 @@ def get_summary(days: int = 30, conn: Connection = Depends(get_connection)):
     for row in rows:
         item = dict(row)
         for col in ("top_gainers", "top_losers", "sector_rotation"):
-            if item[col]:
-                try:
-                    item[col] = json.loads(item[col])
-                except (json.JSONDecodeError, TypeError):
-                    pass
+            item[col] = safe_json_loads(item[col])
 
         # top_gainers/top_losers が空の場合は daily_prices から動的計算
         if not item["top_gainers"] and not item["top_losers"]:

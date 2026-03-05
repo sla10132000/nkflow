@@ -1,10 +1,14 @@
 """GET /api/fear-indices — 恐怖指数 (Phase 21)"""
+import logging
+import sqlite3
 from sqlite3 import Connection
 from typing import Optional
 
 from fastapi import APIRouter, Depends
 
 from src.api.storage import get_connection
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -44,8 +48,8 @@ def get_fear_indices_latest(conn: Connection = Depends(get_connection)):
                 "change_pct": change_pct,
                 "date": latest["date"],
             }
-    except Exception:
-        pass  # テーブル未作成時は null を返す
+    except sqlite3.OperationalError:
+        logger.debug("us_indices テーブルが未作成のため VIX を取得できません")
 
     # BTC Fear & Greed: crypto_fear_greed テーブルから最新を取得
     # テーブルが存在しない場合 (マイグレーション未実行) は None を返す
@@ -65,8 +69,8 @@ def get_fear_indices_latest(conn: Connection = Depends(get_connection)):
                 "classification": fng_row["value_classification"],
                 "date": fng_row["date"],
             }
-    except Exception:
-        pass  # テーブル未作成時は null を返す
+    except sqlite3.OperationalError:
+        logger.debug("crypto_fear_greed テーブルが未作成のため BTC F&G を取得できません")
 
     return {
         "vix": vix,

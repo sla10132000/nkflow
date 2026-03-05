@@ -11,18 +11,19 @@ from joblib import Parallel, delayed
 from scipy.stats import linregress
 from statsmodels.tsa.stattools import grangercausalitytests
 
-from src.config import GRANGER_MAX_LAG, GRANGER_P_THRESHOLD
+from src.config import (
+    FUND_FLOW_WINDOW,
+    GRANGER_MAX_LAG,
+    GRANGER_P_THRESHOLD,
+    GRANGER_WINDOW,
+    LEAD_LAG_MAX,
+    LEAD_LAG_THRESHOLD,
+    MAX_GRANGER_STOCKS,
+    REGIME_LONG_WINDOW,
+    REGIME_SHORT_WINDOW,
+)
 
 logger = logging.getLogger(__name__)
-
-# 分析ウィンドウ
-GRANGER_WINDOW = 60     # グレンジャー検定に使う直近営業日数
-LEAD_LAG_MAX = 5        # クロス相関の最大ラグ数
-LEAD_LAG_THRESHOLD = 0.3  # クロス相関の最低閾値
-FUND_FLOW_WINDOW = 20   # 資金フローの比較ベースライン日数
-REGIME_SHORT_WINDOW = 5  # レジーム判定: 直近ボラ
-REGIME_LONG_WINDOW = 20  # レジーム判定: 比較ベースボラ
-MAX_GRANGER_STOCKS = 100  # 直近出来高上位 N 銘柄に限定 (ペア数 ≈ 4,950 → タイムアウト防止)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

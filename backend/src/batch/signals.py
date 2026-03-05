@@ -19,7 +19,7 @@ import json
 import logging
 import sqlite3
 
-import duckdb
+from src.batch.db import duckdb_sqlite
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -115,12 +115,8 @@ WHERE i.date = $target_date
 
 def _compute_indicators(db_path: str, target_date: str) -> pd.DataFrame:
     """DuckDB で移動平均・RSI 等のテクニカル指標をオンザフライ計算する。"""
-    duck = duckdb.connect()
-    try:
-        duck.execute(f"ATTACH '{db_path}' AS sq (TYPE SQLITE)")
+    with duckdb_sqlite(db_path) as duck:
         df = duck.execute(_INDICATORS_SQL, {"target_date": target_date}).df()
-    finally:
-        duck.close()
     return df
 
 
