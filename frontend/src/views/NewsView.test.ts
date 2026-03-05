@@ -138,7 +138,7 @@ describe("NewsView", () => {
 
 		const dateSpan = wrapper.findAll("span").find((s) => s.attributes("title"));
 		expect(dateSpan).toBeTruthy();
-		expect(dateSpan!.attributes("title")).toContain("2026/03/04");
+		expect(dateSpan?.attributes("title")).toContain("2026/03/04");
 	});
 
 	it("テーマ別タブでグループ表示される", async () => {
@@ -150,8 +150,10 @@ describe("NewsView", () => {
 		await flushPromises();
 
 		// テーマ別タブをクリック
-		const themeTab = wrapper.findAll("button").find((b) => b.text() === "テーマ別");
-		await themeTab!.trigger("click");
+		const themeTab = wrapper
+			.findAll("button")
+			.find((b) => b.text() === "テーマ別");
+		await themeTab?.trigger("click");
 		await flushPromises();
 
 		expect(wrapper.text()).toContain("決算");

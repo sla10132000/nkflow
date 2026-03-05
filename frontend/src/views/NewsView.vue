@@ -206,7 +206,9 @@ function toggleCategory(cat: string) {
 async function load() {
 	loading.value = true;
 	try {
-		const params: { date?: string; category?: string; limit?: number } = { limit: 100 };
+		const params: { date?: string; category?: string; limit?: number } = {
+			limit: 100,
+		};
 		if (filterDate.value) params.date = filterDate.value;
 		if (filterCategory.value) params.category = filterCategory.value;
 
@@ -225,7 +227,8 @@ const themeGroups = computed(() => {
 	const groups: Record<string, NewsArticle[]> = {};
 	for (const a of articles.value) {
 		const cat = a.category || "その他";
-		(groups[cat] ??= []).push(a);
+		if (!groups[cat]) groups[cat] = [];
+		groups[cat].push(a);
 	}
 	return Object.entries(groups)
 		.map(([category, arts]) => ({ category, articles: arts }))
@@ -236,7 +239,8 @@ const sourceGroups = computed(() => {
 	const groups: Record<string, NewsArticle[]> = {};
 	for (const a of articles.value) {
 		const src = a.source_name || a.source;
-		(groups[src] ??= []).push(a);
+		if (!groups[src]) groups[src] = [];
+		groups[src].push(a);
 	}
 	return Object.entries(groups)
 		.map(([source, arts]) => ({ source, articles: arts }))
