@@ -16,11 +16,11 @@
 
 <script setup lang="ts">
 defineProps<{
-  periods: { value: string | number; label: string }[];
-  modelValue: string | number;
+	periods: { value: string | number; label: string }[];
+	modelValue: string | number;
 }>();
 
 defineEmits<{
-  "update:modelValue": [value: string | number];
+	"update:modelValue": [value: string | number];
 }>();
 </script>

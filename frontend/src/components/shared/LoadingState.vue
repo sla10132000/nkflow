@@ -9,8 +9,8 @@
 
 <script setup lang="ts">
 defineProps<{
-  loading: boolean;
-  error?: string;
-  empty?: boolean;
+	loading: boolean;
+	error?: string;
+	empty?: boolean;
 }>();
 </script>
