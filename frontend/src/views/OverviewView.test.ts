@@ -224,7 +224,7 @@ describe("OverviewView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("米国セクター");
+		expect(wrapper.text()).toContain("米国");
 		expect(wrapper.text()).toContain("XLK");
 		expect(wrapper.text()).toContain("テクノロジー");
 		expect(wrapper.text()).toContain("+1.85%");
@@ -273,11 +273,12 @@ describe("OverviewView", () => {
 			active_signals: 0,
 			top_gainers: [],
 			top_losers: [],
-			sector_rotation: [
-				{ sector: "電気機器", avg_return: 0.012, total_volume: 100000, stock_count: 10 },
-				{ sector: "銀行業", avg_return: -0.005, total_volume: 80000, stock_count: 8 },
-			],
+			sector_rotation: [],
 		});
+		mockApi.getJpSectorPerformance.mockResolvedValue([
+			{ sector: "電気機器", avg_return: 0.012 },
+			{ sector: "銀行業", avg_return: -0.005 },
+		]);
 
 		const wrapper = mountView();
 		await flushPromises();
@@ -306,6 +307,7 @@ describe("OverviewView", () => {
 		await weekButton!.trigger("click");
 		await flushPromises();
 
+		expect(mockApi.getJpSectorPerformance).toHaveBeenCalledWith("1w");
 		expect(mockApi.getUsSectorPerformance).toHaveBeenCalledWith("1w");
 	});
 });

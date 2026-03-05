@@ -50,6 +50,7 @@ export function createMockApi() {
 		getUsIndicesSummary: vi.fn().mockResolvedValue([]),
 		getForex: vi.fn().mockResolvedValue([]),
 		getForexLatest: vi.fn().mockResolvedValue([]),
+		getJpSectorPerformance: vi.fn().mockResolvedValue([]), // Phase 17 (共通期間セレクタ)
 		getUsSectorPerformance: vi.fn().mockResolvedValue({ // Phase 23b
 			date: null,
 			period: "1d",
