@@ -101,4 +101,9 @@ export const useApi = () => ({
 
 	getTdSequentialLatest: (code: string) =>
 		api.get(`/api/td-sequential/${code}/latest`).then((r) => r.data),
+
+	getYtdHighs: (limit = 10, thresholdPct = 5.0) =>
+		api
+			.get("/api/ytd-highs", { params: { limit, threshold_pct: thresholdPct } })
+			.then((r) => r.data),
 });

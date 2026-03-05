@@ -223,6 +223,17 @@ export interface StockDetail {
 	signals: Signal[];
 }
 
+// ─── 年初来高値 ───────────────────────────────────────────────────────────────
+
+export interface YtdHighStock {
+	code: string;
+	name: string;
+	sector: string;
+	close: number;
+	ytd_high: number;
+	gap_pct: number; // (close - ytd_high) / ytd_high * 100 (0=更新中, 負=以下)
+}
+
 // ─── Phase 22: TD Sequential ─────────────────────────────────────────────────
 
 export interface TdSequentialBar {

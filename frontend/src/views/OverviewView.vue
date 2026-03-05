@@ -78,8 +78,8 @@
         </div>
       </div>
 
-      <!-- 上昇/下落上位 -->
-      <div class="grid md:grid-cols-2 gap-2">
+      <!-- 上昇/下落上位 + 年初来高値 -->
+      <div class="grid md:grid-cols-3 gap-2">
         <div class="card">
           <h2 class="text-sm font-semibold mb-1 text-green-600">上昇上位</h2>
           <table class="w-full text-xs">
@@ -111,6 +111,27 @@
             </tbody>
           </table>
         </div>
+
+        <div class="card">
+          <h2 class="text-sm font-semibold mb-1 text-amber-600">年初来高値圏</h2>
+          <table class="w-full text-xs">
+            <thead><tr class="text-gray-500 text-left"><th class="pb-0.5">コード</th><th class="pb-0.5">名称</th><th class="pb-0.5 text-right">乖離</th></tr></thead>
+            <tbody>
+              <tr v-for="h in ytdHighs" :key="h.code" class="border-t border-gray-100">
+                <td class="py-0.5">
+                  <RouterLink :to="`/stock/${h.code}`" class="text-blue-600 hover:underline">{{ h.code }}</RouterLink>
+                </td>
+                <td class="py-0.5 text-gray-700 truncate max-w-[140px]">{{ h.name }}</td>
+                <td class="py-0.5 text-right font-medium" :class="h.gap_pct >= 0 ? 'text-amber-600' : 'text-gray-600'">
+                  {{ h.gap_pct >= 0 ? '★' : '' }}{{ h.gap_pct.toFixed(1) }}%
+                </td>
+              </tr>
+              <tr v-if="!ytdHighs.length">
+                <td colspan="3" class="py-1 text-gray-400">データなし</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- セクターヒートマップ -->
@@ -127,7 +148,7 @@
 import { computed, onMounted, ref } from "vue";
 import HeatMap from "../components/charts/HeatMap.vue";
 import { useApi } from "../composables/useApi";
-import type { DailySummary, FearIndices, NewsArticle } from "../types";
+import type { DailySummary, FearIndices, NewsArticle, YtdHighStock } from "../types";
 
 const api = useApi();
 const loading = ref(true);
@@ -135,6 +156,7 @@ const error = ref("");
 const summary = ref<DailySummary | null>(null);
 const topNews = ref<NewsArticle[]>([]);
 const fearIndices = ref<FearIndices | null>(null);
+const ytdHighs = ref<YtdHighStock[]>([]);
 
 // JST で昨日の日付を求める
 function getYesterdayJST(): string {
@@ -212,14 +234,16 @@ function fngClass(value: number): string {
 
 onMounted(async () => {
 	try {
-		const [summaryData, newsData, fearData] = await Promise.all([
+		const [summaryData, newsData, fearData, ytdData] = await Promise.all([
 			api.getSummary(1),
 			api.getNews({ date: yesterday, limit: 3 }),
 			api.getFearIndices().catch(() => null),
+			api.getYtdHighs(10).catch(() => []),
 		]);
 		summary.value = Array.isArray(summaryData) ? summaryData[0] : summaryData;
 		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 3) : [];
 		fearIndices.value = fearData;
+		ytdHighs.value = Array.isArray(ytdData) ? ytdData : [];
 	} catch (e: unknown) {
 		error.value = e instanceof Error ? e.message : "データ取得失敗";
 	} finally {
