@@ -39,10 +39,8 @@
 
     <!-- コンテンツ -->
     <div class="card">
-      <div v-if="loading" class="text-gray-500 text-sm">読み込み中...</div>
-      <div v-else-if="articles.length === 0" class="text-gray-600 text-sm">記事なし</div>
-
-      <template v-else>
+      <LoadingState :loading="loading" :empty="articles.length === 0">
+        <template #empty>記事なし</template>
         <div class="space-y-1">
           <div
             v-for="article in articles"
@@ -83,18 +81,19 @@
             </div>
           </div>
         </div>
-      </template>
+      </LoadingState>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import LoadingState from "../components/shared/LoadingState.vue";
 import { useApi } from "../composables/useApi";
 import type { NewsArticle, NewsSummary } from "../types";
-import { formatDateTime, formatDateFull } from "../utils/formatters";
-import { todayJst, daysAgoJst } from "../utils/dateRange";
 import { newsCategoryColor } from "../utils/colors";
+import { daysAgoJst, todayJst } from "../utils/dateRange";
+import { formatDateFull, formatDateTime } from "../utils/formatters";
 
 const api = useApi();
 
@@ -135,7 +134,6 @@ async function load() {
 		loading.value = false;
 	}
 }
-
 
 watch(filterDate, () => {
 	filterCategory.value = "";

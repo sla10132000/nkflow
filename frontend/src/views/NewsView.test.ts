@@ -97,15 +97,6 @@ describe("NewsView", () => {
 		expect(wrapper.text()).toContain("金融政策");
 	});
 
-	it("タブが表示される", async () => {
-		const wrapper = mountView();
-		await flushPromises();
-
-		expect(wrapper.text()).toContain("速報");
-		expect(wrapper.text()).toContain("テーマ別");
-		expect(wrapper.text()).toContain("ソース別");
-	});
-
 	it("記事一覧にカテゴリバッジとティッカーを表示する", async () => {
 		mockApi.getNews.mockResolvedValue([mockArticle]);
 		const wrapper = mountView();
@@ -141,7 +132,7 @@ describe("NewsView", () => {
 		expect(dateSpan?.attributes("title")).toContain("2026/03/04");
 	});
 
-	it("テーマ別タブでグループ表示される", async () => {
+	it("複数カテゴリの記事が表示される", async () => {
 		mockApi.getNews.mockResolvedValue([
 			{ ...mockArticle, id: "a1", category: "決算" },
 			{ ...mockArticle, id: "a2", category: "為替", title_ja: "円安ニュース" },
@@ -149,15 +140,8 @@ describe("NewsView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		// テーマ別タブをクリック
-		const themeTab = wrapper
-			.findAll("button")
-			.find((b) => b.text() === "テーマ別");
-		await themeTab?.trigger("click");
-		await flushPromises();
-
 		expect(wrapper.text()).toContain("決算");
 		expect(wrapper.text()).toContain("為替");
-		expect(wrapper.text()).toContain("1件");
+		expect(wrapper.text()).toContain("円安ニュース");
 	});
 });

@@ -194,11 +194,13 @@ import MarketPressureGauge from "../components/charts/MarketPressureGauge.vue";
 import MarketPressureTimeline from "../components/charts/MarketPressureTimeline.vue";
 import GraphView from "../components/network/GraphView.vue";
 import { useApi } from "../composables/useApi";
+import { useMarketStore } from "../stores/useMarketStore";
 import type { MarketPressureTimeseries, NetworkData } from "../types";
-import { fmtNum } from "../utils/formatters";
 import { fmt, lastBusinessDay, periodToDateRange } from "../utils/dateRange";
+import { fmtNum } from "../utils/formatters";
 
 const api = useApi();
+const marketStore = useMarketStore();
 const loading = ref(false);
 const error = ref("");
 const networkData = ref<NetworkData | null>(null);
@@ -212,8 +214,9 @@ const dateFrom = ref("");
 const dateTo = ref("");
 const dateSingle = ref("");
 const anchorDate = ref<string | null>(null);
-const currentRegime = ref<string | null>(null);
 const pressureData = ref<MarketPressureTimeseries | null>(null);
+
+const currentRegime = computed(() => marketStore.regime);
 
 const periods = ["20d", "60d", "120d"];
 const fundFlowFilters = [
@@ -315,15 +318,6 @@ function onAnchorChanged(date: string | null) {
 	anchorDate.value = date;
 }
 
-async function loadRegime() {
-	try {
-		const summary = await api.getSummary(1);
-		currentRegime.value = summary?.regime ?? null;
-	} catch {
-		currentRegime.value = null;
-	}
-}
-
 async function loadPressure() {
 	try {
 		pressureData.value = await api.getMarketPressureTimeseries(
@@ -382,7 +376,7 @@ function onNodeClick(id: string) {
 
 onMounted(() => {
 	applyRangePreset({ days: 7 });
-	loadRegime();
+	marketStore.fetchSummary();
 	loadPressure();
 });
 </script>

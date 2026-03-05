@@ -39,21 +39,14 @@
       </div>
       <button @click="loadPrices" class="btn-primary">表示</button>
 
-      <div class="flex gap-2 ml-auto">
-        <button
-          v-for="p in periods"
-          :key="p.label"
-          @click="setPeriod(p.days)"
-          class="btn-period"
-          :class="{ 'btn-period-active': activePeriod === p.days }"
-        >{{ p.label }}</button>
+      <div class="ml-auto">
+        <PeriodSelector :periods="periods.map(p => ({ value: p.days, label: p.label }))" :model-value="activePeriod" @update:model-value="setPeriod($event as number)" />
       </div>
     </div>
 
-    <div v-if="loading" class="text-gray-500">読み込み中...</div>
-    <div v-else-if="error" class="text-red-600">{{ error }}</div>
-
-    <template v-else-if="prices.length">
+    <LoadingState :loading="loading" :error="error" :empty="!prices.length && !loading">
+      <template #empty>銘柄コードを入力して「表示」を押してください</template>
+    <template v-if="prices.length">
       <!-- 株価チャート -->
       <div class="card">
         <h2 class="font-semibold mb-2">{{ chartTitle }}</h2>
@@ -97,23 +90,25 @@
         </table>
       </div>
     </template>
-
-    <div v-else-if="!loading" class="text-gray-500">銘柄コードを入力して「表示」を押してください</div>
+    </LoadingState>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
+import LoadingState from "../components/shared/LoadingState.vue";
+import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import { useApi } from "../composables/useApi";
+import { useMarketStore } from "../stores/useMarketStore";
 import type { DailyPrice, Stock } from "../types";
 import { toDate } from "../utils/dateRange";
 
 const api = useApi();
+const marketStore = useMarketStore();
 const searchInput = ref("");
 const selectedCode = ref("");
 const selectedStock = ref<Stock | null>(null);
-const stocks = ref<Stock[]>([]);
 const prices = ref<DailyPrice[]>([]);
 const loading = ref(false);
 const error = ref("");
@@ -131,16 +126,17 @@ const periods = [
 const suggestions = computed(() => {
 	const q = searchInput.value.trim().toLowerCase();
 	if (!q) return [];
-	return stocks.value
+	return marketStore.stocks
 		.filter(
 			(s) =>
-				s.code.toLowerCase().includes(q) ||
-				s.name.toLowerCase().includes(q),
+				s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q),
 		)
 		.slice(0, 10);
 });
 
-watch(suggestions, () => { selectedIndex.value = -1; });
+watch(suggestions, () => {
+	selectedIndex.value = -1;
+});
 
 const chartTitle = computed(() => {
 	if (selectedStock.value) {
@@ -149,12 +145,8 @@ const chartTitle = computed(() => {
 	return `${selectedCode.value} 終値`;
 });
 
-onMounted(async () => {
-	try {
-		stocks.value = await api.getStocks();
-	} catch {
-		// 銘柄リスト取得失敗は無視 (オートコンプリートなしで動作継続)
-	}
+onMounted(() => {
+	marketStore.fetchStocks();
 });
 
 function onInput() {
@@ -166,7 +158,10 @@ function onInput() {
 
 function moveSelection(dir: number) {
 	if (!showDropdown.value || !suggestions.value.length) return;
-	selectedIndex.value = Math.max(-1, Math.min(suggestions.value.length - 1, selectedIndex.value + dir));
+	selectedIndex.value = Math.max(
+		-1,
+		Math.min(suggestions.value.length - 1, selectedIndex.value + dir),
+	);
 }
 
 function onFocus() {
@@ -196,7 +191,7 @@ function onEnter() {
 	const q = searchInput.value.trim();
 	if (!q) return;
 	// コード完全一致
-	const exactCode = stocks.value.find((s) => s.code === q);
+	const exactCode = marketStore.stocks.find((s) => s.code === q);
 	if (exactCode) {
 		selectStock(exactCode);
 		return;

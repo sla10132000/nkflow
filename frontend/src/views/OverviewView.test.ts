@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockApi } from "../test/mocks/useApi";
 
@@ -21,6 +22,7 @@ const { default: OverviewView } = await import("./OverviewView.vue");
 function mountView() {
 	return mount(OverviewView, {
 		global: {
+			plugins: [createPinia()],
 			stubs: { RouterLink: { template: "<a><slot /></a>" } },
 		},
 	});
@@ -29,6 +31,12 @@ function mountView() {
 describe("OverviewView", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockApi.getSummary.mockResolvedValue({});
+		mockApi.getNews.mockResolvedValue([]);
+		mockApi.getFearIndices.mockResolvedValue({});
+		mockApi.getYtdHighs.mockResolvedValue([]);
+		mockApi.getJpSectorPerformance.mockResolvedValue([]);
+		mockApi.getUsSectorPerformance.mockResolvedValue({});
 	});
 
 	it("日本語の見出しが表示される", async () => {
@@ -131,7 +139,8 @@ describe("OverviewView", () => {
 	});
 
 	it("エラー時にメッセージを表示する", async () => {
-		mockApi.getSummary.mockRejectedValue(new Error("Network Error"));
+		// getNews が失敗した場合にエラー表示される (store 経由の getSummary はエラーを内部で吸収する)
+		mockApi.getNews.mockRejectedValue(new Error("Network Error"));
 		const wrapper = mountView();
 		await flushPromises();
 		expect(wrapper.text()).toContain("Network Error");
@@ -252,14 +261,34 @@ describe("OverviewView", () => {
 
 	it("日経平均ミニチャートが複数日データで表示される", async () => {
 		mockApi.getSummary.mockResolvedValue([
-			{ date: "2026-03-04", nikkei_close: 38200, nikkei_return: 0.005, regime: "risk_on", active_signals: 0, top_gainers: [], top_losers: [], sector_rotation: [] },
-			{ date: "2026-03-03", nikkei_close: 38000, nikkei_return: -0.01, regime: "risk_on", active_signals: 0, top_gainers: [], top_losers: [], sector_rotation: [] },
+			{
+				date: "2026-03-04",
+				nikkei_close: 38200,
+				nikkei_return: 0.005,
+				regime: "risk_on",
+				active_signals: 0,
+				top_gainers: [],
+				top_losers: [],
+				sector_rotation: [],
+			},
+			{
+				date: "2026-03-03",
+				nikkei_close: 38000,
+				nikkei_return: -0.01,
+				regime: "risk_on",
+				active_signals: 0,
+				top_gainers: [],
+				top_losers: [],
+				sector_rotation: [],
+			},
 		]);
 
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.find("[data-testid='nikkei-area-chart-stub']").exists()).toBe(true);
+		expect(
+			wrapper.find("[data-testid='nikkei-area-chart-stub']").exists(),
+		).toBe(true);
 	});
 
 	it("業種トレンド棒グラフがセクターデータありで表示される", async () => {
@@ -281,7 +310,9 @@ describe("OverviewView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.find("[data-testid='sector-trend-bar-stub']").exists()).toBe(true);
+		expect(wrapper.find("[data-testid='sector-trend-bar-stub']").exists()).toBe(
+			true,
+		);
 	});
 
 	it("米国セクターの期間ボタンをクリックすると再取得する", async () => {

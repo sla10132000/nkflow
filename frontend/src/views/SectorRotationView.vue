@@ -133,8 +133,8 @@
     <!-- 遷移行列タブ -->
     <div v-if="activeTab === 'transitions'" class="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
       <div class="text-sm text-gray-700 font-medium mb-2">遷移確率行列</div>
-      <div v-if="loadingTransitions" class="text-gray-500 text-sm">読み込み中...</div>
-      <div v-else-if="transitions" class="overflow-x-auto">
+      <LoadingState :loading="loadingTransitions" :empty="!transitions">
+      <div v-if="transitions" class="overflow-x-auto">
         <table class="text-xs border-collapse">
           <thead>
             <tr>
@@ -172,6 +172,7 @@
           対角線 = 自己遷移確率 (同状態継続)。値は過去の実績に基づく推定値。
         </p>
       </div>
+      </LoadingState>
     </div>
 
   </div>
@@ -179,9 +180,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { useApi } from "../composables/useApi";
 import SectorReturnHeatmap from "../components/charts/SectorReturnHeatmap.vue";
 import SectorRotationTimeline from "../components/charts/SectorRotationTimeline.vue";
+import LoadingState from "../components/shared/LoadingState.vue";
+import { useApi } from "../composables/useApi";
 import type {
 	SectorRotationPrediction,
 	SectorRotationTransitions,

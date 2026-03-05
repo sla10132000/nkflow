@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockApi } from "../test/mocks/useApi";
 
@@ -32,12 +33,32 @@ const mockFearIndices = {
 };
 
 const mockForexLatest = [
-	{ date: "2026-03-04", pair: "USDJPY", open: 150.0, high: 150.5, low: 149.5, close: 150.2, change_rate: 0.002, ma20: 149.8 },
-	{ date: "2026-03-04", pair: "EURUSD", open: 1.08, high: 1.085, low: 1.078, close: 1.082, change_rate: -0.001, ma20: 1.079 },
+	{
+		date: "2026-03-04",
+		pair: "USDJPY",
+		open: 150.0,
+		high: 150.5,
+		low: 149.5,
+		close: 150.2,
+		change_rate: 0.002,
+		ma20: 149.8,
+	},
+	{
+		date: "2026-03-04",
+		pair: "EURUSD",
+		open: 1.08,
+		high: 1.085,
+		low: 1.078,
+		close: 1.082,
+		change_rate: -0.001,
+		ma20: 1.079,
+	},
 ];
 
 function mountView() {
-	return mount(USMarketView);
+	return mount(USMarketView, {
+		global: { plugins: [createPinia()] },
+	});
 }
 
 describe("USMarketView", () => {

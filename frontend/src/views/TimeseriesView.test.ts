@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockApi } from "../test/mocks/useApi";
 
@@ -13,7 +14,9 @@ vi.mock("../components/charts/PriceChart.vue", () => ({
 const { default: TimeseriesView } = await import("./TimeseriesView.vue");
 
 function mountView() {
-	return mount(TimeseriesView);
+	return mount(TimeseriesView, {
+		global: { plugins: [createPinia()] },
+	});
 }
 
 describe("TimeseriesView", () => {

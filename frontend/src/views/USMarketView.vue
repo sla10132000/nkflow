@@ -3,7 +3,7 @@
     <h1 class="text-lg font-bold">米国市場</h1>
 
     <div v-if="loading" class="text-gray-500 text-sm">読み込み中...</div>
-    <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
+    <div v-if="error" class="bg-red-50 text-red-700 rounded p-3 text-sm">{{ error }}</div>
 
     <!-- 主要指数カード -->
     <div v-if="summary.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
@@ -44,19 +44,7 @@
             {{ t.label }}
           </button>
         </div>
-        <div class="flex gap-1">
-          <button
-            v-for="p in PERIODS"
-            :key="p.label"
-            class="px-2 py-0.5 text-xs rounded"
-            :class="selectedPeriod === p.days
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-            @click="selectPeriod(p.days)"
-          >
-            {{ p.label }}
-          </button>
-        </div>
+        <PeriodSelector :periods="PERIODS.map(p => ({ value: p.days, label: p.label }))" :model-value="selectedPeriod" @update:model-value="selectPeriod($event as number)" />
       </div>
 
       <div v-if="chartBars.length" class="h-52">
@@ -75,16 +63,16 @@
       <!-- VIX -->
       <div class="card card-compact">
         <div class="label">VIX 恐怖指数</div>
-        <template v-if="fearIndices?.vix">
-          <div class="font-semibold text-sm" :class="vixClass(fearIndices.vix.value)">
-            {{ fearIndices.vix.value.toFixed(2) }}
+        <template v-if="marketStore.fearIndices?.vix">
+          <div class="font-semibold text-sm" :class="vixClass(marketStore.fearIndices?.vix.value)">
+            {{ marketStore.fearIndices?.vix.value.toFixed(2) }}
           </div>
-          <div class="text-xs" :class="fearIndices.vix.change_pct != null && fearIndices.vix.change_pct >= 0 ? 'text-red-500' : 'text-green-500'">
-            {{ fearIndices.vix.change_pct != null
-              ? (fearIndices.vix.change_pct >= 0 ? '+' : '') + fearIndices.vix.change_pct.toFixed(2) + '%'
+          <div class="text-xs" :class="marketStore.fearIndices?.vix.change_pct != null && marketStore.fearIndices?.vix.change_pct >= 0 ? 'text-red-500' : 'text-green-500'">
+            {{ marketStore.fearIndices?.vix.change_pct != null
+              ? (marketStore.fearIndices?.vix.change_pct >= 0 ? '+' : '') + marketStore.fearIndices?.vix.change_pct.toFixed(2) + '%'
               : '—' }}
           </div>
-          <div class="text-xs text-gray-400">{{ fearIndices.vix.date }}</div>
+          <div class="text-xs text-gray-400">{{ marketStore.fearIndices?.vix.date }}</div>
         </template>
         <div v-else class="text-gray-400 text-sm">—</div>
       </div>
@@ -92,12 +80,12 @@
       <!-- BTC Fear & Greed -->
       <div class="card card-compact">
         <div class="label">BTC Fear&amp;Greed</div>
-        <template v-if="fearIndices?.btc_fear_greed">
-          <div class="font-semibold text-sm" :class="fngClass(fearIndices.btc_fear_greed.value)">
-            {{ fearIndices.btc_fear_greed.value }}
+        <template v-if="marketStore.fearIndices?.btc_fear_greed">
+          <div class="font-semibold text-sm" :class="fngClass(marketStore.fearIndices?.btc_fear_greed.value)">
+            {{ marketStore.fearIndices?.btc_fear_greed.value }}
           </div>
-          <div class="text-xs text-gray-500">{{ fearIndices.btc_fear_greed.classification }}</div>
-          <div class="text-xs text-gray-400">{{ fearIndices.btc_fear_greed.date }}</div>
+          <div class="text-xs text-gray-500">{{ marketStore.fearIndices?.btc_fear_greed.classification }}</div>
+          <div class="text-xs text-gray-400">{{ marketStore.fearIndices?.btc_fear_greed.date }}</div>
         </template>
         <div v-else class="text-gray-400 text-sm">—</div>
       </div>
@@ -133,19 +121,7 @@
     <div class="card">
       <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
         <h2 class="text-sm font-semibold text-gray-700">USD/JPY チャート</h2>
-        <div class="flex gap-1">
-          <button
-            v-for="p in PERIODS"
-            :key="p.label"
-            class="px-2 py-0.5 text-xs rounded"
-            :class="forexPeriod === p.days
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-            @click="selectForexPeriod(p.days)"
-          >
-            {{ p.label }}
-          </button>
-        </div>
+        <PeriodSelector :periods="PERIODS.map(p => ({ value: p.days, label: p.label }))" :model-value="forexPeriod" @update:model-value="selectForexPeriod($event as number)" />
       </div>
       <div v-if="forexBars.length" class="h-40">
         <PriceChart :prices="forexBars" />
@@ -188,36 +164,48 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
+import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import { useApi } from "../composables/useApi";
-import type { DailyPrice, FearIndices, ForexBar, UsIndexBar, UsIndexSummary } from "../types";
-import { formatClose, formatChangePct, formatChangeRate } from "../utils/formatters";
-import { changePctClass, vixClass, fngClass } from "../utils/colors";
+import { useMarketStore } from "../stores/useMarketStore";
+import type {
+	DailyPrice,
+	ForexBar,
+	UsIndexBar,
+	UsIndexSummary,
+} from "../types";
+import { changePctClass, fngClass, vixClass } from "../utils/colors";
+import {
+	formatChangePct,
+	formatChangeRate,
+	formatClose,
+} from "../utils/formatters";
 
 const api = useApi();
+const marketStore = useMarketStore();
 
 // ── 定数 ──────────────────────────────────────────────────────────────────────
 
 const TICKERS = [
-  { ticker: "^GSPC", label: "S&P 500" },
-  { ticker: "^IXIC", label: "NASDAQ" },
-  { ticker: "^DJI",  label: "Dow" },
-  { ticker: "^RUT",  label: "Russell" },
-  { ticker: "^VIX",  label: "VIX" },
+	{ ticker: "^GSPC", label: "S&P 500" },
+	{ ticker: "^IXIC", label: "NASDAQ" },
+	{ ticker: "^DJI", label: "Dow" },
+	{ ticker: "^RUT", label: "Russell" },
+	{ ticker: "^VIX", label: "VIX" },
 ];
 
 const TICKER_LABELS: Record<string, string> = {
-  "^GSPC": "S&P 500",
-  "^IXIC": "NASDAQ Composite",
-  "^DJI":  "Dow Jones",
-  "^RUT":  "Russell 2000",
-  "^VIX":  "VIX",
+	"^GSPC": "S&P 500",
+	"^IXIC": "NASDAQ Composite",
+	"^DJI": "Dow Jones",
+	"^RUT": "Russell 2000",
+	"^VIX": "VIX",
 };
 
 const PERIODS = [
-  { label: "1M", days: 20 },
-  { label: "3M", days: 60 },
-  { label: "6M", days: 120 },
-  { label: "1Y", days: 252 },
+	{ label: "1M", days: 20 },
+	{ label: "3M", days: 60 },
+	{ label: "6M", days: 120 },
+	{ label: "1Y", days: 252 },
 ];
 
 // ── 状態 ──────────────────────────────────────────────────────────────────────
@@ -227,7 +215,6 @@ const chartLoading = ref(false);
 const error = ref("");
 
 const summary = ref<UsIndexSummary[]>([]);
-const fearIndices = ref<FearIndices | null>(null);
 const forexLatest = ref<ForexBar | null>(null);
 const eurUsdLatest = ref<ForexBar | null>(null);
 
@@ -241,99 +228,104 @@ const forexData = ref<ForexBar[]>([]);
 // ── computed ──────────────────────────────────────────────────────────────────
 
 const summaryCards = computed(() =>
-  TICKERS.map((t) => {
-    const s = summary.value.find((x) => x.ticker === t.ticker);
-    return {
-      ticker: t.ticker,
-      label: t.label,
-      close: s?.close ?? null,
-      change_pct: s?.change_pct ?? null,
-      ytd_return_pct: s?.ytd_return_pct ?? null,
-      date: s?.date ?? null,
-    };
-  }),
+	TICKERS.map((t) => {
+		const s = summary.value.find((x) => x.ticker === t.ticker);
+		return {
+			ticker: t.ticker,
+			label: t.label,
+			close: s?.close ?? null,
+			change_pct: s?.change_pct ?? null,
+			ytd_return_pct: s?.ytd_return_pct ?? null,
+			date: s?.date ?? null,
+		};
+	}),
 );
 
 // UsIndexBar → DailyPrice (PriceChart 互換)
 const chartBars = computed<DailyPrice[]>(() =>
-  chartData.value.map((d) => ({
-    code: d.ticker,
-    date: d.date,
-    open: d.open,
-    high: d.high,
-    low: d.low,
-    close: d.close,
-    volume: d.volume,
-    return_rate: d.change_pct ?? 0,
-    price_range: d.high - d.low,
-  })),
+	chartData.value.map((d) => ({
+		code: d.ticker,
+		date: d.date,
+		open: d.open,
+		high: d.high,
+		low: d.low,
+		close: d.close,
+		volume: d.volume,
+		return_rate: d.change_pct ?? 0,
+		price_range: d.high - d.low,
+	})),
 );
 
 // ForexBar → DailyPrice
 const forexBars = computed<DailyPrice[]>(() =>
-  forexData.value.map((d) => ({
-    code: d.pair,
-    date: d.date,
-    open: d.open,
-    high: d.high,
-    low: d.low,
-    close: d.close,
-    volume: 0,
-    return_rate: d.change_rate ?? 0,
-    price_range: d.high - d.low,
-  })),
+	forexData.value.map((d) => ({
+		code: d.pair,
+		date: d.date,
+		open: d.open,
+		high: d.high,
+		low: d.low,
+		close: d.close,
+		volume: 0,
+		return_rate: d.change_rate ?? 0,
+		price_range: d.high - d.low,
+	})),
 );
 
 // ── ロード ────────────────────────────────────────────────────────────────────
 
 async function loadSummary() {
-  try {
-    const [s, fi, fx] = await Promise.all([
-      api.getUsIndicesSummary() as Promise<UsIndexSummary[]>,
-      api.getFearIndices() as Promise<FearIndices>,
-      api.getForexLatest() as Promise<ForexBar[]>,
-    ]);
-    summary.value = s;
-    fearIndices.value = fi;
-    forexLatest.value = fx.find((f) => f.pair === "USDJPY") ?? null;
-    eurUsdLatest.value = fx.find((f) => f.pair === "EURUSD") ?? null;
-  } catch (e) {
-    error.value = "データの取得に失敗しました";
-    console.error(e);
-  }
+	try {
+		const [s, , fx] = await Promise.all([
+			api.getUsIndicesSummary() as Promise<UsIndexSummary[]>,
+			marketStore.fetchFearIndices(),
+			api.getForexLatest() as Promise<ForexBar[]>,
+		]);
+		summary.value = s;
+		forexLatest.value = fx.find((f) => f.pair === "USDJPY") ?? null;
+		eurUsdLatest.value = fx.find((f) => f.pair === "EURUSD") ?? null;
+	} catch (e) {
+		error.value = "データの取得に失敗しました";
+		console.error(e);
+	}
 }
 
 async function loadChart() {
-  chartLoading.value = true;
-  try {
-    chartData.value = await api.getUsIndices(selectedTicker.value, selectedPeriod.value) as UsIndexBar[];
-  } catch {
-    chartData.value = [];
-  } finally {
-    chartLoading.value = false;
-  }
+	chartLoading.value = true;
+	try {
+		chartData.value = (await api.getUsIndices(
+			selectedTicker.value,
+			selectedPeriod.value,
+		)) as UsIndexBar[];
+	} catch {
+		chartData.value = [];
+	} finally {
+		chartLoading.value = false;
+	}
 }
 
 async function loadForex() {
-  try {
-    forexData.value = await api.getForex("USDJPY", forexPeriod.value) as ForexBar[];
-  } catch {
-    forexData.value = [];
-  }
+	try {
+		forexData.value = (await api.getForex(
+			"USDJPY",
+			forexPeriod.value,
+		)) as ForexBar[];
+	} catch {
+		forexData.value = [];
+	}
 }
 
 // ── イベント ──────────────────────────────────────────────────────────────────
 
 function selectTicker(ticker: string) {
-  selectedTicker.value = ticker;
+	selectedTicker.value = ticker;
 }
 
 function selectPeriod(days: number) {
-  selectedPeriod.value = days;
+	selectedPeriod.value = days;
 }
 
 function selectForexPeriod(days: number) {
-  forexPeriod.value = days;
+	forexPeriod.value = days;
 }
 
 // ── ウォッチ ──────────────────────────────────────────────────────────────────
@@ -344,9 +336,8 @@ watch(forexPeriod, loadForex);
 // ── マウント ──────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  loading.value = true;
-  await Promise.all([loadSummary(), loadChart(), loadForex()]);
-  loading.value = false;
+	loading.value = true;
+	await Promise.all([loadSummary(), loadChart(), loadForex()]);
+	loading.value = false;
 });
-
 </script>

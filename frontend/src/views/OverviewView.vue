@@ -2,8 +2,7 @@
   <div class="space-y-2">
     <h1 class="text-lg font-bold">概要</h1>
 
-    <div v-if="loading" class="text-gray-500">読み込み中...</div>
-    <div v-else-if="error" class="text-red-600">{{ error }}</div>
+    <LoadingState :loading="loading" :error="error">
 
     <!-- 直近の主なニュース -->
     <div v-if="topNews.length" class="card">
@@ -28,47 +27,47 @@
       </ul>
     </div>
 
-    <template v-if="summary">
+    <template v-if="marketStore.summary">
       <!-- サマリ + 恐怖指数を1行に統合 -->
       <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
         <div class="card card-compact">
           <div class="label">日付</div>
-          <div class="value-sm">{{ summary.date }}</div>
+          <div class="value-sm">{{ marketStore.summary.date }}</div>
         </div>
         <div class="card card-compact">
           <div class="label">日経終値</div>
-          <div class="value-sm">{{ summary.nikkei_close?.toLocaleString() ?? '—' }}</div>
+          <div class="value-sm">{{ marketStore.summary.nikkei_close?.toLocaleString() ?? '—' }}</div>
         </div>
         <div class="card card-compact">
           <div class="label">騰落率</div>
-          <div class="value-sm" :class="returnClass(summary.nikkei_return)">
-            {{ formatReturn(summary.nikkei_return) }}
+          <div class="value-sm" :class="returnClass(marketStore.summary.nikkei_return)">
+            {{ formatReturn(marketStore.summary.nikkei_return) }}
           </div>
         </div>
         <div class="card card-compact">
           <div class="label">レジーム</div>
-          <div class="value-sm" :class="regimeClass(summary.regime)">{{ summary.regime ?? '—' }}</div>
+          <div class="value-sm" :class="regimeClass(marketStore.summary.regime)">{{ marketStore.summary.regime ?? '—' }}</div>
         </div>
         <!-- VIX -->
-        <div v-if="fearIndices" class="card card-compact">
+        <div v-if="marketStore.fearIndices" class="card card-compact">
           <div class="label">VIX</div>
-          <template v-if="fearIndices.vix">
-            <div class="value-sm" :class="vixClass(fearIndices.vix.value)">
-              {{ fearIndices.vix.value.toFixed(1) }}
-              <span v-if="fearIndices.vix.change_pct != null" class="text-xs font-normal" :class="fearIndices.vix.change_pct >= 0 ? 'text-red-500' : 'text-green-500'">
-                {{ fearIndices.vix.change_pct >= 0 ? '+' : '' }}{{ fearIndices.vix.change_pct.toFixed(1) }}%
+          <template v-if="marketStore.fearIndices.vix">
+            <div class="value-sm" :class="vixClass(marketStore.fearIndices.vix.value)">
+              {{ marketStore.fearIndices.vix.value.toFixed(1) }}
+              <span v-if="marketStore.fearIndices.vix.change_pct != null" class="text-xs font-normal" :class="marketStore.fearIndices.vix.change_pct >= 0 ? 'text-red-500' : 'text-green-500'">
+                {{ marketStore.fearIndices.vix.change_pct >= 0 ? '+' : '' }}{{ marketStore.fearIndices.vix.change_pct.toFixed(1) }}%
               </span>
             </div>
           </template>
           <div v-else class="text-gray-400 text-xs">—</div>
         </div>
         <!-- BTC Fear & Greed -->
-        <div v-if="fearIndices" class="card card-compact">
+        <div v-if="marketStore.fearIndices" class="card card-compact">
           <div class="label">Fear&amp;Greed</div>
-          <template v-if="fearIndices.btc_fear_greed">
-            <div class="value-sm" :class="fngClass(fearIndices.btc_fear_greed.value)">
-              {{ fearIndices.btc_fear_greed.value }}
-              <span class="text-xs font-normal">{{ fearIndices.btc_fear_greed.classification }}</span>
+          <template v-if="marketStore.fearIndices.btc_fear_greed">
+            <div class="value-sm" :class="fngClass(marketStore.fearIndices.btc_fear_greed.value)">
+              {{ marketStore.fearIndices.btc_fear_greed.value }}
+              <span class="text-xs font-normal">{{ marketStore.fearIndices.btc_fear_greed.classification }}</span>
             </div>
           </template>
           <div v-else class="text-gray-400 text-xs">—</div>
@@ -93,7 +92,7 @@
           <table class="w-full text-xs">
             <thead><tr class="text-gray-500 text-left"><th class="pb-0.5">コード</th><th class="pb-0.5">名称</th><th class="pb-0.5 text-right">騰落率</th></tr></thead>
             <tbody>
-              <tr v-for="g in summary.top_gainers" :key="g.code" class="border-t border-gray-100">
+              <tr v-for="g in marketStore.summary.top_gainers" :key="g.code" class="border-t border-gray-100">
                 <td class="py-0.5">
                   <RouterLink :to="`/stock/${g.code}`" class="text-blue-600 hover:underline">{{ g.code }}</RouterLink>
                 </td>
@@ -109,7 +108,7 @@
           <table class="w-full text-xs">
             <thead><tr class="text-gray-500 text-left"><th class="pb-0.5">コード</th><th class="pb-0.5">名称</th><th class="pb-0.5 text-right">騰落率</th></tr></thead>
             <tbody>
-              <tr v-for="l in summary.top_losers" :key="l.code" class="border-t border-gray-100">
+              <tr v-for="l in marketStore.summary.top_losers" :key="l.code" class="border-t border-gray-100">
                 <td class="py-0.5">
                   <RouterLink :to="`/stock/${l.code}`" class="text-blue-600 hover:underline">{{ l.code }}</RouterLink>
                 </td>
@@ -147,19 +146,7 @@
       <div class="card">
         <div class="flex items-center justify-between mb-2">
           <h2 class="text-sm font-semibold">セクター騰落率</h2>
-          <div class="flex gap-1">
-            <button
-              v-for="p in sectorPeriods"
-              :key="p.value"
-              class="text-xs px-1.5 py-0.5 rounded"
-              :class="activeSectorPeriod === p.value
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-              @click="setSectorPeriod(p.value)"
-            >
-              {{ p.label }}
-            </button>
-          </div>
+          <PeriodSelector :periods="sectorPeriods" :model-value="activeSectorPeriod" @update:model-value="setSectorPeriod($event as SectorPeriod)" />
         </div>
 
         <div v-if="sectorLoading" class="text-gray-400 text-xs mb-2">読み込み中...</div>
@@ -178,7 +165,7 @@
               <div class="text-xs text-gray-500 font-medium">米国</div>
               <span v-if="usSectorData" class="text-xs text-gray-400">{{ usSectorData.date }}</span>
             </div>
-            <div v-if="!usSectorData || !usSectorData.sectors.length" class="text-gray-400 text-xs">データなし</div>
+            <div v-if="!usSectorData || !usSectorData.sectors?.length" class="text-gray-400 text-xs">データなし</div>
             <div v-else class="space-y-0.5">
               <div
                 v-for="s in usSectorData.sectors"
@@ -209,6 +196,7 @@
         </template>
       </div>
     </template>
+    </LoadingState>
   </div>
 </template>
 
@@ -217,27 +205,24 @@ import { computed, onMounted, ref } from "vue";
 import HeatMap from "../components/charts/HeatMap.vue";
 import NikkeiAreaChart from "../components/charts/NikkeiAreaChart.vue";
 import SectorTrendBar from "../components/charts/SectorTrendBar.vue";
+import LoadingState from "../components/shared/LoadingState.vue";
+import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import { useApi } from "../composables/useApi";
-import type {
-	DailySummary,
-	FearIndices,
-	NewsArticle,
-	UsSectorPerformance,
-	YtdHighStock,
-} from "../types";
-import { formatReturn, formatDateTime } from "../utils/formatters";
-import { returnClass, regimeClass, vixClass, fngClass } from "../utils/colors";
+import { useMarketStore } from "../stores/useMarketStore";
+import type { NewsArticle, UsSectorPerformance, YtdHighStock } from "../types";
+import { fngClass, regimeClass, returnClass, vixClass } from "../utils/colors";
+import { formatDateTime, formatReturn } from "../utils/formatters";
 
 const api = useApi();
+const marketStore = useMarketStore();
 const loading = ref(true);
 const error = ref("");
-const summary = ref<DailySummary | null>(null);
 const topNews = ref<NewsArticle[]>([]);
-const fearIndices = ref<FearIndices | null>(null);
 const ytdHighs = ref<YtdHighStock[]>([]);
 
 // 共通期間セレクタ (日本 + 米国セクター)
-const activeSectorPeriod = ref<"1d" | "1w" | "1m" | "3m">("1d");
+type SectorPeriod = "1d" | "1w" | "1m" | "3m";
+const activeSectorPeriod = ref<SectorPeriod>("1d");
 const sectorPeriods = [
 	{ value: "1d" as const, label: "1D" },
 	{ value: "1w" as const, label: "1W" },
@@ -247,7 +232,10 @@ const sectorPeriods = [
 const sectorLoading = ref(false);
 
 // 日本セクター (期間別)
-interface JpSectorItem { sector: string; avg_return: number }
+interface JpSectorItem {
+	sector: string;
+	avg_return: number;
+}
 const jpSectorData = ref<JpSectorItem[]>([]);
 
 // Phase 23b: 米国セクター ETF
@@ -261,7 +249,7 @@ const usSectorMaxAbs = computed(() => {
 	return max > 0 ? max : 1;
 });
 
-async function fetchSectorData(period: "1d" | "1w" | "1m" | "3m") {
+async function fetchSectorData(period: SectorPeriod) {
 	sectorLoading.value = true;
 	try {
 		const [jpData, usData] = await Promise.all([
@@ -275,25 +263,20 @@ async function fetchSectorData(period: "1d" | "1w" | "1m" | "3m") {
 	}
 }
 
-async function setSectorPeriod(period: "1d" | "1w" | "1m" | "3m") {
+async function setSectorPeriod(period: SectorPeriod) {
 	activeSectorPeriod.value = period;
 	await fetchSectorData(period);
 }
 
 onMounted(async () => {
 	try {
-		const [summaryData, newsData, fearData, ytdData] = await Promise.all([
-			api.getSummary(30),
+		const [, newsData, , ytdData] = await Promise.all([
+			marketStore.fetchSummary(30, true),
 			api.getNews({ limit: 5 }),
-			api.getFearIndices().catch(() => null),
+			marketStore.fetchFearIndices(true),
 			api.getYtdHighs(10).catch(() => []),
 		]);
-		const summaryArray = Array.isArray(summaryData)
-			? summaryData
-			: [summaryData];
-		summary.value = summaryArray[0] ?? null;
 		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 5) : [];
-		fearIndices.value = fearData;
 		ytdHighs.value = Array.isArray(ytdData) ? ytdData : [];
 	} catch (e: unknown) {
 		error.value = e instanceof Error ? e.message : "データ取得失敗";

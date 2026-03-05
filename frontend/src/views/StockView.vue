@@ -7,10 +7,8 @@
       <span v-if="detail?.sector" class="badge-sector">{{ detail.sector }}</span>
     </div>
 
-    <div v-if="loading" class="text-gray-500">読み込み中...</div>
-    <div v-else-if="error" class="text-red-600">{{ error }}</div>
-
-    <template v-else-if="detail">
+    <LoadingState :loading="loading" :error="error">
+    <template v-if="detail">
       <!-- 最新データ -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3" v-if="latest">
         <div class="card">
@@ -74,9 +72,8 @@
             <span class="text-red-600">赤=弱S</span>
             <span class="text-purple-600">紫=弱CD</span>
           </div>
-          <div class="flex gap-1 ml-auto">
-            <button v-for="p in periods" :key="p.days" @click="setVisiblePeriod(p.days)"
-              class="btn-sm" :class="{ 'btn-sm-active': activeDays === p.days }">{{ p.label }}</button>
+          <div class="ml-auto">
+            <PeriodSelector :periods="periods.map(p => ({ value: p.days, label: p.label }))" :model-value="activeDays" @update:model-value="setVisiblePeriod($event as number)" />
           </div>
         </div>
         <div class="h-72">
@@ -161,16 +158,19 @@
         </div>
       </div>
     </template>
+    </LoadingState>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
+import LoadingState from "../components/shared/LoadingState.vue";
+import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import { useApi } from "../composables/useApi";
 import type { DailyPrice, StockDetail, TdSequentialBar } from "../types";
-import { formatReturn } from "../utils/formatters";
 import { toDate } from "../utils/dateRange";
+import { formatReturn } from "../utils/formatters";
 
 const props = defineProps<{ code: string }>();
 const api = useApi();

@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockApi } from "../test/mocks/useApi";
 
@@ -28,7 +29,9 @@ vi.mock("../components/network/GraphView.vue", () => ({
 const { default: NetworkView } = await import("./NetworkView.vue");
 
 function mountView() {
-	return mount(NetworkView);
+	return mount(NetworkView, {
+		global: { plugins: [createPinia()] },
+	});
 }
 
 describe("NetworkView", () => {
@@ -89,7 +92,9 @@ describe("NetworkView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		const sankeyTab = wrapper.findAll("button").find((b) => b.text() === "サンキー図");
+		const sankeyTab = wrapper
+			.findAll("button")
+			.find((b) => b.text() === "サンキー図");
 		expect(sankeyTab?.classes()).toContain("text-blue-600");
 	});
 
@@ -101,7 +106,9 @@ describe("NetworkView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		const networkTab = wrapper.findAll("button").find((b) => b.text() === "ネットワーク");
+		const networkTab = wrapper
+			.findAll("button")
+			.find((b) => b.text() === "ネットワーク");
 		await networkTab?.trigger("click");
 
 		expect(wrapper.find("[data-testid='graph-stub']").exists()).toBe(true);
@@ -128,7 +135,7 @@ describe("NetworkView", () => {
 		await flushPromises();
 
 		expect(mockApi.getNetwork).toHaveBeenCalled();
-		expect(mockApi.getSummary).toHaveBeenCalledWith(1);
+		expect(mockApi.getSummary).toHaveBeenCalled();
 		expect(mockApi.getMarketPressureTimeseries).toHaveBeenCalled();
 	});
 });
