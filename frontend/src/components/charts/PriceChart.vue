@@ -1,223 +1,213 @@
 <template>
-  <div class="relative">
-    <Line :data="chartData" :options="chartOptions" :plugins="allPlugins" />
-  </div>
+  <div ref="chartContainer" class="w-full h-full" />
 </template>
 
 <script setup lang="ts">
 import {
-	CategoryScale,
-	Chart as ChartJS,
-	Filler,
-	Legend,
-	LinearScale,
-	LineElement,
-	PointElement,
-	Title,
-	Tooltip,
-} from "chart.js";
-import { computed } from "vue";
-import { Line } from "vue-chartjs";
+	type CandlestickData,
+	CandlestickSeries,
+	ColorType,
+	createChart,
+	createSeriesMarkers,
+	type IChartApi,
+	type ISeriesApi,
+	type SeriesMarker,
+	type Time,
+} from "lightweight-charts";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { DailyPrice, TdSequentialBar } from "../../types";
-
-ChartJS.register(
-	CategoryScale,
-	LinearScale,
-	PointElement,
-	LineElement,
-	Title,
-	Tooltip,
-	Legend,
-	Filler,
-);
 
 const props = defineProps<{
 	prices: DailyPrice[];
 	tdData?: TdSequentialBar[];
 }>();
 
-// date → TdSequentialBar ルックアップマップ
-const tdMap = computed<Map<string, TdSequentialBar>>(() => {
-	const m = new Map<string, TdSequentialBar>();
-	if (props.tdData) {
-		for (const bar of props.tdData) m.set(bar.date, bar);
+const chartContainer = ref<HTMLDivElement>();
+let chart: IChartApi | null = null;
+let candleSeries: ISeriesApi<"Candlestick"> | null = null;
+// biome-ignore lint/suspicious/noExplicitAny: lightweight-charts markers primitive
+let markersPrimitive: any = null;
+let resizeObserver: ResizeObserver | null = null;
+
+// ── DailyPrice → CandlestickData 変換 ──────────────────────────────────────
+function toCandlestickData(prices: DailyPrice[]): CandlestickData[] {
+	return prices.map((p) => ({
+		time: p.date as Time,
+		open: p.open,
+		high: p.high,
+		low: p.low,
+		close: p.close,
+	}));
+}
+
+// ── TD Sequential → SeriesMarker 変換 ──────────────────────────────────────
+function toTdMarkers(
+	prices: DailyPrice[],
+	tdData?: TdSequentialBar[],
+): SeriesMarker<Time>[] {
+	if (!tdData?.length) return [];
+
+	const tdMap = new Map<string, TdSequentialBar>();
+	for (const bar of tdData) tdMap.set(bar.date, bar);
+
+	const markers: SeriesMarker<Time>[] = [];
+
+	for (const p of prices) {
+		const bar = tdMap.get(p.date);
+		if (!bar) continue;
+
+		// Bullish (below bar) — countdown 優先
+		if (bar.countdown_bull > 0) {
+			markers.push({
+				time: p.date as Time,
+				position: "belowBar",
+				color: "#059669",
+				shape: "circle",
+				text: String(bar.countdown_bull),
+				size: 0,
+			});
+		} else if (bar.setup_bull > 0) {
+			markers.push({
+				time: p.date as Time,
+				position: "belowBar",
+				color: "#16a34a",
+				shape: "circle",
+				text: String(bar.setup_bull),
+				size: 0,
+			});
+		}
+
+		// Bearish (above bar) — countdown 優先
+		if (bar.countdown_bear > 0) {
+			markers.push({
+				time: p.date as Time,
+				position: "aboveBar",
+				color: "#b91c1c",
+				shape: "circle",
+				text: String(bar.countdown_bear),
+				size: 0,
+			});
+		} else if (bar.setup_bear > 0) {
+			markers.push({
+				time: p.date as Time,
+				position: "aboveBar",
+				color: "#dc2626",
+				shape: "circle",
+				text: String(bar.setup_bear),
+				size: 0,
+			});
+		}
 	}
-	return m;
-});
 
-// y 軸スケール用に高値・安値の透明データセット
-const chartData = computed(() => ({
-	labels: props.prices.map((p) => p.date),
-	datasets: [
-		{
-			// 高値: y 軸上限を確保
-			data: props.prices.map((p) => p.high),
-			borderColor: "transparent",
-			backgroundColor: "transparent",
-			pointRadius: 0,
-			borderWidth: 0,
-		},
-		{
-			// 安値: y 軸下限を確保
-			data: props.prices.map((p) => p.low),
-			borderColor: "transparent",
-			backgroundColor: "transparent",
-			pointRadius: 0,
-			borderWidth: 0,
-		},
-	],
-}));
+	return markers;
+}
 
-const chartOptions = computed(() => ({
-	responsive: true,
-	maintainAspectRatio: false,
-	layout: {
-		padding: {
-			top: props.tdData?.length ? 16 : 0,
-			bottom: props.tdData?.length ? 20 : 0,
+// ── チャート初期化 ─────────────────────────────────────────────────────────
+function initChart() {
+	if (!chartContainer.value) return;
+
+	const rect = chartContainer.value.getBoundingClientRect();
+
+	chart = createChart(chartContainer.value, {
+		width: rect.width,
+		height: rect.height,
+		layout: {
+			textColor: "#6b7280",
+			background: { type: ColorType.Solid, color: "#ffffff" },
+			fontFamily: "system-ui, sans-serif",
+			fontSize: 11,
 		},
-	},
-	plugins: {
-		legend: { display: false },
-		tooltip: {
-			mode: "index" as const,
-			intersect: false,
-			callbacks: {
-				label: (ctx: { dataIndex: number }) => {
-					const p = props.prices[ctx.dataIndex];
-					if (!p || ctx.dataIndex !== 0) return undefined;
-					return [
-						`始値: ¥${p.open?.toLocaleString()}`,
-						`高値: ¥${p.high?.toLocaleString()}`,
-						`安値: ¥${p.low?.toLocaleString()}`,
-						`終値: ¥${p.close?.toLocaleString()}`,
-					];
-				},
-				title: (items: { label: string }[]) => items[0]?.label ?? "",
+		grid: {
+			vertLines: { color: "#f3f4f6", style: 1 },
+			horzLines: { color: "#f3f4f6", style: 1 },
+		},
+		crosshair: {
+			mode: 0,
+			vertLine: {
+				width: 1,
+				color: "rgba(107, 114, 128, 0.3)",
+				labelBackgroundColor: "#374151",
+			},
+			horzLine: {
+				width: 1,
+				color: "rgba(107, 114, 128, 0.3)",
+				labelBackgroundColor: "#374151",
 			},
 		},
-	},
-	scales: {
-		x: {
-			ticks: { color: "#6b7280", maxTicksLimit: 8 },
-			grid: { color: "#e5e7eb" },
+		rightPriceScale: {
+			borderColor: "#e5e7eb",
+			autoScale: true,
+			scaleMargins: { top: 0.1, bottom: 0.1 },
 		},
-		y: {
-			ticks: { color: "#6b7280" },
-			grid: { color: "#e5e7eb" },
+		timeScale: {
+			borderColor: "#e5e7eb",
+			timeVisible: false,
+			fixLeftEdge: true,
+			fixRightEdge: true,
 		},
+	});
+
+	candleSeries = chart.addSeries(CandlestickSeries, {
+		upColor: "#22c55e",
+		downColor: "#ef4444",
+		wickUpColor: "#16a34a",
+		wickDownColor: "#dc2626",
+		borderVisible: false,
+	});
+
+	updateData();
+
+	// コンテナサイズ追従
+	resizeObserver = new ResizeObserver((entries) => {
+		if (!chart || !entries.length) return;
+		const { width, height } = entries[0].contentRect;
+		if (width > 0 && height > 0) {
+			chart.resize(width, height);
+		}
+	});
+	resizeObserver.observe(chartContainer.value);
+}
+
+// ── データ更新 ─────────────────────────────────────────────────────────────
+function updateData() {
+	if (!candleSeries || !props.prices.length) return;
+
+	candleSeries.setData(toCandlestickData(props.prices));
+
+	// TD Sequential マーカー
+	const markers = toTdMarkers(props.prices, props.tdData);
+	if (markersPrimitive) {
+		markersPrimitive.setMarkers(markers);
+	} else if (markers.length > 0) {
+		markersPrimitive = createSeriesMarkers(candleSeries, markers);
+	}
+
+	chart?.timeScale().fitContent();
+}
+
+// ── ライフサイクル ─────────────────────────────────────────────────────────
+onMounted(() => {
+	initChart();
+});
+
+watch(
+	() => [props.prices, props.tdData],
+	() => {
+		updateData();
 	},
-}));
+	{ deep: true },
+);
 
-// ── ローソク足描画プラグイン ───────────────────────────────────────────────────
-
-// biome-ignore lint/suspicious/noExplicitAny: Chart.js plugin pattern
-const candlestickPlugin: any = {
-	id: "nkflowCandlestick",
-	// biome-ignore lint/suspicious/noExplicitAny: Chart.js plugin pattern
-	afterDatasetsDraw(chart: any) {
-		const { ctx, chartArea, scales } = chart;
-		if (!chartArea) return;
-
-		const labels: string[] = chart.data.labels ?? [];
-		const totalBars = labels.length;
-		if (totalBars === 0) return;
-
-		// バー幅を計算 (隣接 2 点のピクセル間隔の 60%)
-		const barWidth = totalBars > 1
-			? Math.max(1, (scales.x.getPixelForValue(1) - scales.x.getPixelForValue(0)) * 0.6)
-			: 4;
-
-		ctx.save();
-
-		labels.forEach((date: string, idx: number) => {
-			const p = props.prices[idx];
-			if (!p) return;
-
-			const x = scales.x.getPixelForValue(idx);
-			const yOpen  = scales.y.getPixelForValue(p.open);
-			const yHigh  = scales.y.getPixelForValue(p.high);
-			const yLow   = scales.y.getPixelForValue(p.low);
-			const yClose = scales.y.getPixelForValue(p.close);
-
-			const isUp = p.close >= p.open;
-			const color = isUp ? "#16a34a" : "#dc2626";
-
-			// ヒゲ (high-low 線)
-			ctx.strokeStyle = color;
-			ctx.lineWidth = 1;
-			ctx.beginPath();
-			ctx.moveTo(x, yHigh);
-			ctx.lineTo(x, yLow);
-			ctx.stroke();
-
-			// 実体 (open-close 矩形)
-			const bodyTop    = Math.min(yOpen, yClose);
-			const bodyHeight = Math.max(1, Math.abs(yOpen - yClose));
-			if (isUp) {
-				ctx.strokeStyle = color;
-				ctx.strokeRect(x - barWidth / 2, bodyTop, barWidth, bodyHeight);
-			} else {
-				ctx.fillStyle = color;
-				ctx.fillRect(x - barWidth / 2, bodyTop, barWidth, bodyHeight);
-			}
-		});
-
-		ctx.restore();
-	},
-};
-
-// ── TD Sequential annotation plugin ──────────────────────────────────────────
-
-// biome-ignore lint/suspicious/noExplicitAny: Chart.js plugin pattern
-const tdAnnotationPlugin: any = {
-	id: "nkflowTdSequential",
-	// biome-ignore lint/suspicious/noExplicitAny: Chart.js plugin pattern
-	afterDraw(chart: any) {
-		if (!props.tdData?.length) return;
-
-		const { ctx, chartArea, scales } = chart;
-		if (!chartArea) return;
-
-		const labels: string[] = chart.data.labels ?? [];
-		const map = tdMap.value;
-
-		ctx.save();
-		ctx.font = "bold 9px monospace";
-		ctx.textAlign = "center";
-
-		labels.forEach((dateLabel: string, idx: number) => {
-			const bar = map.get(dateLabel);
-			if (!bar) return;
-
-			const x = scales.x.getPixelForValue(idx);
-
-			if (bar.setup_bull > 0 || bar.countdown_bull > 0) {
-				const label = bar.countdown_bull > 0
-					? String(bar.countdown_bull)
-					: String(bar.setup_bull);
-				ctx.fillStyle = bar.countdown_bull > 0 ? "#059669" : "#16a34a";
-				ctx.textBaseline = "top";
-				ctx.fillText(label, x, chartArea.bottom + 4);
-			}
-
-			if (bar.setup_bear > 0 || bar.countdown_bear > 0) {
-				const label = bar.countdown_bear > 0
-					? String(bar.countdown_bear)
-					: String(bar.setup_bear);
-				ctx.fillStyle = bar.countdown_bear > 0 ? "#b91c1c" : "#dc2626";
-				ctx.textBaseline = "bottom";
-				ctx.fillText(label, x, chartArea.top - 2);
-			}
-		});
-
-		ctx.restore();
-	},
-};
-
-const allPlugins = computed(() => {
-	const plugins = [candlestickPlugin];
-	if (props.tdData?.length) plugins.push(tdAnnotationPlugin);
-	return plugins;
+onBeforeUnmount(() => {
+	if (resizeObserver) {
+		resizeObserver.disconnect();
+		resizeObserver = null;
+	}
+	if (chart) {
+		chart.remove();
+		chart = null;
+		candleSeries = null;
+		markersPrimitive = null;
+	}
 });
 </script>
