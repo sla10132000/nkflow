@@ -107,6 +107,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
 import { useApi } from "../composables/useApi";
 import type { DailyPrice, Stock } from "../types";
+import { toDate } from "../utils/dateRange";
 
 const api = useApi();
 const searchInput = ref("");
@@ -210,12 +211,6 @@ function onEnter() {
 	selectedStock.value = null;
 	showDropdown.value = false;
 	loadPrices();
-}
-
-function toDate(daysAgo: number) {
-	const d = new Date();
-	d.setDate(d.getDate() - daysAgo);
-	return d.toISOString().split("T")[0];
 }
 
 async function loadPrices() {

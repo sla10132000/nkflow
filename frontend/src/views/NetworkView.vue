@@ -195,6 +195,8 @@ import MarketPressureTimeline from "../components/charts/MarketPressureTimeline.
 import GraphView from "../components/network/GraphView.vue";
 import { useApi } from "../composables/useApi";
 import type { MarketPressureTimeseries, NetworkData } from "../types";
+import { fmtNum } from "../utils/formatters";
+import { fmt, lastBusinessDay, periodToDateRange } from "../utils/dateRange";
 
 const api = useApi();
 const loading = ref(false);
@@ -254,11 +256,6 @@ const trendClass = computed(() => {
 	return t > 0 ? "text-red-600" : t < 0 ? "text-green-600" : "text-gray-600";
 });
 
-function fmtNum(v: number | null, decimals = 2): string {
-	if (v == null) return "—";
-	return v.toFixed(decimals);
-}
-
 const regimeBadgeClass = computed(() => {
 	if (currentRegime.value === "risk_on")
 		return "bg-green-100 text-green-700 border-green-200";
@@ -288,24 +285,6 @@ const outflowCount = computed(() => {
 	return networkData.value.edges.filter((e) => e.from === selectedNode.value)
 		.length;
 });
-
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
-
-function lastBusinessDay(from: Date = new Date()): Date {
-	const d = new Date(from);
-	const dow = d.getDay();
-	if (dow === 0) d.setDate(d.getDate() - 2);
-	else if (dow === 6) d.setDate(d.getDate() - 1);
-	return d;
-}
-
-function periodToDateRange(p: string): { from: string; to: string } {
-	const days = parseInt(p, 10) * 1.5;
-	const to = new Date();
-	const from = new Date();
-	from.setDate(to.getDate() - Math.ceil(days));
-	return { from: fmt(from), to: fmt(to) };
-}
 
 function applyRangePreset(pr: { days: number }) {
 	const to = new Date();

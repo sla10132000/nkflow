@@ -225,6 +225,8 @@ import type {
 	UsSectorPerformance,
 	YtdHighStock,
 } from "../types";
+import { formatReturn, formatDateTime } from "../utils/formatters";
+import { returnClass, regimeClass, vixClass, fngClass } from "../utils/colors";
 
 const api = useApi();
 const loading = ref(true);
@@ -276,52 +278,6 @@ async function fetchSectorData(period: "1d" | "1w" | "1m" | "3m") {
 async function setSectorPeriod(period: "1d" | "1w" | "1m" | "3m") {
 	activeSectorPeriod.value = period;
 	await fetchSectorData(period);
-}
-
-
-function formatReturn(r: number | null | undefined) {
-	if (r == null) return "—";
-	return `${(r >= 0 ? "+" : "") + (r * 100).toFixed(2)}%`;
-}
-
-function returnClass(r: number | null | undefined) {
-	if (r == null) return "";
-	return r >= 0 ? "text-green-600" : "text-red-600";
-}
-
-function regimeClass(regime: string | null | undefined) {
-	if (regime === "risk_on") return "text-green-600";
-	if (regime === "risk_off") return "text-red-600";
-	return "text-amber-600";
-}
-
-function formatDateTime(publishedAt: string): string {
-	try {
-		const d = new Date(publishedAt);
-		return d.toLocaleString("ja-JP", {
-			month: "2-digit",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-			timeZone: "Asia/Tokyo",
-		});
-	} catch {
-		return "";
-	}
-}
-
-// VIX: 低い = 安心(緑), 高い = 危険(赤)
-function vixClass(value: number): string {
-	if (value < 20) return "text-green-600";
-	if (value < 30) return "text-amber-500";
-	return "text-red-600";
-}
-
-// BTC Fear & Greed: 高い(Greed) = 緑, 低い(Fear) = 赤
-function fngClass(value: number): string {
-	if (value > 60) return "text-green-600";
-	if (value > 40) return "text-amber-500";
-	return "text-red-600";
 }
 
 onMounted(async () => {

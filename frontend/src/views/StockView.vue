@@ -169,6 +169,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
 import { useApi } from "../composables/useApi";
 import type { DailyPrice, StockDetail, TdSequentialBar } from "../types";
+import { formatReturn } from "../utils/formatters";
+import { toDate } from "../utils/dateRange";
 
 const props = defineProps<{ code: string }>();
 const api = useApi();
@@ -191,17 +193,6 @@ const periods = [
 	{ label: "6M", days: 120 },
 	{ label: "1Y", days: 250 },
 ];
-
-function formatReturn(r: number | null | undefined) {
-	if (r == null) return "—";
-	return `${(r >= 0 ? "+" : "") + (r * 100).toFixed(2)}%`;
-}
-
-function toDate(daysAgo: number) {
-	const d = new Date();
-	d.setDate(d.getDate() - daysAgo);
-	return d.toISOString().split("T")[0];
-}
 
 async function loadTdData(days = LOAD_DAYS) {
 	try {

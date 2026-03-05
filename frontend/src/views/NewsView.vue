@@ -58,7 +58,7 @@
             />
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span v-if="article.category" :class="['cat-badge', catColor(article.category)]">
+                <span v-if="article.category" :class="['cat-badge', newsCategoryColor(article.category)]">
                   {{ article.category }}
                 </span>
                 <a
@@ -77,7 +77,7 @@
               </div>
               <div class="mt-0.5 flex flex-wrap gap-2 text-xs text-gray-500">
                 <span>{{ article.source_name || article.source }}</span>
-                <span :title="formatDateFull(article.published_at)">{{ formatTime(article.published_at) }}</span>
+                <span :title="formatDateFull(article.published_at)">{{ formatDateTime(article.published_at) }}</span>
                 <span v-if="article.tickers" class="text-blue-400">{{ article.tickers }}</span>
               </div>
             </div>
@@ -92,6 +92,9 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useApi } from "../composables/useApi";
 import type { NewsArticle, NewsSummary } from "../types";
+import { formatDateTime, formatDateFull } from "../utils/formatters";
+import { todayJst, daysAgoJst } from "../utils/dateRange";
+import { newsCategoryColor } from "../utils/colors";
 
 const api = useApi();
 
@@ -100,16 +103,6 @@ const summary = ref<NewsSummary | null>(null);
 const loading = ref(false);
 const filterDate = ref("");
 const filterCategory = ref("");
-
-function todayJst() {
-	return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-}
-
-function daysAgoJst(days: number) {
-	const d = new Date();
-	d.setDate(d.getDate() - days);
-	return d.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-}
 
 const datePresets = computed(() => [
 	{ label: "最新", value: "" },
@@ -143,44 +136,6 @@ async function load() {
 	}
 }
 
-
-function formatTime(dt: string) {
-	if (!dt) return "";
-	return new Date(dt).toLocaleString("ja-JP", {
-		timeZone: "Asia/Tokyo",
-		month: "2-digit",
-		day: "2-digit",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
-
-function formatDateFull(dt: string) {
-	if (!dt) return "";
-	return new Date(dt).toLocaleString("ja-JP", {
-		timeZone: "Asia/Tokyo",
-		year: "numeric",
-		month: "2-digit",
-		day: "2-digit",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
-
-const CAT_COLORS: Record<string, string> = {
-	決算: "bg-purple-100 text-purple-700",
-	金融政策: "bg-blue-100 text-blue-700",
-	為替: "bg-cyan-100 text-cyan-700",
-	米国市場: "bg-indigo-100 text-indigo-700",
-	半導体: "bg-orange-100 text-orange-700",
-	AI: "bg-pink-100 text-pink-700",
-	エネルギー: "bg-amber-100 text-amber-700",
-	地政学: "bg-red-100 text-red-700",
-};
-
-function catColor(cat: string | null): string {
-	return CAT_COLORS[cat || ""] || "bg-gray-100 text-gray-600";
-}
 
 watch(filterDate, () => {
 	filterCategory.value = "";

@@ -7,6 +7,7 @@ import { DataSet } from "vis-data";
 import { Network } from "vis-network";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { NetworkData } from "../../types";
+import { SECTOR_COLORS } from "../../utils/colors";
 
 const props = defineProps<{
 	data: NetworkData;
@@ -19,40 +20,7 @@ const emit = defineEmits<{ nodeClick: [id: string] }>();
 const container = ref<HTMLElement>();
 let network: Network | null = null;
 
-const SECTOR_COLORS: Record<string, string> = {
-	食料品: "#f59e0b",
-	"水産・農林業": "#84cc16",
-	鉱業: "#6b7280",
-	建設業: "#f97316",
-	繊維製品: "#ec4899",
-	"パルプ・紙": "#a3e635",
-	化学: "#38bdf8",
-	医薬品: "#34d399",
-	ゴム製品: "#fb923c",
-	"ガラス・土石製品": "#a78bfa",
-	鉄鋼: "#94a3b8",
-	非鉄金属: "#fbbf24",
-	金属製品: "#e2e8f0",
-	機械: "#60a5fa",
-	電気機器: "#818cf8",
-	輸送用機器: "#c084fc",
-	精密機器: "#f0abfc",
-	その他製品: "#fdba74",
-	"電気・ガス業": "#fde68a",
-	陸運業: "#bbf7d0",
-	海運業: "#7dd3fc",
-	空運業: "#93c5fd",
-	"倉庫・運輸関連業": "#6ee7b7",
-	"情報・通信業": "#67e8f9",
-	卸売業: "#fca5a5",
-	小売業: "#fde047",
-	銀行業: "#86efac",
-	"証券・商品先物取引業": "#fdba74",
-	保険業: "#f9a8d4",
-	その他金融業: "#d9f99d",
-	不動産業: "#fcd34d",
-	サービス業: "#a5b4fc",
-};
+// SECTOR_COLORS は utils/colors.ts から import
 
 function buildNetwork() {
 	if (!container.value || !props.data) return;

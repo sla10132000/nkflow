@@ -190,6 +190,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
 import { useApi } from "../composables/useApi";
 import type { DailyPrice, FearIndices, ForexBar, UsIndexBar, UsIndexSummary } from "../types";
+import { formatClose, formatChangePct, formatChangeRate } from "../utils/formatters";
+import { changePctClass, vixClass, fngClass } from "../utils/colors";
 
 const api = useApi();
 
@@ -347,43 +349,4 @@ onMounted(async () => {
   loading.value = false;
 });
 
-// ── フォーマッタ ───────────────────────────────────────────────────────────────
-
-function formatClose(v: number | null, ticker: string): string {
-  if (v == null) return "—";
-  if (ticker === "^VIX") return v.toFixed(2);
-  return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatChangePct(v: number | null | undefined): string {
-  if (v == null) return "—";
-  return (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
-}
-
-function formatChangeRate(v: number | null | undefined): string {
-  if (v == null) return "—";
-  const pct = v * 100;
-  return (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%";
-}
-
-function changePctClass(v: number | null | undefined) {
-  if (v == null) return "text-gray-400";
-  if (v > 0) return "text-green-600 font-medium";
-  if (v < 0) return "text-red-600 font-medium";
-  return "text-gray-500";
-}
-
-function vixClass(v: number) {
-  if (v >= 30) return "text-red-600 font-semibold";
-  if (v >= 20) return "text-amber-600 font-semibold";
-  return "text-green-600 font-semibold";
-}
-
-function fngClass(v: number) {
-  if (v <= 25) return "text-red-600 font-semibold";
-  if (v <= 45) return "text-orange-500 font-semibold";
-  if (v <= 55) return "text-gray-600 font-semibold";
-  if (v <= 75) return "text-green-500 font-semibold";
-  return "text-green-700 font-semibold";
-}
 </script>

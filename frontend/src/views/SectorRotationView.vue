@@ -186,6 +186,7 @@ import type {
 	SectorRotationPrediction,
 	SectorRotationTransitions,
 } from "../types";
+import { stateColor, stateColorBg } from "../utils/colors";
 
 const api = useApi();
 
@@ -209,18 +210,6 @@ const periodTypes = [
 	{ value: "weekly" as const, label: "週次" },
 	{ value: "monthly" as const, label: "月次" },
 ];
-
-// ── カラー ─────────────────────────────────────────────────────────
-const STATE_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#a855f7"];
-
-function stateColor(id: number): string {
-	return STATE_COLORS[id % STATE_COLORS.length] ?? "#6b7280";
-}
-
-function stateColorBg(id: number): string {
-	const c = STATE_COLORS[id % STATE_COLORS.length] ?? "#6b7280";
-	return `${c}1a`; // 10% opacity
-}
 
 // ── 予測の確率ソート ────────────────────────────────────────────────
 const sortedProba = computed(() =>
