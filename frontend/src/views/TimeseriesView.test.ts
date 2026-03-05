@@ -27,7 +27,7 @@ describe("TimeseriesView", () => {
 
 	it("日本語の見出しが表示される", () => {
 		const wrapper = mountView();
-		expect(wrapper.text()).toContain("時系列チャート");
+		expect(wrapper.text()).toContain("銘柄チャート");
 	});
 
 	it("銘柄コード入力フィールドが存在する", () => {

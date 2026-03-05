@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-3">
-    <h1 class="text-xl font-bold">時系列チャート</h1>
+    <h1 class="text-xl font-bold">銘柄チャート</h1>
 
     <!-- コントロール -->
     <div class="flex flex-wrap gap-3 items-center">
