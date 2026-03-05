@@ -883,6 +883,7 @@ vis-network 互換のネットワークデータを返す。
 |---|---|---|---|
 | `date` | string | — | 対象日 (YYYY-MM-DD)。省略時は全期間 |
 | `ticker` | string | — | 銘柄コードで絞り込み (news_ticker_map 経由) |
+| `category` | string | — | テーマで絞り込み (例: `決算`, `金融政策`) |
 | `limit` | int | 50 | 最大返却件数 |
 
 **Response** `200 OK` — `NewsArticle[]`
@@ -899,16 +900,24 @@ vis-network 互換のネットワークデータを返す。
     "url": "https://example.com/article",
     "language": "en",
     "image_url": "https://example.com/image.jpg",
-    "sentiment": 0.8
+    "sentiment": 0.8,
+    "category": "決算",
+    "tickers": "7203"
   }
 ]
 ```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `sentiment` | float \| null | センチメントスコア (-1.0〜+1.0)。辞書ベース分析 |
+| `category` | string \| null | テーマ分類 (決算/金融政策/為替/米国市場/半導体/AI/エネルギー/地政学/その他) |
+| `tickers` | string \| null | 関連銘柄コード (カンマ区切り)。news_ticker_map から取得 |
 
 ---
 
 ### `GET /api/news/summary`
 
-日次ニュースの件数とソース分布を返す。
+日次ニュースまとめ (件数・ソース分布・センチメント・テーマ) を返す。
 
 **Query Parameters**
 
@@ -923,8 +932,17 @@ vis-network 互換のネットワークデータを返す。
   "date": "2026-03-03",
   "total": 42,
   "sources": [
-    { "source": "reuters", "count": 15 },
-    { "source": "nikkei", "count": 12 }
+    { "source": "Reuters", "count": 15 },
+    { "source": "NHK", "count": 12 }
+  ],
+  "sentiment_dist": {
+    "positive": 15,
+    "negative": 10,
+    "neutral": 17
+  },
+  "categories": [
+    { "category": "決算", "count": 12 },
+    { "category": "金融政策", "count": 8 }
   ]
 }
 ```
@@ -1121,4 +1139,4 @@ vis-network 互換のネットワークデータを返す。
 
 ---
 
-最終更新: 2026-03-05
+最終更新: 2026-03-06

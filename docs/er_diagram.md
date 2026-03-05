@@ -255,6 +255,7 @@ erDiagram
         TEXT image_url
         TEXT tickers_json
         REAL sentiment
+        TEXT category
         TEXT created_at
     }
 
@@ -365,4 +366,4 @@ erDiagram
 
 ---
 
-最終更新: 2026-03-05
+最終更新: 2026-03-06
