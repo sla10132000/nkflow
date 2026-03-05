@@ -106,13 +106,16 @@ class TestComputeTdForStock:
         assert result.iloc[8]["setup_bull"] == 5
         assert result.iloc[12]["setup_bull"] == SETUP_COUNT  # 9
 
-    def test_bull_setup_clips_at_9(self):
-        """setup_bull は 9 を超えない"""
+    def test_bull_setup_shows_0_after_9(self):
+        """setup_bull は 9 完成後、条件が継続しても 0 を表示する"""
         df = _make_df(_prices_descending(20))
         result = _compute_td_for_stock(df)
 
-        for i in range(12, 20):
-            assert result.iloc[i]["setup_bull"] == SETUP_COUNT
+        # index 12 で setup = 9 (完成)
+        assert result.iloc[12]["setup_bull"] == SETUP_COUNT
+        # index 13 以降はセットアップ完成済みなので 0
+        for i in range(13, 20):
+            assert result.iloc[i]["setup_bull"] == 0
 
     def test_bear_setup_increments_1_to_9(self):
         """弱気セットアップが同様に 1〜9 をカウントする"""
@@ -196,6 +199,37 @@ class TestComputeTdForStock:
         result = _compute_td_for_stock(df)
 
         assert result["countdown_bull"].max() == COUNTDOWN_COUNT
+
+    def test_countdown_resets_after_13(self):
+        """カウントダウンが 13 に達した次のバーでは 0 にリセットされる"""
+        prices = []
+        close = 2000.0
+        base = date(2025, 1, 6)
+
+        # セットアップ フェーズ: 15バー下落
+        for i in range(15):
+            d = (base + timedelta(days=i)).isoformat()
+            close -= 10.0
+            prices.append((d, close + 2, close + 4, close - 1, close))
+
+        # カウントダウン フェーズ: 急落を長く続ける
+        for i in range(15, 50):
+            d = (base + timedelta(days=i)).isoformat()
+            close -= 20.0
+            low = close - 1
+            prices.append((d, close + 2, close + 4, low, close))
+
+        df = _make_df(prices)
+        result = _compute_td_for_stock(df)
+
+        # 13 に到達するバーが存在する
+        cd13_rows = result[result["countdown_bull"] == COUNTDOWN_COUNT]
+        assert len(cd13_rows) > 0
+
+        # 13 のバーの次のバーでは countdown_bull == 0
+        last_cd13_idx = cd13_rows.index[-1]
+        if last_cd13_idx + 1 < len(result):
+            assert result.iloc[last_cd13_idx + 1]["countdown_bull"] == 0
 
 
 # ── TestComputeTdSequential (統合) ───────────────────────────────────────────

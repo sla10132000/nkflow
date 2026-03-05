@@ -71,10 +71,12 @@ def _compute_td_for_stock(df: pd.DataFrame) -> pd.DataFrame:
                 bull_setup_count = 0
                 bear_setup_count = 0
 
-        setup_bull[i] = min(bull_setup_count, SETUP_COUNT)
-        setup_bear[i] = min(bear_setup_count, SETUP_COUNT)
+        # セットアップ表示: 1-9 の間だけ表示、9 超過後は 0 (完成済み)
+        setup_bull[i] = bull_setup_count if 1 <= bull_setup_count <= SETUP_COUNT else 0
+        setup_bear[i] = bear_setup_count if 1 <= bear_setup_count <= SETUP_COUNT else 0
 
         # ── カウントダウン開始 / キャンセル ─────────────────────
+        # == SETUP_COUNT は一度しか成立しない (カウントは増え続けるため)
         if bull_setup_count == SETUP_COUNT:
             bull_cd_active = True
             bull_cd_count  = 0
@@ -99,6 +101,13 @@ def _compute_td_for_stock(df: pd.DataFrame) -> pd.DataFrame:
 
         countdown_bull[i] = bull_cd_count if bull_cd_active else 0
         countdown_bear[i] = bear_cd_count if bear_cd_active else 0
+
+        # ── カウントダウン完成 → 非アクティブ化 ─────────────────
+        # (13 を記録した次のバーから 0 になる)
+        if bull_cd_active and bull_cd_count >= COUNTDOWN_COUNT:
+            bull_cd_active = False
+        if bear_cd_active and bear_cd_count >= COUNTDOWN_COUNT:
+            bear_cd_active = False
 
     result = df[["date"]].copy()
     result["setup_bull"]     = setup_bull
