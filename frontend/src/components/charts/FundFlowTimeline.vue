@@ -117,35 +117,19 @@
 </template>
 
 <script setup lang="ts">
-import {
-	BarElement,
-	CategoryScale,
-	Chart as ChartJS,
-	Filler,
-	Legend,
-	LinearScale,
-	LineElement,
-	PointElement,
-	Title,
-	Tooltip,
-} from "chart.js";
 import { computed, onMounted, ref } from "vue";
 import { Bar, Line } from "vue-chartjs";
 import { useApi } from "../../composables/useApi";
+import {
+	baseLegendBottom,
+	baseXScale,
+	baseYScale,
+	registerChartPlugins,
+} from "../../composables/useChartDefaults";
 import type { FundFlowCumulative, FundFlowTimeseries } from "../../types";
 import { SECTOR_COLORS } from "../../utils/colors";
 
-ChartJS.register(
-	CategoryScale,
-	LinearScale,
-	BarElement,
-	LineElement,
-	PointElement,
-	Title,
-	Tooltip,
-	Legend,
-	Filler,
-);
+registerChartPlugins();
 
 // ── Props / Emits ────────────────────────────────────────────────────────────
 const emit = defineEmits<{
@@ -230,11 +214,7 @@ const chartOptions = computed(() => ({
 		}
 	},
 	plugins: {
-		legend: {
-			display: true,
-			position: "bottom" as const,
-			labels: { color: "#6b7280", boxWidth: 10, font: { size: 10 } },
-		},
+		legend: baseLegendBottom(),
 		tooltip: {
 			callbacks: {
 				label: (ctx: {
@@ -250,22 +230,16 @@ const chartOptions = computed(() => ({
 		},
 	},
 	scales: {
-		x: {
-			ticks: { color: "#6b7280", font: { size: 10 } },
-			grid: { color: "#e5e7eb" },
-		},
-		y: {
+		x: baseXScale(),
+		y: baseYScale({
 			beginAtZero: true,
 			ticks: {
-				color: "#6b7280",
-				font: { size: 10 },
 				callback: (v: string | number) =>
 					metric.value === "spread"
 						? `${(Number(v) * 100).toFixed(1)}%`
 						: String(v),
 			},
-			grid: { color: "#e5e7eb" },
-		},
+		}),
 	},
 }));
 
@@ -295,11 +269,7 @@ const cumulativeChartOptions = computed(() => ({
 	responsive: true,
 	maintainAspectRatio: false,
 	plugins: {
-		legend: {
-			display: true,
-			position: "bottom" as const,
-			labels: { color: "#6b7280", boxWidth: 10, font: { size: 10 } },
-		},
+		legend: baseLegendBottom(),
 		tooltip: {
 			callbacks: {
 				label: (ctx: {
@@ -313,18 +283,12 @@ const cumulativeChartOptions = computed(() => ({
 		},
 	},
 	scales: {
-		x: {
-			ticks: { color: "#6b7280", font: { size: 10 } },
-			grid: { color: "#e5e7eb" },
-		},
-		y: {
+		x: baseXScale(),
+		y: baseYScale({
 			ticks: {
-				color: "#6b7280",
-				font: { size: 10 },
 				callback: (v: string | number) => `${(Number(v) * 100).toFixed(1)}%`,
 			},
-			grid: { color: "#e5e7eb" },
-		},
+		}),
 	},
 }));
 
@@ -417,11 +381,7 @@ const destChartOptions = computed(() => ({
 	responsive: true,
 	maintainAspectRatio: false,
 	plugins: {
-		legend: {
-			display: true,
-			position: "bottom" as const,
-			labels: { color: "#6b7280", boxWidth: 10, font: { size: 10 } },
-		},
+		legend: baseLegendBottom(),
 		tooltip: {
 			callbacks: {
 				label: (ctx: {
@@ -437,20 +397,13 @@ const destChartOptions = computed(() => ({
 		},
 	},
 	scales: {
-		x: {
-			stacked: true,
-			ticks: { color: "#6b7280", font: { size: 10 } },
-			grid: { color: "#e5e7eb" },
-		},
-		y: {
+		x: baseXScale({ stacked: true }),
+		y: baseYScale({
 			stacked: true,
 			ticks: {
-				color: "#6b7280",
-				font: { size: 10 },
 				callback: (v: string | number) => `${(Number(v) * 100).toFixed(1)}%`,
 			},
-			grid: { color: "#e5e7eb" },
-		},
+		}),
 	},
 }));
 

@@ -48,32 +48,13 @@
 </template>
 
 <script setup lang="ts">
-import {
-	CategoryScale,
-	Chart as ChartJS,
-	Filler,
-	Legend,
-	LinearScale,
-	LineElement,
-	PointElement,
-	Title,
-	Tooltip,
-} from "chart.js";
 import { computed, onMounted, ref, watch } from "vue";
 import { Line } from "vue-chartjs";
 import { useApi } from "../../composables/useApi";
+import { baseXScale, baseYScale, registerChartPlugins } from "../../composables/useChartDefaults";
 import type { MarketPressureTimeseries } from "../../types";
 
-ChartJS.register(
-	CategoryScale,
-	LinearScale,
-	LineElement,
-	PointElement,
-	Title,
-	Tooltip,
-	Legend,
-	Filler,
-);
+registerChartPlugins();
 
 const props = defineProps<{ days?: number }>();
 
@@ -162,18 +143,12 @@ const chartOptions = computed(() => ({
 		},
 	},
 	scales: {
-		x: {
-			ticks: { color: "#6b7280", font: { size: 9 }, maxTicksLimit: 10 },
-			grid: { color: "#e5e7eb" },
-		},
-		y: {
+		x: baseXScale({ ticks: { font: { size: 9 }, maxTicksLimit: 10 } }),
+		y: baseYScale({
 			ticks: {
-				color: "#6b7280",
-				font: { size: 10 },
 				callback: (v: string | number) => `${(Number(v) * 100).toFixed(0)}%`,
 			},
-			grid: { color: "#e5e7eb" },
-		},
+		}),
 	},
 }));
 
