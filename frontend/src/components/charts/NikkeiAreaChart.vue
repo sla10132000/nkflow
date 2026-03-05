@@ -4,31 +4,21 @@
 
 <script setup lang="ts">
 import {
-	AreaSeries,
+	CandlestickSeries,
 	ColorType,
 	createChart,
 	type IChartApi,
 	type ISeriesApi,
 	type Time,
 } from "lightweight-charts";
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
+import { useApi } from "../../composables/useApi";
 
-interface DataPoint {
-	date: string;
-	close: number;
-}
-
-const props = defineProps<{ data: DataPoint[] }>();
-
+const api = useApi();
 const chartContainer = ref<HTMLDivElement>();
 let chart: IChartApi | null = null;
-let areaSeries: ISeriesApi<"Area"> | null = null;
+let candleSeries: ISeriesApi<"Candlestick"> | null = null;
 let resizeObserver: ResizeObserver | null = null;
-
-function isUp(): boolean {
-	if (props.data.length < 2) return true;
-	return props.data[props.data.length - 1].close >= props.data[0].close;
-}
 
 function initChart() {
 	if (!chartContainer.value) return;
@@ -74,15 +64,14 @@ function initChart() {
 		},
 	});
 
-	const up = isUp();
-	areaSeries = chart.addSeries(AreaSeries, {
-		lineColor: up ? "#16a34a" : "#dc2626",
-		topColor: up ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.2)",
-		bottomColor: up ? "rgba(22,163,74,0.0)" : "rgba(220,38,38,0.0)",
-		lineWidth: 2,
+	candleSeries = chart.addSeries(CandlestickSeries, {
+		upColor: "#16a34a",
+		downColor: "#dc2626",
+		borderUpColor: "#16a34a",
+		borderDownColor: "#dc2626",
+		wickUpColor: "#16a34a",
+		wickDownColor: "#dc2626",
 	});
-
-	updateData();
 
 	resizeObserver = new ResizeObserver((entries) => {
 		if (!chart || !entries.length) return;
@@ -92,27 +81,34 @@ function initChart() {
 		}
 	});
 	resizeObserver.observe(chartContainer.value);
+
+	loadData();
 }
 
-function updateData() {
-	if (!areaSeries || !props.data.length) return;
-	areaSeries.setData(
-		props.data.map((d) => ({ time: d.date as Time, value: d.close })),
-	);
-	chart?.timeScale().fitContent();
+async function loadData() {
+	try {
+		const data = await api.getUsIndices("^N225", 60);
+		if (!candleSeries || !data.length) return;
+		candleSeries.setData(
+			data
+				.filter((d: { open: number | null; close: number | null }) => d.open != null && d.close != null)
+				.map((d: { date: string; open: number; high: number; low: number; close: number }) => ({
+					time: d.date as Time,
+					open: d.open,
+					high: d.high,
+					low: d.low,
+					close: d.close,
+				})),
+		);
+		chart?.timeScale().fitContent();
+	} catch (e) {
+		console.error("Nikkei OHLC fetch failed", e);
+	}
 }
 
 onMounted(() => {
 	initChart();
 });
-
-watch(
-	() => props.data,
-	() => {
-		updateData();
-	},
-	{ deep: true },
-);
 
 onBeforeUnmount(() => {
 	if (resizeObserver) {
@@ -122,7 +118,7 @@ onBeforeUnmount(() => {
 	if (chart) {
 		chart.remove();
 		chart = null;
-		areaSeries = null;
+		candleSeries = null;
 	}
 });
 </script>

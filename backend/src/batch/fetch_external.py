@@ -71,6 +71,7 @@ def _fetch_fx_ohlcv(symbol: str, days: int = 30) -> pd.DataFrame:
 def fetch_nikkei_close(conn: sqlite3.Connection, target_date: Optional[str] = None) -> bool:
     """
     Yahoo Finance から日経225 (^N225) の終値を取得し daily_summary に保存する。
+    また、OHLC を us_indices テーブルにも保存する (ローソク足チャート用)。
 
     Args:
         conn: SQLite 接続
@@ -101,6 +102,27 @@ def fetch_nikkei_close(conn: sqlite3.Connection, target_date: Optional[str] = No
         """,
         (target_date, close_val),
     )
+
+    # OHLC を us_indices にも保存 (ローソク足チャート用)
+    for _, r in df.iterrows():
+        if r["date"] > target_date:
+            continue
+        try:
+            conn.execute(
+                """
+                INSERT INTO us_indices (date, ticker, name, open, high, low, close, volume)
+                VALUES (?, '^N225', '日経225', ?, ?, ?, ?, 0)
+                ON CONFLICT(date, ticker) DO UPDATE SET
+                    open  = excluded.open,
+                    high  = excluded.high,
+                    low   = excluded.low,
+                    close = excluded.close
+                """,
+                (r["date"], r["open"], r["high"], r["low"], r["close"]),
+            )
+        except Exception as e:
+            logger.warning(f"日経225 us_indices 保存失敗 ({r['date']}): {e}")
+
     conn.commit()
     logger.info(f"日経225終値: {target_date} = {close_val}")
     return True

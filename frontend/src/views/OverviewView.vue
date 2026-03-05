@@ -80,9 +80,9 @@
 
       <!-- 日経平均チャート + 業種トレンド 横並び -->
       <div class="grid gap-2" style="grid-template-columns: 2fr 3fr">
-        <div v-if="nikkeiChartData.length > 1" class="card card-compact">
+        <div class="card card-compact">
           <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
-          <NikkeiAreaChart :data="nikkeiChartData" />
+          <NikkeiAreaChart />
         </div>
         <div v-if="sectorData.length" class="card" style="overflow: hidden">
           <SectorTrendBar :sectors="sectorData" :columns="4" />
@@ -291,12 +291,6 @@ const sectorData = computed(() => {
 	}
 });
 
-const nikkeiChartData = computed(() =>
-	summaryHistory.value
-		.filter((s) => s.nikkei_close != null)
-		.map((s) => ({ date: s.date, close: s.nikkei_close as number }))
-		.reverse(),
-);
 
 function formatReturn(r: number | null | undefined) {
 	if (r == null) return "—";
