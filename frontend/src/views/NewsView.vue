@@ -37,25 +37,12 @@
       </div>
     </div>
 
-    <!-- タブ -->
-    <div class="flex gap-1 border-b border-gray-200">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        :class="activeTab === tab.key ? 'tab-active' : 'tab'"
-        @click="activeTab = tab.key"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
-
     <!-- コンテンツ -->
     <div class="card">
       <div v-if="loading" class="text-gray-500 text-sm">読み込み中...</div>
       <div v-else-if="articles.length === 0" class="text-gray-600 text-sm">記事なし</div>
 
-      <!-- 速報タブ -->
-      <template v-else-if="activeTab === 'latest'">
+      <template v-else>
         <div class="space-y-1">
           <div
             v-for="article in articles"
@@ -97,37 +84,6 @@
           </div>
         </div>
       </template>
-
-      <!-- テーマ別タブ -->
-      <template v-else-if="activeTab === 'theme'">
-        <div class="space-y-2">
-          <details
-            v-for="group in themeGroups"
-            :key="group.category"
-            open
-            class="border-b border-gray-100 pb-2 last:border-0"
-          >
-            <summary class="cursor-pointer font-medium text-sm py-1">
-              <span :class="['cat-badge mr-1', catColor(group.category)]">{{ group.category }}</span>
-              {{ group.articles.length }}件
-            </summary>
-            <div class="space-y-1 mt-1 ml-2">
-              <div
-                v-for="a in group.articles"
-                :key="a.id"
-                class="flex items-center gap-2 text-sm"
-              >
-                <a :href="a.url" target="_blank" rel="noopener noreferrer"
-                  class="text-blue-400 hover:text-blue-300 line-clamp-1 flex-1">
-                  {{ a.title_ja ?? a.title }}
-                </a>
-                <span class="text-xs text-gray-500 flex-shrink-0">{{ formatTime(a.published_at) }}</span>
-              </div>
-            </div>
-          </details>
-        </div>
-      </template>
-
     </div>
   </div>
 </template>
@@ -144,7 +100,6 @@ const summary = ref<NewsSummary | null>(null);
 const loading = ref(false);
 const filterDate = ref("");
 const filterCategory = ref("");
-const activeTab = ref<"latest" | "theme">("latest");
 
 function todayJst() {
 	return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
@@ -188,29 +143,6 @@ async function load() {
 	}
 }
 
-const themeGroups = computed(() => {
-	const groups: Record<string, NewsArticle[]> = {};
-	for (const a of articles.value) {
-		const cat = a.category || "その他";
-		if (!groups[cat]) groups[cat] = [];
-		groups[cat].push(a);
-	}
-	return Object.entries(groups)
-		.map(([category, arts]) => ({ category, articles: arts }))
-		.sort((a, b) => b.articles.length - a.articles.length);
-});
-
-const hasThemeVariety = computed(() =>
-	themeGroups.value.some((g) => g.category !== "その他"),
-);
-
-const tabs = computed(() => {
-	const t: { key: "latest" | "theme"; label: string }[] = [
-		{ key: "latest", label: "速報" },
-	];
-	if (hasThemeVariety.value) t.push({ key: "theme", label: "テーマ別" });
-	return t;
-});
 
 function formatTime(dt: string) {
 	if (!dt) return "";
@@ -250,9 +182,6 @@ function catColor(cat: string | null): string {
 	return CAT_COLORS[cat || ""] || "bg-gray-100 text-gray-600";
 }
 
-watch(hasThemeVariety, (val) => {
-	if (!val && activeTab.value === "theme") activeTab.value = "latest";
-});
 watch(filterDate, () => {
 	filterCategory.value = "";
 	load();
