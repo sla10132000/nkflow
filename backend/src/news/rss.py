@@ -30,6 +30,10 @@ FEEDS: dict[str, str] = {
     "reuters_econ_ja":  "https://assets.wor.jp/rss/rdf/reuters/economy.rdf",
     "reuters_biz_ja":   "https://assets.wor.jp/rss/rdf/reuters/business.rdf",
     "bloomberg_mkts_ja":"https://assets.wor.jp/rss/rdf/bloomberg/markets.rdf",
+    # 日本語フィード (Phase 24a: spike 確認済み 2026-03-05)
+    "yahoo_jp_biz":     "https://news.yahoo.co.jp/rss/categories/business.xml",
+    "yahoo_jp_world":   "https://news.yahoo.co.jp/rss/categories/world.xml",
+    "toyokeizai":       "https://toyokeizai.net/list/feed/rss",
 }
 
 REQUEST_TIMEOUT = 10  # 秒
@@ -81,8 +85,9 @@ def _fetch_one(feed_id: str, url: str) -> list[dict]:
                 "sourcename": feed.feed.get("title", feed_id),
                 "language": "Japanese" if (
                     feed_id.startswith("nhk")
+                    or feed_id.startswith("yahoo_jp")
                     or feed_id.endswith("_ja")
-                    or feed_id == "japan_today"
+                    or feed_id in ("japan_today", "toyokeizai")
                 ) else "English",
                 "socialimage": _extract_image(entry),
             })

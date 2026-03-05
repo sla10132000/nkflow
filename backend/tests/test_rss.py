@@ -207,6 +207,25 @@ class TestFetchOne:
 
         assert arts[0]["language"] == "English"
 
+    @pytest.mark.parametrize("feed_id,expected_lang", [
+        ("yahoo_jp_biz", "Japanese"),
+        ("yahoo_jp_world", "Japanese"),
+        ("toyokeizai", "Japanese"),
+        ("bloomberg_mkts", "English"),
+        ("japan_today", "Japanese"),
+        ("reuters_top_ja", "Japanese"),
+    ])
+    def test_language_detection_for_feeds(self, feed_id, expected_lang):
+        from src.news.rss import _fetch_one
+
+        entry = _entry(link="https://example.com/1", title="記事タイトル")
+        fake_result = _feed_result([entry])
+
+        with patch("src.news.rss.feedparser.parse", return_value=fake_result):
+            arts = _fetch_one(feed_id, "https://example.com/rss")
+
+        assert arts[0]["language"] == expected_lang
+
 
 # ── fetch_feeds ───────────────────────────────────────────────────────────
 
