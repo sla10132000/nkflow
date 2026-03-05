@@ -32,7 +32,7 @@
 | `/sector-rotation` | SectorRotationView | セクターローテーション予測・ヒートマップ |
 | `/news` | NewsView | ニュース一覧・サマリ |
 
-ルーティング方式: **Hash History** (`/#/path`)
+ルーティング方式: **HTML5 History** (`/path`)
 
 ### 1.2 技術スタック
 
