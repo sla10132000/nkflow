@@ -83,13 +83,11 @@ describe("OverviewView", () => {
 		expect(mockApi.getSummary).toHaveBeenCalledWith(30);
 	});
 
-	it("getNews が昨日の日付・limit=3 で呼び出される", async () => {
+	it("getNews が date なし・limit=5 で呼び出される", async () => {
 		mockApi.getSummary.mockResolvedValue({});
 		mountView();
 		await flushPromises();
-		expect(mockApi.getNews).toHaveBeenCalledWith(
-			expect.objectContaining({ limit: 3 }),
-		);
+		expect(mockApi.getNews).toHaveBeenCalledWith({ limit: 5 });
 	});
 
 	it("ニュースが取得できた場合に表示される", async () => {
@@ -121,7 +119,7 @@ describe("OverviewView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("昨日の主なニュース");
+		expect(wrapper.text()).toContain("直近の主なニュース");
 		expect(wrapper.text()).toContain("トヨタが業績予想を上方修正");
 		expect(wrapper.text()).toContain("Reuters");
 	});

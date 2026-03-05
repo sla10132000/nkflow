@@ -5,19 +5,16 @@
     <div v-if="loading" class="text-gray-500">読み込み中...</div>
     <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
-    <!-- 昨日の主なニュース -->
+    <!-- 直近の主なニュース -->
     <div v-if="topNews.length" class="card">
       <div class="flex items-center justify-between mb-1">
-        <h2 class="text-sm font-semibold text-gray-700">
-          昨日の主なニュース
-          <span class="text-xs text-gray-400 ml-1 font-normal">{{ yesterdayLabel }}</span>
-        </h2>
+        <h2 class="text-sm font-semibold text-gray-700">直近の主なニュース</h2>
         <RouterLink to="/news" class="text-xs text-blue-600 hover:underline whitespace-nowrap">すべて見る →</RouterLink>
       </div>
       <ul class="space-y-1">
         <li v-for="article in topNews" :key="article.id" class="flex items-baseline gap-1.5 min-w-0">
           <span class="text-xs text-gray-400 whitespace-nowrap shrink-0">
-            {{ article.source_name ?? article.source }} {{ formatTime(article.published_at) }}
+            {{ article.source_name ?? article.source }} {{ formatDateTime(article.published_at) }}
           </span>
           <a
             :href="article.url"
@@ -254,18 +251,6 @@ const jpSectorData = ref<JpSectorItem[]>([]);
 // Phase 23b: 米国セクター ETF
 const usSectorData = ref<UsSectorPerformance | null>(null);
 
-// JST で昨日の日付を求める
-function getYesterdayJST(): string {
-	const now = new Date();
-	const jstOffset = 9 * 60 * 60 * 1000;
-	const jstNow = new Date(now.getTime() + jstOffset);
-	jstNow.setUTCDate(jstNow.getUTCDate() - 1);
-	return jstNow.toISOString().slice(0, 10);
-}
-
-const yesterday = getYesterdayJST();
-const yesterdayLabel = yesterday;
-
 const usSectorMaxAbs = computed(() => {
 	if (!usSectorData.value?.sectors.length) return 1;
 	const max = Math.max(
@@ -310,10 +295,12 @@ function regimeClass(regime: string | null | undefined) {
 	return "text-amber-600";
 }
 
-function formatTime(publishedAt: string): string {
+function formatDateTime(publishedAt: string): string {
 	try {
 		const d = new Date(publishedAt);
-		return d.toLocaleTimeString("ja-JP", {
+		return d.toLocaleString("ja-JP", {
+			month: "2-digit",
+			day: "2-digit",
 			hour: "2-digit",
 			minute: "2-digit",
 			timeZone: "Asia/Tokyo",
@@ -341,7 +328,7 @@ onMounted(async () => {
 	try {
 		const [summaryData, newsData, fearData, ytdData] = await Promise.all([
 			api.getSummary(30),
-			api.getNews({ date: yesterday, limit: 3 }),
+			api.getNews({ limit: 5 }),
 			api.getFearIndices().catch(() => null),
 			api.getYtdHighs(10).catch(() => []),
 		]);
@@ -349,7 +336,7 @@ onMounted(async () => {
 			? summaryData
 			: [summaryData];
 		summary.value = summaryArray[0] ?? null;
-		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 3) : [];
+		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 5) : [];
 		fearIndices.value = fearData;
 		ytdHighs.value = Array.isArray(ytdData) ? ytdData : [];
 	} catch (e: unknown) {
