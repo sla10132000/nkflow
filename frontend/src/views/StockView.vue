@@ -33,10 +33,34 @@
         </div>
       </div>
 
-      <!-- 株価チャート -->
+      <!-- 株価チャート (TD Sequential 統合) -->
       <div class="card">
-        <div class="flex items-center gap-3 mb-2">
+        <div class="flex items-center gap-3 mb-2 flex-wrap">
           <h2 class="font-semibold">株価チャート</h2>
+          <!-- TD Sequential ステータス -->
+          <div v-if="tdLatest" class="flex items-center gap-2 text-xs flex-wrap">
+            <span class="text-gray-400 text-xs">TD</span>
+            <template v-if="tdLatest.setup_bull > 0">
+              <span class="font-mono font-bold text-green-600">
+                ▲Setup {{ tdLatest.setup_bull }}/9<span v-if="tdLatest.setup_bull === 9"> ✓</span>
+              </span>
+            </template>
+            <template v-if="tdLatest.countdown_bull > 0">
+              <span class="font-mono font-bold text-emerald-700">
+                ▲CD {{ tdLatest.countdown_bull }}/13<span v-if="tdLatest.countdown_bull === 13"> 🔔</span>
+              </span>
+            </template>
+            <template v-if="tdLatest.setup_bear > 0">
+              <span class="font-mono font-bold text-red-600">
+                ▼Setup {{ tdLatest.setup_bear }}/9<span v-if="tdLatest.setup_bear === 9"> ✓</span>
+              </span>
+            </template>
+            <template v-if="tdLatest.countdown_bear > 0">
+              <span class="font-mono font-bold text-rose-700">
+                ▼CD {{ tdLatest.countdown_bear }}/13<span v-if="tdLatest.countdown_bear === 13"> 🔔</span>
+              </span>
+            </template>
+          </div>
           <div class="flex gap-1 ml-auto">
             <button v-for="p in periods" :key="p.days" @click="setVisiblePeriod(p.days)"
               class="btn-sm" :class="{ 'btn-sm-active': activeDays === p.days }">{{ p.label }}</button>
@@ -50,49 +74,6 @@
             :visibleDays="activeDays"
           />
           <div v-else class="text-gray-500 text-sm">価格データなし</div>
-        </div>
-      </div>
-
-      <!-- TD Sequential (Phase 22) -->
-      <div v-if="tdLatest" class="card">
-        <h2 class="font-semibold mb-2 text-sm">TD Sequential</h2>
-        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-3">
-          <div class="flex items-center gap-1">
-            <span class="text-gray-500">強気 Setup:</span>
-            <span v-if="tdLatest.setup_bull > 0" class="font-mono font-bold text-green-600">
-              {{ tdLatest.setup_bull }}/9
-              <span v-if="tdLatest.setup_bull === 9" class="ml-1 text-green-700">完成</span>
-            </span>
-            <span v-else class="text-gray-400">—</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <span class="text-gray-500">弱気 Setup:</span>
-            <span v-if="tdLatest.setup_bear > 0" class="font-mono font-bold text-red-600">
-              {{ tdLatest.setup_bear }}/9
-              <span v-if="tdLatest.setup_bear === 9" class="ml-1 text-red-700">完成</span>
-            </span>
-            <span v-else class="text-gray-400">—</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <span class="text-gray-500">強気 Countdown:</span>
-            <span v-if="tdLatest.countdown_bull > 0" class="font-mono font-bold text-emerald-700">
-              {{ tdLatest.countdown_bull }}/13
-              <span v-if="tdLatest.countdown_bull === 13" class="ml-1">🔔シグナル</span>
-            </span>
-            <span v-else class="text-gray-400">—</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <span class="text-gray-500">弱気 Countdown:</span>
-            <span v-if="tdLatest.countdown_bear > 0" class="font-mono font-bold text-rose-700">
-              {{ tdLatest.countdown_bear }}/13
-              <span v-if="tdLatest.countdown_bear === 13" class="ml-1">🔔シグナル</span>
-            </span>
-            <span v-else class="text-gray-400">—</span>
-          </div>
-        </div>
-        <!-- 直近20本のミニチャート -->
-        <div class="h-36" v-if="recentPrices.length">
-          <PriceChart :prices="recentPrices" :tdData="recentTdData" />
         </div>
       </div>
 
@@ -186,8 +167,6 @@ const tdData = ref<TdSequentialBar[]>([]);
 const tdLatest = ref<TdSequentialBar | null>(null);
 
 const latest = computed(() => detail.value?.recent_prices?.[0] ?? null);
-const recentPrices = computed(() => prices.value.slice(-20));
-const recentTdData = computed(() => tdData.value.slice(-20));
 
 const LOAD_DAYS = 250; // 常に1年分をロード
 
