@@ -119,9 +119,10 @@
         </div>
 
         <div class="card">
-          <h2 class="text-sm font-semibold mb-1 text-amber-600">年初来高値圏</h2>
+          <h2 class="text-sm font-semibold mb-0.5 text-amber-600">年初来高値圏</h2>
+          <p class="text-xs text-gray-400 mb-1">年初来高値との差 (★=高値更新中)</p>
           <table class="w-full text-xs">
-            <thead><tr class="text-gray-500 text-left"><th class="pb-0.5">コード</th><th class="pb-0.5">名称</th><th class="pb-0.5 text-right">乖離</th></tr></thead>
+            <thead><tr class="text-gray-500 text-left"><th class="pb-0.5">コード</th><th class="pb-0.5">名称</th><th class="pb-0.5 text-right">高値比</th></tr></thead>
             <tbody>
               <tr v-for="h in ytdHighs" :key="h.code" class="border-t border-gray-100">
                 <td class="py-0.5">

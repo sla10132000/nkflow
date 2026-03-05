@@ -42,7 +42,7 @@
               class="btn-sm" :class="{ 'btn-sm-active': activeDays === p.days }">{{ p.label }}</button>
           </div>
         </div>
-        <div class="h-56">
+        <div class="h-72">
           <PriceChart
             v-if="prices.length"
             :prices="prices"

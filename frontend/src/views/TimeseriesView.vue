@@ -52,7 +52,7 @@
       <!-- 株価チャート -->
       <div class="card">
         <h2 class="font-semibold mb-2">{{ chartTitle }}</h2>
-        <div class="h-64">
+        <div class="h-96">
           <PriceChart :prices="prices" />
         </div>
       </div>
