@@ -121,4 +121,20 @@ export const useApi = () => ({
 		api.get("/api/forex", { params: { pair, days } }).then((r) => r.data),
 
 	getForexLatest: () => api.get("/api/forex/latest").then((r) => r.data),
+
+	// Phase 23b: 米国セクター ETF
+	getUsSectorPerformance: (period: "1d" | "1w" | "1m" | "3m" = "1d") =>
+		api
+			.get("/api/us-sectors/performance", { params: { period } })
+			.then((r) => r.data),
+
+	getUsSectorHeatmap: (
+		periods = 12,
+		periodType: "weekly" | "monthly" = "weekly",
+	) =>
+		api
+			.get("/api/us-sectors/heatmap", {
+				params: { periods, period_type: periodType },
+			})
+			.then((r) => r.data),
 });

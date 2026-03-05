@@ -180,4 +180,93 @@ describe("OverviewView", () => {
 
 		expect(wrapper.text()).toContain("セクター騰落率");
 	});
+
+	it("米国セクターパフォーマンスセクションが表示される", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [],
+		});
+		mockApi.getUsSectorPerformance.mockResolvedValue({
+			date: "2026-03-04",
+			period: "1d",
+			sectors: [
+				{
+					ticker: "XLK",
+					name: "Technology Select Sector SPDR",
+					sector: "テクノロジー",
+					close: 220.5,
+					change_pct: 1.85,
+					volume: 12500000,
+				},
+				{
+					ticker: "XLE",
+					name: "Energy Select Sector SPDR",
+					sector: "エネルギー",
+					close: 88.2,
+					change_pct: -0.95,
+					volume: 8200000,
+				},
+			],
+		});
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.text()).toContain("米国セクター");
+		expect(wrapper.text()).toContain("XLK");
+		expect(wrapper.text()).toContain("テクノロジー");
+		expect(wrapper.text()).toContain("+1.85%");
+		expect(wrapper.text()).toContain("-0.95%");
+	});
+
+	it("米国セクターの期間ボタンが表示される", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [],
+		});
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.text()).toContain("1D");
+		expect(wrapper.text()).toContain("1W");
+		expect(wrapper.text()).toContain("1M");
+		expect(wrapper.text()).toContain("3M");
+	});
+
+	it("米国セクターの期間ボタンをクリックすると再取得する", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [],
+		});
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		const buttons = wrapper.findAll("button");
+		const weekButton = buttons.find((b) => b.text() === "1W");
+		expect(weekButton).toBeDefined();
+		await weekButton!.trigger("click");
+		await flushPromises();
+
+		expect(mockApi.getUsSectorPerformance).toHaveBeenCalledWith("1w");
+	});
 });

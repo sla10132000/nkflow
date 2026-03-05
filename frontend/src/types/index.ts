@@ -268,6 +268,34 @@ export interface ForexBar {
 	ma20: number | null;
 }
 
+// ─── Phase 23b: 米国セクター ETF ─────────────────────────────────────────────
+
+export interface UsSectorPerformanceItem {
+	ticker: string;
+	name: string;
+	sector: string;
+	close: number;
+	change_pct: number | null;
+	volume: number | null;
+}
+
+export interface UsSectorPerformance {
+	date: string | null;
+	period: string;
+	sectors: UsSectorPerformanceItem[];
+}
+
+export interface UsSectorHeatmapSector {
+	ticker: string;
+	sector: string;
+	values: (number | null)[];
+}
+
+export interface UsSectorHeatmap {
+	periods: string[];
+	sectors: UsSectorHeatmapSector[];
+}
+
 // ─── Phase 22: TD Sequential ─────────────────────────────────────────────────
 
 export interface TdSequentialBar {

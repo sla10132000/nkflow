@@ -50,6 +50,15 @@ export function createMockApi() {
 		getUsIndicesSummary: vi.fn().mockResolvedValue([]),
 		getForex: vi.fn().mockResolvedValue([]),
 		getForexLatest: vi.fn().mockResolvedValue([]),
+		getUsSectorPerformance: vi.fn().mockResolvedValue({ // Phase 23b
+			date: null,
+			period: "1d",
+			sectors: [],
+		}),
+		getUsSectorHeatmap: vi.fn().mockResolvedValue({ // Phase 23b
+			periods: [],
+			sectors: [],
+		}),
 	};
 }
 

@@ -140,6 +140,56 @@
         <HeatMap v-if="sectorData.length" :sectors="sectorData" />
         <div v-else class="text-gray-500 text-xs">データなし</div>
       </div>
+
+      <!-- 米国セクター ETF パフォーマンス (Phase 23b) -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="text-sm font-semibold">
+            米国セクター
+            <span v-if="usSectorData" class="text-xs text-gray-400 font-normal ml-1">{{ usSectorData.date }}</span>
+          </h2>
+          <div class="flex gap-1">
+            <button
+              v-for="p in usSectorPeriods"
+              :key="p.value"
+              class="text-xs px-1.5 py-0.5 rounded"
+              :class="usSectorPeriod === p.value
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+              @click="setUsSectorPeriod(p.value)"
+            >
+              {{ p.label }}
+            </button>
+          </div>
+        </div>
+        <div v-if="usSectorLoading" class="text-gray-400 text-xs">読み込み中...</div>
+        <div v-else-if="!usSectorData || !usSectorData.sectors.length" class="text-gray-400 text-xs">データなし</div>
+        <div v-else class="space-y-0.5">
+          <div
+            v-for="s in usSectorData.sectors"
+            :key="s.ticker"
+            class="flex items-center gap-1.5 text-xs"
+          >
+            <span class="w-10 text-gray-500 shrink-0 font-mono">{{ s.ticker }}</span>
+            <span class="w-16 text-gray-700 shrink-0 truncate">{{ s.sector }}</span>
+            <div class="flex-1 flex items-center gap-1 min-w-0">
+              <div class="flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                <div
+                  class="h-full rounded transition-all"
+                  :class="(s.change_pct ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'"
+                  :style="{ width: `${Math.min(Math.abs(s.change_pct ?? 0) / usSectorMaxAbs * 100, 100)}%` }"
+                />
+              </div>
+              <span
+                class="w-14 text-right font-medium shrink-0"
+                :class="(s.change_pct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'"
+              >
+                {{ s.change_pct != null ? `${s.change_pct >= 0 ? '+' : ''}${s.change_pct.toFixed(2)}%` : '—' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -148,7 +198,7 @@
 import { computed, onMounted, ref } from "vue";
 import HeatMap from "../components/charts/HeatMap.vue";
 import { useApi } from "../composables/useApi";
-import type { DailySummary, FearIndices, NewsArticle, YtdHighStock } from "../types";
+import type { DailySummary, FearIndices, NewsArticle, UsSectorPerformance, YtdHighStock } from "../types";
 
 const api = useApi();
 const loading = ref(true);
@@ -157,6 +207,17 @@ const summary = ref<DailySummary | null>(null);
 const topNews = ref<NewsArticle[]>([]);
 const fearIndices = ref<FearIndices | null>(null);
 const ytdHighs = ref<YtdHighStock[]>([]);
+
+// Phase 23b: 米国セクター ETF
+const usSectorData = ref<UsSectorPerformance | null>(null);
+const usSectorLoading = ref(false);
+const usSectorPeriod = ref<"1d" | "1w" | "1m" | "3m">("1d");
+const usSectorPeriods = [
+	{ value: "1d" as const, label: "1D" },
+	{ value: "1w" as const, label: "1W" },
+	{ value: "1m" as const, label: "1M" },
+	{ value: "3m" as const, label: "3M" },
+];
 
 // JST で昨日の日付を求める
 function getYesterdayJST(): string {
@@ -169,6 +230,30 @@ function getYesterdayJST(): string {
 
 const yesterday = getYesterdayJST();
 const yesterdayLabel = yesterday;
+
+const usSectorMaxAbs = computed(() => {
+	if (!usSectorData.value?.sectors.length) return 1;
+	const max = Math.max(
+		...usSectorData.value.sectors.map((s) => Math.abs(s.change_pct ?? 0)),
+	);
+	return max > 0 ? max : 1;
+});
+
+async function fetchUsSectorPerformance() {
+	usSectorLoading.value = true;
+	try {
+		usSectorData.value = await api.getUsSectorPerformance(usSectorPeriod.value);
+	} catch {
+		usSectorData.value = null;
+	} finally {
+		usSectorLoading.value = false;
+	}
+}
+
+async function setUsSectorPeriod(period: "1d" | "1w" | "1m" | "3m") {
+	usSectorPeriod.value = period;
+	await fetchUsSectorPerformance();
+}
 
 const sectorData = computed(() => {
 	if (!summary.value?.sector_rotation) return [];
@@ -249,6 +334,8 @@ onMounted(async () => {
 	} finally {
 		loading.value = false;
 	}
+	// 米国セクター ETF は非同期で追加取得 (メインの読み込みをブロックしない)
+	fetchUsSectorPerformance();
 });
 </script>
 

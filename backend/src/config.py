@@ -49,6 +49,21 @@ US_INDEX_TICKERS: dict[str, str] = {
 }
 US_INDEX_INITIAL_PERIOD = "10y"
 
+# 米国セクター ETF (Phase 23b): Select Sector SPDR ETFs
+US_SECTOR_ETF_TICKERS: dict[str, dict[str, str]] = {
+    "XLK":  {"name": "Technology Select Sector SPDR",              "sector": "テクノロジー"},
+    "XLF":  {"name": "Financial Select Sector SPDR",               "sector": "金融"},
+    "XLV":  {"name": "Health Care Select Sector SPDR",             "sector": "ヘルスケア"},
+    "XLE":  {"name": "Energy Select Sector SPDR",                  "sector": "エネルギー"},
+    "XLI":  {"name": "Industrial Select Sector SPDR",              "sector": "資本財"},
+    "XLY":  {"name": "Consumer Discretionary Select Sector SPDR",  "sector": "一般消費財"},
+    "XLP":  {"name": "Consumer Staples Select Sector SPDR",        "sector": "生活必需品"},
+    "XLU":  {"name": "Utilities Select Sector SPDR",               "sector": "公益"},
+    "XLB":  {"name": "Materials Select Sector SPDR",               "sector": "素材"},
+    "XLRE": {"name": "Real Estate Select Sector SPDR",             "sector": "不動産"},
+    "XLC":  {"name": "Communication Services Select Sector SPDR",  "sector": "通信"},
+}
+
 # 恐怖指数 (Phase 21): VIX は us_indices テーブルに保存
 FEAR_INDEX_TICKERS: dict[str, str] = {
     "^VIX": "VIX",
