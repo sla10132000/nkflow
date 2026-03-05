@@ -28,6 +28,10 @@ const router = createRouter({
 			path: "/news",
 			component: () => import("../views/NewsView.vue"),
 		},
+		{
+			path: "/us-market",
+			component: () => import("../views/USMarketView.vue"),
+		},
 	],
 });
 

@@ -106,4 +106,19 @@ export const useApi = () => ({
 		api
 			.get("/api/ytd-highs", { params: { limit, threshold_pct: thresholdPct } })
 			.then((r) => r.data),
+
+	// Phase 20: 米国株価指数
+	getUsIndices: (ticker?: string, days = 90) =>
+		api
+			.get("/api/us-indices", { params: ticker ? { ticker, days } : { days } })
+			.then((r) => r.data),
+
+	getUsIndicesSummary: () =>
+		api.get("/api/us-indices/summary").then((r) => r.data),
+
+	// 為替
+	getForex: (pair = "USDJPY", days = 60) =>
+		api.get("/api/forex", { params: { pair, days } }).then((r) => r.data),
+
+	getForexLatest: () => api.get("/api/forex/latest").then((r) => r.data),
 });

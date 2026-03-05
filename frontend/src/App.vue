@@ -8,6 +8,7 @@
         <RouterLink to="/timeseries" class="nav-link">時系列</RouterLink>
         <RouterLink to="/sector-rotation" class="nav-link">ローテーション</RouterLink>
         <RouterLink to="/network" class="nav-link">資金フロー</RouterLink>
+        <RouterLink to="/us-market" class="nav-link">米国市場</RouterLink>
       </div>
     </nav>
     <main class="flex-1 max-w-screen-2xl mx-auto w-full px-2 py-2">

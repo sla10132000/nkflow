@@ -44,6 +44,12 @@ export function createMockApi() {
 		getFearIndices: vi.fn().mockResolvedValue(null), // Phase 21
 		getTdSequential: vi.fn().mockResolvedValue([]), // Phase 22
 		getTdSequentialLatest: vi.fn().mockResolvedValue(null), // Phase 22
+		getYtdHighs: vi.fn().mockResolvedValue([]),
+		// Phase 20: 米国株価指数・為替
+		getUsIndices: vi.fn().mockResolvedValue([]),
+		getUsIndicesSummary: vi.fn().mockResolvedValue([]),
+		getForex: vi.fn().mockResolvedValue([]),
+		getForexLatest: vi.fn().mockResolvedValue([]),
 	};
 }
 

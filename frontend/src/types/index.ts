@@ -234,6 +234,40 @@ export interface YtdHighStock {
 	gap_pct: number; // (close - ytd_high) / ytd_high * 100 (0=更新中, 負=以下)
 }
 
+// ─── Phase 20: 米国株価指数・為替 ────────────────────────────────────────────
+
+export interface UsIndexBar {
+	date: string;
+	ticker: string;
+	name: string;
+	open: number;
+	high: number;
+	low: number;
+	close: number;
+	volume: number;
+	change_pct: number | null;
+}
+
+export interface UsIndexSummary {
+	ticker: string;
+	name: string;
+	date: string;
+	close: number;
+	change_pct: number | null;
+	ytd_return_pct: number | null;
+}
+
+export interface ForexBar {
+	date: string;
+	pair: string;
+	open: number;
+	high: number;
+	low: number;
+	close: number;
+	change_rate: number | null;
+	ma20: number | null;
+}
+
 // ─── Phase 22: TD Sequential ─────────────────────────────────────────────────
 
 export interface TdSequentialBar {
