@@ -78,6 +78,12 @@
         </div>
       </div>
 
+      <!-- 日経平均ミニチャート -->
+      <div v-if="nikkeiChartData.length > 1" class="card card-compact">
+        <h2 class="text-xs font-semibold text-gray-500 mb-0.5">日経平均</h2>
+        <NikkeiMiniChart :data="nikkeiChartData" />
+      </div>
+
       <!-- 上昇/下落上位 + 年初来高値 -->
       <div class="grid md:grid-cols-3 gap-2">
         <div class="card">
@@ -141,6 +147,11 @@
         <div v-else class="text-gray-500 text-xs">データなし</div>
       </div>
 
+      <!-- 業種トレンド棒グラフ -->
+      <div v-if="sectorData.length" class="card">
+        <SectorTrendBar :sectors="sectorData" />
+      </div>
+
       <!-- 米国セクター ETF パフォーマンス (Phase 23b) -->
       <div class="card">
         <div class="flex items-center justify-between mb-1">
@@ -197,13 +208,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import HeatMap from "../components/charts/HeatMap.vue";
+import NikkeiMiniChart from "../components/charts/NikkeiMiniChart.vue";
+import SectorTrendBar from "../components/charts/SectorTrendBar.vue";
 import { useApi } from "../composables/useApi";
-import type { DailySummary, FearIndices, NewsArticle, UsSectorPerformance, YtdHighStock } from "../types";
+import type {
+	DailySummary,
+	FearIndices,
+	NewsArticle,
+	UsSectorPerformance,
+	YtdHighStock,
+} from "../types";
 
 const api = useApi();
 const loading = ref(true);
 const error = ref("");
 const summary = ref<DailySummary | null>(null);
+const summaryHistory = ref<DailySummary[]>([]);
 const topNews = ref<NewsArticle[]>([]);
 const fearIndices = ref<FearIndices | null>(null);
 const ytdHighs = ref<YtdHighStock[]>([]);
@@ -268,6 +288,13 @@ const sectorData = computed(() => {
 	}
 });
 
+const nikkeiChartData = computed(() =>
+	summaryHistory.value
+		.filter((s) => s.nikkei_close != null)
+		.map((s) => ({ date: s.date, close: s.nikkei_close as number }))
+		.reverse(),
+);
+
 function formatReturn(r: number | null | undefined) {
 	if (r == null) return "—";
 	return `${(r >= 0 ? "+" : "") + (r * 100).toFixed(2)}%`;
@@ -320,12 +347,16 @@ function fngClass(value: number): string {
 onMounted(async () => {
 	try {
 		const [summaryData, newsData, fearData, ytdData] = await Promise.all([
-			api.getSummary(1),
+			api.getSummary(5),
 			api.getNews({ date: yesterday, limit: 3 }),
 			api.getFearIndices().catch(() => null),
 			api.getYtdHighs(10).catch(() => []),
 		]);
-		summary.value = Array.isArray(summaryData) ? summaryData[0] : summaryData;
+		const summaryArray = Array.isArray(summaryData)
+			? summaryData
+			: [summaryData];
+		summaryHistory.value = summaryArray;
+		summary.value = summaryArray[0] ?? null;
 		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 3) : [];
 		fearIndices.value = fearData;
 		ytdHighs.value = Array.isArray(ytdData) ? ytdData : [];

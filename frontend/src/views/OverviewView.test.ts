@@ -9,6 +9,12 @@ vi.mock("../composables/useApi", () => ({ useApi: () => mockApi }));
 vi.mock("../components/charts/HeatMap.vue", () => ({
 	default: { template: "<div data-testid='heatmap-stub' />" },
 }));
+vi.mock("../components/charts/NikkeiMiniChart.vue", () => ({
+	default: { template: "<div data-testid='nikkei-mini-chart-stub' />" },
+}));
+vi.mock("../components/charts/SectorTrendBar.vue", () => ({
+	default: { template: "<div data-testid='sector-trend-bar-stub' />" },
+}));
 
 const { default: OverviewView } = await import("./OverviewView.vue");
 
@@ -70,11 +76,11 @@ describe("OverviewView", () => {
 		expect(wrapper.text()).toContain("9984");
 	});
 
-	it("API を days=1 で呼び出す", async () => {
+	it("API を days=5 で呼び出す", async () => {
 		mockApi.getSummary.mockResolvedValue({});
 		mountView();
 		await flushPromises();
-		expect(mockApi.getSummary).toHaveBeenCalledWith(1);
+		expect(mockApi.getSummary).toHaveBeenCalledWith(5);
 	});
 
 	it("getNews が昨日の日付・limit=3 で呼び出される", async () => {
@@ -244,6 +250,39 @@ describe("OverviewView", () => {
 		expect(wrapper.text()).toContain("1W");
 		expect(wrapper.text()).toContain("1M");
 		expect(wrapper.text()).toContain("3M");
+	});
+
+	it("日経平均ミニチャートが複数日データで表示される", async () => {
+		mockApi.getSummary.mockResolvedValue([
+			{ date: "2026-03-04", nikkei_close: 38200, nikkei_return: 0.005, regime: "risk_on", active_signals: 0, top_gainers: [], top_losers: [], sector_rotation: [] },
+			{ date: "2026-03-03", nikkei_close: 38000, nikkei_return: -0.01, regime: "risk_on", active_signals: 0, top_gainers: [], top_losers: [], sector_rotation: [] },
+		]);
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.find("[data-testid='nikkei-mini-chart-stub']").exists()).toBe(true);
+	});
+
+	it("業種トレンド棒グラフがセクターデータありで表示される", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [
+				{ sector: "電気機器", avg_return: 0.012, total_volume: 100000, stock_count: 10 },
+				{ sector: "銀行業", avg_return: -0.005, total_volume: 80000, stock_count: 8 },
+			],
+		});
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.find("[data-testid='sector-trend-bar-stub']").exists()).toBe(true);
 	});
 
 	it("米国セクターの期間ボタンをクリックすると再取得する", async () => {
