@@ -82,13 +82,22 @@ def handler(event: dict, context: Any) -> dict:
     conn = sqlite3.connect(SQLITE_PATH)
 
     try:
-        # ── 0. ニュース正規化 (Phase 18, 非ブロッキング) ──────────
+        # ── 0. ニュース正規化 + 後処理 (Phase 18/24, 非ブロッキング) ──
         try:
             news_count = fetch_news.normalize_news(conn, target_date)
             logger.info(f"fetch_news.normalize_news: {news_count} 件")
         except Exception as e:
             logger.error(f"fetch_news.normalize_news 失敗 (処理は継続): {e}")
             errors.append(f"fetch_news: {e}")
+
+        try:
+            from src.batch.news_enrichment import enrich_articles
+
+            enrich_counts = enrich_articles(conn)
+            logger.info(f"news_enrichment: {enrich_counts}")
+        except Exception as e:
+            logger.error(f"news_enrichment 失敗 (処理は継続): {e}")
+            errors.append(f"news_enrichment: {e}")
 
         # ── 3. データ取得 ─────────────────────────────────────────
         try:
