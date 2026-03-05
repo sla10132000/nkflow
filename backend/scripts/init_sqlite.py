@@ -300,10 +300,12 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 image_url     TEXT,
                 tickers_json  TEXT DEFAULT '[]',
                 sentiment     REAL,
+                category      TEXT,
                 created_at    TEXT DEFAULT (datetime('now'))
             );
             CREATE INDEX IF NOT EXISTS idx_news_published ON news_articles(published_at DESC);
             CREATE INDEX IF NOT EXISTS idx_news_source ON news_articles(source);
+            CREATE INDEX IF NOT EXISTS idx_news_category ON news_articles(category);
 
             CREATE TABLE IF NOT EXISTS news_ticker_map (
                 article_id  TEXT NOT NULL REFERENCES news_articles(id),
