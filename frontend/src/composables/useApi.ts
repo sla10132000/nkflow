@@ -82,7 +82,7 @@ export const useApi = () => ({
 		api.get("/api/sector-rotation/prediction").then((r) => r.data),
 
 	// Phase 18: ニュース
-	getNews: (params?: { date?: string; ticker?: string; limit?: number }) =>
+	getNews: (params?: { date?: string; ticker?: string; category?: string; limit?: number }) =>
 		api.get("/api/news", { params }).then((r) => r.data),
 
 	getNewsSummary: (date?: string) =>

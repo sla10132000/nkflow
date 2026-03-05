@@ -168,12 +168,16 @@ export interface NewsArticle {
 	language: string;
 	image_url: string | null;
 	sentiment: number | null;
+	category: string | null;
+	tickers: string | null;
 }
 
 export interface NewsSummary {
 	date: string | null;
 	total: number;
 	sources: { source: string; count: number }[];
+	sentiment_dist: { positive: number; negative: number; neutral: number };
+	categories: { category: string; count: number }[];
 }
 
 // ─── Phase 21: 恐怖指数 ───────────────────────────────────────────────────────
