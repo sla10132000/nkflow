@@ -191,6 +191,16 @@ export class NkflowStack extends Stack {
       actions: ['s3:PutObject', 's3:GetObject'],
       resources: [`${dataBucket.bucketArn}/news/raw/*`],
     }));
+    // stocks.db の読み書き (ニュース正規化で使用)
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject', 's3:PutObject'],
+      resources: [`${dataBucket.bucketArn}/data/stocks.db`],
+    }));
+    // 英語記事の日本語翻訳 (Amazon Translate)
+    newsFetchRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['translate:TranslateText'],
+      resources: ['*'],
+    }));
     // 全クエリ失敗時の SNS 通知
     newsFetchRole.addToPolicy(new iam.PolicyStatement({
       actions: ['sns:Publish'],
@@ -203,8 +213,8 @@ export class NkflowStack extends Stack {
         file: 'Dockerfile.news',
         platform: Platform.LINUX_AMD64,
       }),
-      memorySize: 256,
-      timeout: Duration.seconds(120),
+      memorySize: 512,
+      timeout: Duration.seconds(300),
       role: newsFetchRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
@@ -212,7 +222,7 @@ export class NkflowStack extends Stack {
       },
     });
 
-    // EventBridge Scheduler: 毎時 0 分 (1時間ごと)
+    // EventBridge Scheduler: 毎時 30 分 (バッチ UTC 09:00 との競合を避けるため :30)
     const newsFetchSchedulerRole = new iam.Role(this, 'NkflowNewsFetchSchedulerRole', {
       assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
     });
@@ -220,7 +230,7 @@ export class NkflowStack extends Stack {
 
     new scheduler.CfnSchedule(this, 'NkflowNewsFetchSchedule', {
       name: 'nkflow-news-fetch',
-      scheduleExpression: 'rate(1 hour)',
+      scheduleExpression: 'cron(30 * ? * * *)',
       scheduleExpressionTimezone: 'UTC',
       flexibleTimeWindow: { mode: 'OFF' },
       target: {
