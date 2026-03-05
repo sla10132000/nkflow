@@ -45,6 +45,11 @@ function toCandlestickData(prices: DailyPrice[]): CandlestickData[] {
 }
 
 // ── TD Sequential → SeriesMarker 変換 ──────────────────────────────────────
+// 色の凡例:
+//   緑 (#16a34a) = 強気セットアップ (Setup 1-9、ローソク足の下)
+//   水色 (#0284c7) = 強気カウントダウン (CD 1-13、ローソク足の下)
+//   赤 (#dc2626) = 弱気セットアップ (Setup 1-9、ローソク足の上)
+//   紫 (#9333ea) = 弱気カウントダウン (CD 1-13、ローソク足の上)
 function toTdMarkers(
 	prices: DailyPrice[],
 	tdData?: TdSequentialBar[],
@@ -60,17 +65,8 @@ function toTdMarkers(
 		const bar = tdMap.get(p.date);
 		if (!bar) continue;
 
-		// Bullish (below bar) — countdown 優先
-		if (bar.countdown_bull > 0) {
-			markers.push({
-				time: p.date as Time,
-				position: "belowBar",
-				color: "#059669",
-				shape: "circle",
-				text: String(bar.countdown_bull),
-				size: 0,
-			});
-		} else if (bar.setup_bull > 0) {
+		// 強気セットアップ (below bar, green) — カウントダウンと同時表示可
+		if (bar.setup_bull > 0) {
 			markers.push({
 				time: p.date as Time,
 				position: "belowBar",
@@ -81,23 +77,38 @@ function toTdMarkers(
 			});
 		}
 
-		// Bearish (above bar) — countdown 優先
-		if (bar.countdown_bear > 0) {
+		// 強気カウントダウン (below bar, sky blue) — セットアップと色で区別
+		if (bar.countdown_bull > 0) {
 			markers.push({
 				time: p.date as Time,
-				position: "aboveBar",
-				color: "#b91c1c",
+				position: "belowBar",
+				color: "#0284c7",
 				shape: "circle",
-				text: String(bar.countdown_bear),
+				text: String(bar.countdown_bull),
 				size: 0,
 			});
-		} else if (bar.setup_bear > 0) {
+		}
+
+		// 弱気セットアップ (above bar, red) — カウントダウンと同時表示可
+		if (bar.setup_bear > 0) {
 			markers.push({
 				time: p.date as Time,
 				position: "aboveBar",
 				color: "#dc2626",
 				shape: "circle",
 				text: String(bar.setup_bear),
+				size: 0,
+			});
+		}
+
+		// 弱気カウントダウン (above bar, purple) — セットアップと色で区別
+		if (bar.countdown_bear > 0) {
+			markers.push({
+				time: p.date as Time,
+				position: "aboveBar",
+				color: "#9333ea",
+				shape: "circle",
+				text: String(bar.countdown_bear),
 				size: 0,
 			});
 		}

@@ -37,29 +37,36 @@
       <div class="card">
         <div class="flex items-center gap-3 mb-2 flex-wrap">
           <h2 class="font-semibold">株価チャート</h2>
-          <!-- TD Sequential ステータス -->
+          <!-- TD Sequential ステータス + 凡例 -->
           <div v-if="tdLatest" class="flex items-center gap-2 text-xs flex-wrap">
             <span class="text-gray-400 text-xs">TD</span>
             <template v-if="tdLatest.setup_bull > 0">
               <span class="font-mono font-bold text-green-600">
-                ▲Setup {{ tdLatest.setup_bull }}/9<span v-if="tdLatest.setup_bull === 9"> ✓</span>
+                ▲S {{ tdLatest.setup_bull }}/9<span v-if="tdLatest.setup_bull === 9"> ✓</span>
               </span>
             </template>
             <template v-if="tdLatest.countdown_bull > 0">
-              <span class="font-mono font-bold text-emerald-700">
+              <span class="font-mono font-bold text-sky-600">
                 ▲CD {{ tdLatest.countdown_bull }}/13<span v-if="tdLatest.countdown_bull === 13"> 🔔</span>
               </span>
             </template>
             <template v-if="tdLatest.setup_bear > 0">
               <span class="font-mono font-bold text-red-600">
-                ▼Setup {{ tdLatest.setup_bear }}/9<span v-if="tdLatest.setup_bear === 9"> ✓</span>
+                ▼S {{ tdLatest.setup_bear }}/9<span v-if="tdLatest.setup_bear === 9"> ✓</span>
               </span>
             </template>
             <template v-if="tdLatest.countdown_bear > 0">
-              <span class="font-mono font-bold text-rose-700">
+              <span class="font-mono font-bold text-purple-600">
                 ▼CD {{ tdLatest.countdown_bear }}/13<span v-if="tdLatest.countdown_bear === 13"> 🔔</span>
               </span>
             </template>
+            <!-- 凡例 -->
+            <span class="text-gray-300">|</span>
+            <span class="text-gray-400">凡例:</span>
+            <span class="text-green-600">緑=強S</span>
+            <span class="text-sky-600">水=強CD</span>
+            <span class="text-red-600">赤=弱S</span>
+            <span class="text-purple-600">紫=弱CD</span>
           </div>
           <div class="flex gap-1 ml-auto">
             <button v-for="p in periods" :key="p.days" @click="setVisiblePeriod(p.days)"
