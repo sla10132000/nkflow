@@ -8,14 +8,14 @@
         <span class="text-red-600 font-medium">下降{{ downCount }}</span>
       </span>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-      <div v-for="(column, ci) in columns" :key="ci" class="space-y-px">
+    <div class="grid gap-x-3" :style="{ gridTemplateColumns: `repeat(${columnsCount}, 1fr)` }">
+      <div v-for="(column, ci) in columnItems" :key="ci" class="space-y-px">
         <div
           v-for="s in column"
           :key="s.sector"
           class="flex items-center gap-1 text-xs h-4"
         >
-          <span class="w-20 text-gray-600 truncate shrink-0 text-right text-[11px]">{{ s.sector }}</span>
+          <span class="w-16 text-gray-600 truncate shrink-0 text-right text-[11px]">{{ s.sector }}</span>
           <div class="flex-1 flex items-center h-3">
             <!-- Left half (negative) -->
             <div class="w-1/2 flex justify-end">
@@ -37,7 +37,7 @@
             </div>
           </div>
           <span
-            class="w-12 text-right font-medium shrink-0 text-[11px]"
+            class="w-11 text-right font-medium shrink-0 text-[11px]"
             :class="s.avg_return >= 0 ? 'text-green-600' : 'text-red-600'"
           >
             {{ s.avg_return >= 0 ? '+' : '' }}{{ (s.avg_return * 100).toFixed(1) }}%
@@ -58,15 +58,20 @@ interface SectorItem {
 	stock_count?: number;
 }
 
-const props = defineProps<{ sectors: SectorItem[] }>();
+const props = defineProps<{ sectors: SectorItem[]; columns?: number }>();
+
+const columnsCount = computed(() => props.columns ?? 2);
 
 const sorted = computed(() =>
 	[...props.sectors].sort((a, b) => b.avg_return - a.avg_return),
 );
 
-const columns = computed(() => {
-	const half = Math.ceil(sorted.value.length / 2);
-	return [sorted.value.slice(0, half), sorted.value.slice(half)];
+const columnItems = computed(() => {
+	const n = columnsCount.value;
+	const size = Math.ceil(sorted.value.length / n);
+	return Array.from({ length: n }, (_, i) =>
+		sorted.value.slice(i * size, (i + 1) * size),
+	);
 });
 
 const upCount = computed(

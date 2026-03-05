@@ -78,10 +78,15 @@
         </div>
       </div>
 
-      <!-- 日経平均チャート -->
-      <div v-if="nikkeiChartData.length > 1" class="card card-compact">
-        <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
-        <NikkeiAreaChart :data="nikkeiChartData" />
+      <!-- 日経平均チャート + 業種トレンド 横並び -->
+      <div class="grid gap-2" style="grid-template-columns: 2fr 3fr">
+        <div v-if="nikkeiChartData.length > 1" class="card card-compact">
+          <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
+          <NikkeiAreaChart :data="nikkeiChartData" />
+        </div>
+        <div v-if="sectorData.length" class="card" style="overflow: hidden">
+          <SectorTrendBar :sectors="sectorData" :columns="4" />
+        </div>
       </div>
 
       <!-- 上昇/下落上位 + 年初来高値 -->
@@ -148,10 +153,7 @@
         <div v-else class="text-gray-500 text-xs">データなし</div>
       </div>
 
-      <!-- 業種トレンド棒グラフ -->
-      <div v-if="sectorData.length" class="card">
-        <SectorTrendBar :sectors="sectorData" />
-      </div>
+
 
       <!-- 米国セクター ETF パフォーマンス (Phase 23b) -->
       <div class="card">
