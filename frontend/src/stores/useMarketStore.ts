@@ -22,6 +22,7 @@ export const useMarketStore = defineStore("market", () => {
 	const stocks = ref<Stock[]>([]);
 
 	const _summaryFetchedAt = ref(0);
+	const _fearIndicesFetchedAt = ref(0);
 	const _stocksFetchedAt = ref(0);
 
 	// ── computed ─────────────────────────────────────
@@ -48,9 +49,16 @@ export const useMarketStore = defineStore("market", () => {
 	}
 
 	async function fetchFearIndices(force = false) {
-		if (!force && fearIndices.value) return;
+		if (
+			!force &&
+			Date.now() - _fearIndicesFetchedAt.value < CACHE_TTL &&
+			fearIndices.value
+		) {
+			return;
+		}
 		try {
 			fearIndices.value = await api.getFearIndices();
+			_fearIndicesFetchedAt.value = Date.now();
 		} catch {
 			// ignore
 		}

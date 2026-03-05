@@ -215,7 +215,7 @@ import { formatDateTime, formatReturn } from "../utils/formatters";
 
 const api = useApi();
 const marketStore = useMarketStore();
-const loading = ref(true);
+const loading = ref(!marketStore.summary);
 const error = ref("");
 const topNews = ref<NewsArticle[]>([]);
 const ytdHighs = ref<YtdHighStock[]>([]);
@@ -271,9 +271,9 @@ async function setSectorPeriod(period: SectorPeriod) {
 onMounted(async () => {
 	try {
 		const [, newsData, , ytdData] = await Promise.all([
-			marketStore.fetchSummary(30, true),
+			marketStore.fetchSummary(30),
 			api.getNews({ limit: 5 }),
-			marketStore.fetchFearIndices(true),
+			marketStore.fetchFearIndices(),
 			api.getYtdHighs(10).catch(() => []),
 		]);
 		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 5) : [];
