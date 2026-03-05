@@ -38,7 +38,7 @@
         <div class="flex items-center gap-3 mb-2">
           <h2 class="font-semibold">株価チャート</h2>
           <div class="flex gap-1 ml-auto">
-            <button v-for="p in periods" :key="p.days" @click="loadPrices(p.days)"
+            <button v-for="p in periods" :key="p.days" @click="setVisiblePeriod(p.days)"
               class="btn-sm" :class="{ 'btn-sm-active': activeDays === p.days }">{{ p.label }}</button>
           </div>
         </div>
@@ -47,6 +47,7 @@
             v-if="prices.length"
             :prices="prices"
             :tdData="tdData.length ? tdData : undefined"
+            :visibleDays="activeDays"
           />
           <div v-else class="text-gray-500 text-sm">価格データなし</div>
         </div>
@@ -180,7 +181,7 @@ const loading = ref(true);
 const error = ref("");
 const detail = ref<StockDetail | null>(null);
 const prices = ref<DailyPrice[]>([]);
-const activeDays = ref(60);
+const activeDays = ref(60); // 現在の表示期間 (ボタンハイライト + PriceChart への visibleDays)
 const tdData = ref<TdSequentialBar[]>([]);
 const tdLatest = ref<TdSequentialBar | null>(null);
 
@@ -188,10 +189,13 @@ const latest = computed(() => detail.value?.recent_prices?.[0] ?? null);
 const recentPrices = computed(() => prices.value.slice(-20));
 const recentTdData = computed(() => tdData.value.slice(-20));
 
+const LOAD_DAYS = 250; // 常に1年分をロード
+
 const periods = [
 	{ label: "1M", days: 20 },
 	{ label: "3M", days: 60 },
 	{ label: "6M", days: 120 },
+	{ label: "1Y", days: 250 },
 ];
 
 function formatReturn(r: number | null | undefined) {
@@ -205,7 +209,7 @@ function toDate(daysAgo: number) {
 	return d.toISOString().split("T")[0];
 }
 
-async function loadTdData(days = 60) {
+async function loadTdData(days = LOAD_DAYS) {
 	try {
 		const [latest, series] = await Promise.all([
 			api.getTdSequentialLatest(props.code),
@@ -218,14 +222,19 @@ async function loadTdData(days = 60) {
 	}
 }
 
-async function loadPrices(days = 60) {
-	activeDays.value = days;
+// 1年分のデータを一括ロード (表示期間変更時はデータ再取得不要)
+async function loadPrices() {
 	try {
-		prices.value = await api.getPrices(props.code, toDate(days));
-		await loadTdData(days);
+		prices.value = await api.getPrices(props.code, toDate(LOAD_DAYS));
+		await loadTdData(LOAD_DAYS);
 	} catch {
 		/* ignore */
 	}
+}
+
+// 期間ボタン: データ再取得なしで表示範囲だけ変更
+function setVisiblePeriod(days: number) {
+	activeDays.value = days;
 }
 
 async function loadDetail() {
@@ -233,7 +242,7 @@ async function loadDetail() {
 	error.value = "";
 	try {
 		detail.value = await api.getStock(props.code);
-		await loadPrices(activeDays.value);
+		await loadPrices();
 	} catch (e: unknown) {
 		error.value = e instanceof Error ? e.message : "データ取得失敗";
 	} finally {

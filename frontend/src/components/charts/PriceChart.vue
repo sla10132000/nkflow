@@ -20,6 +20,7 @@ import type { DailyPrice, TdSequentialBar } from "../../types";
 const props = defineProps<{
 	prices: DailyPrice[];
 	tdData?: TdSequentialBar[];
+	visibleDays?: number; // 表示する営業日数 (省略時は全データ表示)
 }>();
 
 const chartContainer = ref<HTMLDivElement>();
@@ -28,6 +29,9 @@ let candleSeries: ISeriesApi<"Candlestick"> | null = null;
 // biome-ignore lint/suspicious/noExplicitAny: lightweight-charts markers primitive
 let markersPrimitive: any = null;
 let resizeObserver: ResizeObserver | null = null;
+
+const MAX_VISIBLE_BARS = 250; // スクロールズームの最大表示バー数 (約1年)
+const MIN_VISIBLE_BARS = 5;
 
 // ── DailyPrice → CandlestickData 変換 ──────────────────────────────────────
 function toCandlestickData(prices: DailyPrice[]): CandlestickData[] {
@@ -102,6 +106,37 @@ function toTdMarkers(
 	return markers;
 }
 
+// ── visibleDays に基づいてタイムスケールを設定 ──────────────────────────────
+function applyVisibleDays(days: number) {
+	if (!chart || !props.prices.length) return;
+	const to = props.prices.length - 1;
+	const from = Math.max(0, to - days);
+	chart.timeScale().setVisibleLogicalRange({ from, to });
+}
+
+// ── マウスホイールズームハンドラ ────────────────────────────────────────────
+function handleWheel(event: WheelEvent) {
+	if (!chart) return;
+	event.preventDefault();
+
+	const logRange = chart.timeScale().getVisibleLogicalRange();
+	if (!logRange) return;
+
+	const { from, to } = logRange;
+	const currentSize = to - from;
+
+	// scroll down (deltaY > 0) = ズームアウト、scroll up = ズームイン
+	const factor = event.deltaY > 0 ? 1.15 : 1 / 1.15;
+	const maxBars = Math.min(MAX_VISIBLE_BARS, props.prices.length);
+	const newSize = Math.max(
+		MIN_VISIBLE_BARS,
+		Math.min(maxBars, currentSize * factor),
+	);
+
+	// 右端 (最新日) を固定してズーム
+	chart.timeScale().setVisibleLogicalRange({ from: to - newSize, to });
+}
+
 // ── チャート初期化 ─────────────────────────────────────────────────────────
 function initChart() {
 	if (!chartContainer.value) return;
@@ -146,6 +181,18 @@ function initChart() {
 			fixLeftEdge: true,
 			fixRightEdge: true,
 		},
+		// マウスホイールはカスタムハンドラで処理するため無効化
+		handleScroll: {
+			mouseWheel: false,
+			pressedMouseMove: true,
+			horzTouchDrag: true,
+			vertTouchDrag: false,
+		},
+		handleScale: {
+			mouseWheel: false,
+			pinch: true,
+			axisDoubleClickReset: true,
+		},
 	});
 
 	candleSeries = chart.addSeries(CandlestickSeries, {
@@ -157,6 +204,11 @@ function initChart() {
 	});
 
 	updateData();
+
+	// カスタムホイールズームリスナー
+	chartContainer.value.addEventListener("wheel", handleWheel, {
+		passive: false,
+	});
 
 	// コンテナサイズ追従
 	resizeObserver = new ResizeObserver((entries) => {
@@ -184,6 +236,11 @@ function updateData() {
 	}
 
 	chart?.timeScale().fitContent();
+
+	// visibleDays が指定されていれば表示範囲を上書き
+	if (props.visibleDays) {
+		applyVisibleDays(props.visibleDays);
+	}
 }
 
 // ── ライフサイクル ─────────────────────────────────────────────────────────
@@ -199,7 +256,17 @@ watch(
 	{ deep: true },
 );
 
+watch(
+	() => props.visibleDays,
+	(days) => {
+		if (days) applyVisibleDays(days);
+	},
+);
+
 onBeforeUnmount(() => {
+	if (chartContainer.value) {
+		chartContainer.value.removeEventListener("wheel", handleWheel);
+	}
 	if (resizeObserver) {
 		resizeObserver.disconnect();
 		resizeObserver = null;
