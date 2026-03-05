@@ -17,11 +17,15 @@ import {
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { DailyPrice, TdSequentialBar } from "../../types";
 
-const props = defineProps<{
-	prices: DailyPrice[];
-	tdData?: TdSequentialBar[];
-	visibleDays?: number; // 表示する営業日数 (省略時は全データ表示)
-}>();
+const props = withDefaults(
+	defineProps<{
+		prices: DailyPrice[];
+		tdData?: TdSequentialBar[];
+		visibleDays?: number; // 表示する営業日数 (省略時は全データ表示)
+		showTd?: boolean; // TD Sequential マーカーの表示制御 (デフォルト true)
+	}>(),
+	{ showTd: true },
+);
 
 const chartContainer = ref<HTMLDivElement>();
 let chart: IChartApi | null = null;
@@ -238,8 +242,8 @@ function updateData() {
 
 	candleSeries.setData(toCandlestickData(props.prices));
 
-	// TD Sequential マーカー
-	const markers = toTdMarkers(props.prices, props.tdData);
+	// TD Sequential マーカー (showTd=false の場合は空配列でクリア)
+	const markers = props.showTd ? toTdMarkers(props.prices, props.tdData) : [];
 	if (markersPrimitive) {
 		markersPrimitive.setMarkers(markers);
 	} else if (markers.length > 0) {
@@ -260,7 +264,7 @@ onMounted(() => {
 });
 
 watch(
-	() => [props.prices, props.tdData],
+	() => [props.prices, props.tdData, props.showTd],
 	() => {
 		updateData();
 	},

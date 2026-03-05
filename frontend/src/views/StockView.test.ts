@@ -168,7 +168,7 @@ describe("StockView", () => {
 		const wrapper = mountView("7203");
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("▲Setup 7/9");
+		expect(wrapper.text()).toContain("▲S 7/9");
 	});
 
 	it("tdLatest が null の場合、TD Sequential カードを表示しない", async () => {

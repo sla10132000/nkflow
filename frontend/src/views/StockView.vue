@@ -37,8 +37,14 @@
       <div class="card">
         <div class="flex items-center gap-3 mb-2 flex-wrap">
           <h2 class="font-semibold">株価チャート</h2>
-          <!-- TD Sequential ステータス + 凡例 -->
-          <div v-if="tdLatest" class="flex items-center gap-2 text-xs flex-wrap">
+          <!-- TD Sequential トグル + ステータス + 凡例 -->
+          <button
+            v-if="tdData.length"
+            @click="showTd = !showTd"
+            class="text-xs px-1.5 py-0.5 rounded border transition-colors"
+            :class="showTd ? 'border-blue-400 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-400'"
+          >TD</button>
+          <div v-if="showTd && tdLatest" class="flex items-center gap-2 text-xs flex-wrap">
             <span class="text-gray-400 text-xs">TD</span>
             <template v-if="tdLatest.setup_bull > 0">
               <span class="font-mono font-bold text-green-600">
@@ -78,6 +84,7 @@
             v-if="prices.length"
             :prices="prices"
             :tdData="tdData.length ? tdData : undefined"
+            :showTd="showTd"
             :visibleDays="activeDays"
           />
           <div v-else class="text-gray-500 text-sm">価格データなし</div>
@@ -172,6 +179,7 @@ const prices = ref<DailyPrice[]>([]);
 const activeDays = ref(60); // 現在の表示期間 (ボタンハイライト + PriceChart への visibleDays)
 const tdData = ref<TdSequentialBar[]>([]);
 const tdLatest = ref<TdSequentialBar | null>(null);
+const showTd = ref(true); // TD Sequential 表示切替
 
 const latest = computed(() => detail.value?.recent_prices?.[0] ?? null);
 
