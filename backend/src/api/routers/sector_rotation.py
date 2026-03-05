@@ -9,6 +9,78 @@ from src.api.storage import get_connection
 router = APIRouter()
 
 
+@router.get("/sector-rotation/performance")
+def get_sector_performance(
+    period: str = "1d",
+    conn: Connection = Depends(get_connection),
+):
+    """日本セクター騰落率を期間別に返す。
+
+    period: '1d' | '1w' | '1m' | '3m'
+    Returns: [{ sector, avg_return }]
+    """
+    if period == "1d":
+        rows = conn.execute(
+            """
+            SELECT sector, return_rate
+            FROM sector_daily_returns
+            WHERE date = (SELECT MAX(date) FROM sector_daily_returns)
+            ORDER BY sector
+            """,
+        ).fetchall()
+    elif period == "1w":
+        rows = conn.execute(
+            """
+            SELECT sector, return_rate
+            FROM sector_weekly_returns
+            WHERE week_date = (SELECT MAX(week_date) FROM sector_weekly_returns)
+            ORDER BY sector
+            """,
+        ).fetchall()
+    elif period == "1m":
+        rows = conn.execute(
+            """
+            SELECT sector, return_rate
+            FROM sector_monthly_returns
+            WHERE month_date = (SELECT MAX(month_date) FROM sector_monthly_returns)
+            ORDER BY sector
+            """,
+        ).fetchall()
+    elif period == "3m":
+        rows = conn.execute(
+            """
+            SELECT sector, SUM(return_rate) AS return_rate
+            FROM sector_monthly_returns
+            WHERE month_date IN (
+                SELECT DISTINCT month_date FROM sector_monthly_returns
+                ORDER BY month_date DESC LIMIT 3
+            )
+            GROUP BY sector
+            ORDER BY sector
+            """,
+        ).fetchall()
+    else:
+        raise HTTPException(status_code=400, detail=f"不明な period: {period}")
+
+    # sector_daily_returns にデータがない場合は summary の sector_rotation にフォールバック
+    if not rows and period == "1d":
+        row = conn.execute(
+            "SELECT sector_rotation FROM daily_summary ORDER BY date DESC LIMIT 1"
+        ).fetchone()
+        if row and row[0]:
+            try:
+                data = json.loads(row[0])
+                return [
+                    {"sector": d["sector"], "avg_return": d.get("avg_return", 0)}
+                    for d in data
+                    if "sector" in d
+                ]
+            except Exception:
+                pass
+
+    return [{"sector": r[0], "avg_return": r[1] or 0} for r in rows]
+
+
 @router.get("/sector-rotation/heatmap")
 def get_sector_rotation_heatmap(
     periods: int = 12,

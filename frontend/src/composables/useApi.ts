@@ -53,7 +53,12 @@ export const useApi = () => ({
 			.get("/api/market-pressure/timeseries", { params: { days } })
 			.then((r) => r.data),
 
-	// Phase 17: セクターローテーション
+	// Phase 17: セクターローテーション — 期間別パフォーマンス
+	getJpSectorPerformance: (period: "1d" | "1w" | "1m" | "3m" = "1d") =>
+		api
+			.get("/api/sector-rotation/performance", { params: { period } })
+			.then((r) => r.data),
+
 	getSectorRotationHeatmap: (
 		periods = 12,
 		periodType: "weekly" | "monthly" = "weekly",

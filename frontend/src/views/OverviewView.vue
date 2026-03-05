@@ -78,15 +78,10 @@
         </div>
       </div>
 
-      <!-- 日経平均チャート + 業種トレンド 横並び -->
-      <div class="grid gap-2" style="grid-template-columns: 2fr 3fr">
-        <div class="card card-compact">
-          <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
-          <NikkeiAreaChart />
-        </div>
-        <div v-if="sectorData.length" class="card" style="overflow: hidden">
-          <SectorTrendBar :sectors="sectorData" :columns="4" />
-        </div>
+      <!-- 日経平均チャート -->
+      <div class="card card-compact">
+        <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
+        <NikkeiAreaChart />
       </div>
 
       <!-- 上昇/下落上位 + 年初来高値 -->
@@ -146,64 +141,73 @@
         </div>
       </div>
 
-      <!-- セクター騰落率 + 米国セクター 横並び -->
-      <div class="grid md:grid-cols-2 gap-2">
-        <!-- 日本セクター騰落率 -->
-        <div class="card">
-          <h2 class="text-sm font-semibold mb-1">セクター騰落率</h2>
-          <HeatMap v-if="sectorData.length" :sectors="sectorData" />
-          <div v-else class="text-gray-500 text-xs">データなし</div>
+      <!-- セクター騰落率 (日本 + 米国) — 共通期間セレクタ -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-semibold">セクター騰落率</h2>
+          <div class="flex gap-1">
+            <button
+              v-for="p in sectorPeriods"
+              :key="p.value"
+              class="text-xs px-1.5 py-0.5 rounded"
+              :class="activeSectorPeriod === p.value
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+              @click="setSectorPeriod(p.value)"
+            >
+              {{ p.label }}
+            </button>
+          </div>
         </div>
 
-        <!-- 米国セクター ETF -->
-        <div class="card">
-          <div class="flex items-center justify-between mb-1">
-            <h2 class="text-sm font-semibold">
-              米国セクター
-              <span v-if="usSectorData" class="text-xs text-gray-400 font-normal ml-1">{{ usSectorData.date }}</span>
-            </h2>
-            <div class="flex gap-1">
-              <button
-                v-for="p in usSectorPeriods"
-                :key="p.value"
-                class="text-xs px-1.5 py-0.5 rounded"
-                :class="usSectorPeriod === p.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-                @click="setUsSectorPeriod(p.value)"
-              >
-                {{ p.label }}
-              </button>
-            </div>
+        <div v-if="sectorLoading" class="text-gray-400 text-xs mb-2">読み込み中...</div>
+        <template v-else>
+          <!-- 日本セクター ヒートマップ -->
+          <div class="mb-2">
+            <div class="text-xs text-gray-500 font-medium mb-1">日本</div>
+            <HeatMap v-if="jpSectorData.length" :sectors="jpSectorData" />
+            <div v-else class="text-gray-400 text-xs">データなし</div>
           </div>
-          <div v-if="usSectorLoading" class="text-gray-400 text-xs">読み込み中...</div>
-          <div v-else-if="!usSectorData || !usSectorData.sectors.length" class="text-gray-400 text-xs">データなし</div>
-          <div v-else class="space-y-0.5">
-            <div
-              v-for="s in usSectorData.sectors"
-              :key="s.ticker"
-              class="flex items-center gap-1.5 text-xs"
-            >
-              <span class="w-10 text-gray-500 shrink-0 font-mono">{{ s.ticker }}</span>
-              <span class="w-16 text-gray-700 shrink-0 truncate">{{ s.sector }}</span>
-              <div class="flex-1 flex items-center gap-1 min-w-0">
-                <div class="flex-1 h-3 bg-gray-100 rounded overflow-hidden">
-                  <div
-                    class="h-full rounded transition-all"
-                    :class="(s.change_pct ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'"
-                    :style="{ width: `${Math.min(Math.abs(s.change_pct ?? 0) / usSectorMaxAbs * 100, 100)}%` }"
-                  />
+
+          <!-- 日本セクター 業種トレンドバー -->
+          <div v-if="jpSectorData.length" class="mb-3" style="overflow: hidden">
+            <SectorTrendBar :sectors="jpSectorData" :columns="4" />
+          </div>
+
+          <!-- 米国セクター -->
+          <div>
+            <div class="flex items-baseline gap-1 mb-1">
+              <div class="text-xs text-gray-500 font-medium">米国</div>
+              <span v-if="usSectorData" class="text-xs text-gray-400">{{ usSectorData.date }}</span>
+            </div>
+            <div v-if="!usSectorData || !usSectorData.sectors.length" class="text-gray-400 text-xs">データなし</div>
+            <div v-else class="space-y-0.5">
+              <div
+                v-for="s in usSectorData.sectors"
+                :key="s.ticker"
+                class="flex items-center gap-1.5 text-xs"
+              >
+                <span class="w-10 text-gray-500 shrink-0 font-mono">{{ s.ticker }}</span>
+                <span class="w-16 text-gray-700 shrink-0 truncate">{{ s.sector }}</span>
+                <div class="flex-1 flex items-center gap-1 min-w-0">
+                  <div class="flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                    <div
+                      class="h-full rounded transition-all"
+                      :class="(s.change_pct ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'"
+                      :style="{ width: `${Math.min(Math.abs(s.change_pct ?? 0) / usSectorMaxAbs * 100, 100)}%` }"
+                    />
+                  </div>
+                  <span
+                    class="w-14 text-right font-medium shrink-0"
+                    :class="(s.change_pct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'"
+                  >
+                    {{ s.change_pct != null ? `${s.change_pct >= 0 ? '+' : ''}${s.change_pct.toFixed(2)}%` : '—' }}
+                  </span>
                 </div>
-                <span
-                  class="w-14 text-right font-medium shrink-0"
-                  :class="(s.change_pct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'"
-                >
-                  {{ s.change_pct != null ? `${s.change_pct >= 0 ? '+' : ''}${s.change_pct.toFixed(2)}%` : '—' }}
-                </span>
               </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
     </template>
   </div>
@@ -227,21 +231,26 @@ const api = useApi();
 const loading = ref(true);
 const error = ref("");
 const summary = ref<DailySummary | null>(null);
-const summaryHistory = ref<DailySummary[]>([]);
 const topNews = ref<NewsArticle[]>([]);
 const fearIndices = ref<FearIndices | null>(null);
 const ytdHighs = ref<YtdHighStock[]>([]);
 
-// Phase 23b: 米国セクター ETF
-const usSectorData = ref<UsSectorPerformance | null>(null);
-const usSectorLoading = ref(false);
-const usSectorPeriod = ref<"1d" | "1w" | "1m" | "3m">("1d");
-const usSectorPeriods = [
+// 共通期間セレクタ (日本 + 米国セクター)
+const activeSectorPeriod = ref<"1d" | "1w" | "1m" | "3m">("1d");
+const sectorPeriods = [
 	{ value: "1d" as const, label: "1D" },
 	{ value: "1w" as const, label: "1W" },
 	{ value: "1m" as const, label: "1M" },
 	{ value: "3m" as const, label: "3M" },
 ];
+const sectorLoading = ref(false);
+
+// 日本セクター (期間別)
+interface JpSectorItem { sector: string; avg_return: number }
+const jpSectorData = ref<JpSectorItem[]>([]);
+
+// Phase 23b: 米国セクター ETF
+const usSectorData = ref<UsSectorPerformance | null>(null);
 
 // JST で昨日の日付を求める
 function getYesterdayJST(): string {
@@ -263,34 +272,25 @@ const usSectorMaxAbs = computed(() => {
 	return max > 0 ? max : 1;
 });
 
-async function fetchUsSectorPerformance() {
-	usSectorLoading.value = true;
+async function fetchSectorData(period: "1d" | "1w" | "1m" | "3m") {
+	sectorLoading.value = true;
 	try {
-		usSectorData.value = await api.getUsSectorPerformance(usSectorPeriod.value);
-	} catch {
-		usSectorData.value = null;
+		const [jpData, usData] = await Promise.all([
+			api.getJpSectorPerformance(period).catch(() => []),
+			api.getUsSectorPerformance(period).catch(() => null),
+		]);
+		jpSectorData.value = Array.isArray(jpData) ? jpData : [];
+		usSectorData.value = usData;
 	} finally {
-		usSectorLoading.value = false;
+		sectorLoading.value = false;
 	}
 }
 
-async function setUsSectorPeriod(period: "1d" | "1w" | "1m" | "3m") {
-	usSectorPeriod.value = period;
-	await fetchUsSectorPerformance();
+async function setSectorPeriod(period: "1d" | "1w" | "1m" | "3m") {
+	activeSectorPeriod.value = period;
+	await fetchSectorData(period);
 }
 
-const sectorData = computed(() => {
-	if (!summary.value?.sector_rotation) return [];
-	try {
-		const data =
-			typeof summary.value.sector_rotation === "string"
-				? JSON.parse(summary.value.sector_rotation)
-				: summary.value.sector_rotation;
-		return Array.isArray(data) ? data : [];
-	} catch {
-		return [];
-	}
-});
 
 function formatReturn(r: number | null | undefined) {
 	if (r == null) return "—";
@@ -321,12 +321,6 @@ function formatTime(publishedAt: string): string {
 	}
 }
 
-function sentimentClass(s: number): string {
-	if (s > 0.1) return "bg-green-100 text-green-700";
-	if (s < -0.1) return "bg-red-100 text-red-700";
-	return "bg-gray-100 text-gray-500";
-}
-
 // VIX: 低い = 安心(緑), 高い = 危険(赤)
 function vixClass(value: number): string {
 	if (value < 20) return "text-green-600";
@@ -352,7 +346,6 @@ onMounted(async () => {
 		const summaryArray = Array.isArray(summaryData)
 			? summaryData
 			: [summaryData];
-		summaryHistory.value = summaryArray;
 		summary.value = summaryArray[0] ?? null;
 		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 3) : [];
 		fearIndices.value = fearData;
@@ -362,8 +355,8 @@ onMounted(async () => {
 	} finally {
 		loading.value = false;
 	}
-	// 米国セクター ETF は非同期で追加取得 (メインの読み込みをブロックしない)
-	fetchUsSectorPerformance();
+	// セクターデータ (日本 + 米国) は非同期で追加取得
+	fetchSectorData(activeSectorPeriod.value);
 });
 </script>
 
