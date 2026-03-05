@@ -27,28 +27,29 @@ describe("HeatMap", () => {
 		expect(wrapper.text()).toContain("-1.50%");
 	});
 
-	it("正の騰落率は緑系の背景色", () => {
+	it("正の騰落率は緑色のバー", () => {
 		const wrapper = mountHeatMap([{ sector: "電気機器", avg_return: 0.03 }]);
 
-		const cell = wrapper.find("div.grid > div");
-		const bg = cell.attributes("style");
-		expect(bg).toContain("#166534"); // > 0.02 → darkest green
+		const bar = wrapper.find(".bg-green-400");
+		expect(bar.exists()).toBe(true);
 	});
 
-	it("負の騰落率は赤系の背景色", () => {
+	it("負の騰落率は赤色のバー", () => {
 		const wrapper = mountHeatMap([{ sector: "銀行業", avg_return: -0.025 }]);
 
-		const cell = wrapper.find("div.grid > div");
-		const bg = cell.attributes("style");
-		expect(bg).toContain("#991b1b"); // < -0.02 → darkest red
+		const bar = wrapper.find(".bg-red-400");
+		expect(bar.exists()).toBe(true);
 	});
 
-	it("長いセクター名は8文字目以降省略される", () => {
+	it("騰落率降順にソートされる", () => {
 		const wrapper = mountHeatMap([
-			{ sector: "情報・通信・サービス業", avg_return: 0.01 },
+			{ sector: "銀行業", avg_return: -0.01 },
+			{ sector: "電気機器", avg_return: 0.03 },
+			{ sector: "医薬品", avg_return: 0.005 },
 		]);
 
-		expect(wrapper.text()).toContain("情報・通信・…");
+		const names = wrapper.findAll(".w-20").map((el) => el.text());
+		expect(names).toEqual(["電気機器", "医薬品", "銀行業"]);
 	});
 
 	it("空配列でもエラーにならない", () => {
@@ -56,24 +57,16 @@ describe("HeatMap", () => {
 		expect(wrapper.exists()).toBe(true);
 	});
 
-	it("グリッドのカラム数が最大6", () => {
-		const sectors = Array.from({ length: 10 }, (_, i) => ({
-			sector: `セクター${i}`,
-			avg_return: 0.01 * i,
-		}));
-		const wrapper = mountHeatMap(sectors);
-		const style = wrapper.find("div.grid").attributes("style");
-		expect(style).toContain("repeat(8,");
-	});
+	it("バーの幅が最大絶対値に基づいて計算される", () => {
+		const wrapper = mountHeatMap([
+			{ sector: "電気機器", avg_return: 0.02 },
+			{ sector: "銀行業", avg_return: -0.01 },
+		]);
 
-	it("セクター数が6未満ならその数がカラム数", () => {
-		const sectors = [
-			{ sector: "A", avg_return: 0.01 },
-			{ sector: "B", avg_return: -0.01 },
-			{ sector: "C", avg_return: 0.005 },
-		];
-		const wrapper = mountHeatMap(sectors);
-		const style = wrapper.find("div.grid").attributes("style");
-		expect(style).toContain("repeat(3,");
+		const bars = wrapper.findAll(".bg-gray-100 > div");
+		// 電気機器: 0.02/0.02 * 100 = 100%
+		expect(bars[0].attributes("style")).toContain("width: 100%");
+		// 銀行業: 0.01/0.02 * 100 = 50%
+		expect(bars[1].attributes("style")).toContain("width: 50%");
 	});
 });

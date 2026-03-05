@@ -76,7 +76,7 @@ describe("OverviewView", () => {
 		expect(wrapper.text()).toContain("9984");
 	});
 
-	it("API を days=5 で呼び出す", async () => {
+	it("API を days=30 で呼び出す", async () => {
 		mockApi.getSummary.mockResolvedValue({});
 		mountView();
 		await flushPromises();

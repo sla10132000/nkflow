@@ -1,13 +1,26 @@
 <template>
-  <div class="grid gap-1" :style="gridStyle">
+  <div class="space-y-0.5">
     <div
-      v-for="item in sectors"
+      v-for="item in sorted"
       :key="item.sector"
-      class="rounded py-1 px-1 text-center text-xs font-medium flex flex-col justify-center min-h-[40px]"
-      :style="{ backgroundColor: bgColor(item.avg_return) }"
+      class="flex items-center gap-1.5 text-xs"
     >
-      <div class="truncate text-white font-semibold">{{ shortName(item.sector) }}</div>
-      <div class="text-white/80">{{ formatReturn(item.avg_return) }}</div>
+      <span class="w-20 text-gray-700 shrink-0 truncate">{{ item.sector }}</span>
+      <div class="flex-1 flex items-center gap-1 min-w-0">
+        <div class="flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+          <div
+            class="h-full rounded transition-all"
+            :class="item.avg_return >= 0 ? 'bg-green-400' : 'bg-red-400'"
+            :style="{ width: `${Math.min(Math.abs(item.avg_return) / maxAbs * 100, 100)}%` }"
+          />
+        </div>
+        <span
+          class="w-14 text-right font-medium shrink-0"
+          :class="item.avg_return >= 0 ? 'text-green-600' : 'text-red-600'"
+        >
+          {{ formatReturn(item.avg_return) }}
+        </span>
+      </div>
     </div>
   </div>
 </template>
@@ -23,26 +36,17 @@ interface SectorItem {
 
 const props = defineProps<{ sectors: SectorItem[] }>();
 
-const gridStyle = computed(() => ({
-	gridTemplateColumns: `repeat(${Math.min(props.sectors.length, 8)}, minmax(0, 1fr))`,
-}));
+const sorted = computed(() =>
+	[...props.sectors].sort((a, b) => b.avg_return - a.avg_return),
+);
 
-function bgColor(r: number): string {
-	if (r > 0.02) return "#166534";
-	if (r > 0.01) return "#15803d";
-	if (r > 0.005) return "#16a34a";
-	if (r > 0) return "#4d7c0f";
-	if (r > -0.005) return "#92400e";
-	if (r > -0.01) return "#b45309";
-	if (r > -0.02) return "#b91c1c";
-	return "#991b1b";
-}
+const maxAbs = computed(() => {
+	if (!props.sectors.length) return 1;
+	const m = Math.max(...props.sectors.map((s) => Math.abs(s.avg_return)));
+	return m > 0 ? m : 1;
+});
 
 function formatReturn(r: number): string {
 	return `${(r >= 0 ? "+" : "") + (r * 100).toFixed(2)}%`;
-}
-
-function shortName(s: string): string {
-	return s.length > 7 ? `${s.slice(0, 6)}…` : s;
 }
 </script>

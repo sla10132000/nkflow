@@ -146,60 +146,61 @@
         </div>
       </div>
 
-      <!-- セクターヒートマップ -->
-      <div class="card">
-        <h2 class="text-sm font-semibold mb-1">セクター騰落率</h2>
-        <HeatMap v-if="sectorData.length" :sectors="sectorData" />
-        <div v-else class="text-gray-500 text-xs">データなし</div>
-      </div>
-
-
-
-      <!-- 米国セクター ETF パフォーマンス (Phase 23b) -->
-      <div class="card">
-        <div class="flex items-center justify-between mb-1">
-          <h2 class="text-sm font-semibold">
-            米国セクター
-            <span v-if="usSectorData" class="text-xs text-gray-400 font-normal ml-1">{{ usSectorData.date }}</span>
-          </h2>
-          <div class="flex gap-1">
-            <button
-              v-for="p in usSectorPeriods"
-              :key="p.value"
-              class="text-xs px-1.5 py-0.5 rounded"
-              :class="usSectorPeriod === p.value
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-              @click="setUsSectorPeriod(p.value)"
-            >
-              {{ p.label }}
-            </button>
-          </div>
+      <!-- セクター騰落率 + 米国セクター 横並び -->
+      <div class="grid md:grid-cols-2 gap-2">
+        <!-- 日本セクター騰落率 -->
+        <div class="card">
+          <h2 class="text-sm font-semibold mb-1">セクター騰落率</h2>
+          <HeatMap v-if="sectorData.length" :sectors="sectorData" />
+          <div v-else class="text-gray-500 text-xs">データなし</div>
         </div>
-        <div v-if="usSectorLoading" class="text-gray-400 text-xs">読み込み中...</div>
-        <div v-else-if="!usSectorData || !usSectorData.sectors.length" class="text-gray-400 text-xs">データなし</div>
-        <div v-else class="space-y-0.5">
-          <div
-            v-for="s in usSectorData.sectors"
-            :key="s.ticker"
-            class="flex items-center gap-1.5 text-xs"
-          >
-            <span class="w-10 text-gray-500 shrink-0 font-mono">{{ s.ticker }}</span>
-            <span class="w-16 text-gray-700 shrink-0 truncate">{{ s.sector }}</span>
-            <div class="flex-1 flex items-center gap-1 min-w-0">
-              <div class="flex-1 h-3 bg-gray-100 rounded overflow-hidden">
-                <div
-                  class="h-full rounded transition-all"
-                  :class="(s.change_pct ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'"
-                  :style="{ width: `${Math.min(Math.abs(s.change_pct ?? 0) / usSectorMaxAbs * 100, 100)}%` }"
-                />
-              </div>
-              <span
-                class="w-14 text-right font-medium shrink-0"
-                :class="(s.change_pct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'"
+
+        <!-- 米国セクター ETF -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-1">
+            <h2 class="text-sm font-semibold">
+              米国セクター
+              <span v-if="usSectorData" class="text-xs text-gray-400 font-normal ml-1">{{ usSectorData.date }}</span>
+            </h2>
+            <div class="flex gap-1">
+              <button
+                v-for="p in usSectorPeriods"
+                :key="p.value"
+                class="text-xs px-1.5 py-0.5 rounded"
+                :class="usSectorPeriod === p.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                @click="setUsSectorPeriod(p.value)"
               >
-                {{ s.change_pct != null ? `${s.change_pct >= 0 ? '+' : ''}${s.change_pct.toFixed(2)}%` : '—' }}
-              </span>
+                {{ p.label }}
+              </button>
+            </div>
+          </div>
+          <div v-if="usSectorLoading" class="text-gray-400 text-xs">読み込み中...</div>
+          <div v-else-if="!usSectorData || !usSectorData.sectors.length" class="text-gray-400 text-xs">データなし</div>
+          <div v-else class="space-y-0.5">
+            <div
+              v-for="s in usSectorData.sectors"
+              :key="s.ticker"
+              class="flex items-center gap-1.5 text-xs"
+            >
+              <span class="w-10 text-gray-500 shrink-0 font-mono">{{ s.ticker }}</span>
+              <span class="w-16 text-gray-700 shrink-0 truncate">{{ s.sector }}</span>
+              <div class="flex-1 flex items-center gap-1 min-w-0">
+                <div class="flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                  <div
+                    class="h-full rounded transition-all"
+                    :class="(s.change_pct ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'"
+                    :style="{ width: `${Math.min(Math.abs(s.change_pct ?? 0) / usSectorMaxAbs * 100, 100)}%` }"
+                  />
+                </div>
+                <span
+                  class="w-14 text-right font-medium shrink-0"
+                  :class="(s.change_pct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'"
+                >
+                  {{ s.change_pct != null ? `${s.change_pct >= 0 ? '+' : ''}${s.change_pct.toFixed(2)}%` : '—' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -290,7 +291,6 @@ const sectorData = computed(() => {
 		return [];
 	}
 });
-
 
 function formatReturn(r: number | null | undefined) {
 	if (r == null) return "—";
