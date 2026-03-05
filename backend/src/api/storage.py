@@ -10,7 +10,7 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 
 # /tmp キャッシュの有効期間 (秒)
-_CACHE_TTL = 3600
+_CACHE_TTL = 600
 
 # キャッシュ状態
 _last_download_time: float = 0.0
