@@ -78,10 +78,10 @@
         </div>
       </div>
 
-      <!-- 日経平均ミニチャート -->
+      <!-- 日経平均チャート -->
       <div v-if="nikkeiChartData.length > 1" class="card card-compact">
-        <h2 class="text-xs font-semibold text-gray-500 mb-0.5">日経平均</h2>
-        <NikkeiMiniChart :data="nikkeiChartData" />
+        <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
+        <NikkeiAreaChart :data="nikkeiChartData" />
       </div>
 
       <!-- 上昇/下落上位 + 年初来高値 -->
@@ -209,7 +209,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import HeatMap from "../components/charts/HeatMap.vue";
-import NikkeiMiniChart from "../components/charts/NikkeiMiniChart.vue";
+import NikkeiAreaChart from "../components/charts/NikkeiAreaChart.vue";
 import SectorTrendBar from "../components/charts/SectorTrendBar.vue";
 import { useApi } from "../composables/useApi";
 import type {
@@ -348,7 +348,7 @@ function fngClass(value: number): string {
 onMounted(async () => {
 	try {
 		const [summaryData, newsData, fearData, ytdData] = await Promise.all([
-			api.getSummary(5),
+			api.getSummary(30),
 			api.getNews({ date: yesterday, limit: 3 }),
 			api.getFearIndices().catch(() => null),
 			api.getYtdHighs(10).catch(() => []),

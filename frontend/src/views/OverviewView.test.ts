@@ -9,8 +9,8 @@ vi.mock("../composables/useApi", () => ({ useApi: () => mockApi }));
 vi.mock("../components/charts/HeatMap.vue", () => ({
 	default: { template: "<div data-testid='heatmap-stub' />" },
 }));
-vi.mock("../components/charts/NikkeiMiniChart.vue", () => ({
-	default: { template: "<div data-testid='nikkei-mini-chart-stub' />" },
+vi.mock("../components/charts/NikkeiAreaChart.vue", () => ({
+	default: { template: "<div data-testid='nikkei-area-chart-stub' />" },
 }));
 vi.mock("../components/charts/SectorTrendBar.vue", () => ({
 	default: { template: "<div data-testid='sector-trend-bar-stub' />" },
@@ -261,7 +261,7 @@ describe("OverviewView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.find("[data-testid='nikkei-mini-chart-stub']").exists()).toBe(true);
+		expect(wrapper.find("[data-testid='nikkei-area-chart-stub']").exists()).toBe(true);
 	});
 
 	it("業種トレンド棒グラフがセクターデータありで表示される", async () => {

@@ -116,6 +116,7 @@ function initChart() {
 			background: { type: ColorType.Solid, color: "#131722" },
 			fontFamily: "system-ui, sans-serif",
 			fontSize: 11,
+			attributionLogo: false,
 		},
 		grid: {
 			vertLines: { color: "rgba(255,255,255,0.05)", style: 1 },
