@@ -128,35 +128,6 @@
         </div>
       </template>
 
-      <!-- ソース別タブ -->
-      <template v-else-if="activeTab === 'source'">
-        <div class="space-y-2">
-          <details
-            v-for="group in sourceGroups"
-            :key="group.source"
-            open
-            class="border-b border-gray-100 pb-2 last:border-0"
-          >
-            <summary class="cursor-pointer font-medium text-sm py-1">
-              {{ group.source }} ({{ group.articles.length }}件)
-            </summary>
-            <div class="space-y-1 mt-1 ml-2">
-              <div
-                v-for="a in group.articles"
-                :key="a.id"
-                class="flex items-center gap-2 text-sm"
-              >
-                <span v-if="a.category" :class="['cat-badge', catColor(a.category)]">{{ a.category }}</span>
-                <a :href="a.url" target="_blank" rel="noopener noreferrer"
-                  class="text-blue-400 hover:text-blue-300 line-clamp-1 flex-1">
-                  {{ a.title_ja ?? a.title }}
-                </a>
-                <span class="text-xs text-gray-500 flex-shrink-0">{{ formatTime(a.published_at) }}</span>
-              </div>
-            </div>
-          </details>
-        </div>
-      </template>
     </div>
   </div>
 </template>
@@ -173,13 +144,7 @@ const summary = ref<NewsSummary | null>(null);
 const loading = ref(false);
 const filterDate = ref("");
 const filterCategory = ref("");
-const activeTab = ref<"latest" | "theme" | "source">("latest");
-
-const tabs = [
-	{ key: "latest" as const, label: "速報" },
-	{ key: "theme" as const, label: "テーマ別" },
-	{ key: "source" as const, label: "ソース別" },
-];
+const activeTab = ref<"latest" | "theme">("latest");
 
 function todayJst() {
 	return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
@@ -235,16 +200,16 @@ const themeGroups = computed(() => {
 		.sort((a, b) => b.articles.length - a.articles.length);
 });
 
-const sourceGroups = computed(() => {
-	const groups: Record<string, NewsArticle[]> = {};
-	for (const a of articles.value) {
-		const src = a.source_name || a.source;
-		if (!groups[src]) groups[src] = [];
-		groups[src].push(a);
-	}
-	return Object.entries(groups)
-		.map(([source, arts]) => ({ source, articles: arts }))
-		.sort((a, b) => b.articles.length - a.articles.length);
+const hasThemeVariety = computed(() =>
+	themeGroups.value.some((g) => g.category !== "その他"),
+);
+
+const tabs = computed(() => {
+	const t: { key: "latest" | "theme"; label: string }[] = [
+		{ key: "latest", label: "速報" },
+	];
+	if (hasThemeVariety.value) t.push({ key: "theme", label: "テーマ別" });
+	return t;
 });
 
 function formatTime(dt: string) {
@@ -285,6 +250,9 @@ function catColor(cat: string | null): string {
 	return CAT_COLORS[cat || ""] || "bg-gray-100 text-gray-600";
 }
 
+watch(hasThemeVariety, (val) => {
+	if (!val && activeTab.value === "theme") activeTab.value = "latest";
+});
 watch(filterDate, () => {
 	filterCategory.value = "";
 	load();
