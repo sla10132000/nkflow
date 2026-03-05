@@ -202,9 +202,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import HeatMap from "../components/charts/HeatMap.vue";
-import NikkeiAreaChart from "../components/charts/NikkeiAreaChart.vue";
-import SectorTrendBar from "../components/charts/SectorTrendBar.vue";
+import HeatMap from "../components/overview/HeatMap.vue";
+import NikkeiAreaChart from "../components/overview/NikkeiAreaChart.vue";
+import SectorTrendBar from "../components/overview/SectorTrendBar.vue";
 import LoadingState from "../components/shared/LoadingState.vue";
 import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import { useApi } from "../composables/useApi";

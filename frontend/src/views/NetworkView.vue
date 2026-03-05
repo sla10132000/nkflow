@@ -188,10 +188,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import FundFlowSankey from "../components/charts/FundFlowSankey.vue";
-import FundFlowTimeline from "../components/charts/FundFlowTimeline.vue";
-import MarketPressureGauge from "../components/charts/MarketPressureGauge.vue";
-import MarketPressureTimeline from "../components/charts/MarketPressureTimeline.vue";
+import FundFlowSankey from "../components/fund-flow/FundFlowSankey.vue";
+import FundFlowTimeline from "../components/fund-flow/FundFlowTimeline.vue";
+import MarketPressureGauge from "../components/market-pressure/MarketPressureGauge.vue";
+import MarketPressureTimeline from "../components/market-pressure/MarketPressureTimeline.vue";
 import GraphView from "../components/network/GraphView.vue";
 import { useApi } from "../composables/useApi";
 import { useMarketStore } from "../stores/useMarketStore";
