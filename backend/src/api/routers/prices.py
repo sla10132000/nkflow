@@ -2,7 +2,7 @@
 from typing import Optional
 from sqlite3 import Connection
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.storage import get_connection
 
@@ -12,7 +12,7 @@ router = APIRouter()
 @router.get("/prices/{code}")
 def get_prices(
     code: str,
-    from_: Optional[str] = None,
+    from_: Optional[str] = Query(None, alias="from"),
     to: Optional[str] = None,
     conn: Connection = Depends(get_connection),
 ):
