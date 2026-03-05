@@ -78,10 +78,15 @@
         </div>
       </div>
 
-      <!-- 日経平均チャート -->
-      <div class="card card-compact">
-        <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
-        <NikkeiAreaChart />
+      <!-- 日経平均チャート + 業種トレンド 横並び -->
+      <div class="grid gap-2" style="grid-template-columns: 2fr 3fr">
+        <div class="card card-compact">
+          <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
+          <NikkeiAreaChart />
+        </div>
+        <div v-if="jpSectorData.length" class="card" style="overflow: hidden">
+          <SectorTrendBar :sectors="jpSectorData" :columns="4" />
+        </div>
       </div>
 
       <!-- 上昇/下落上位 + 年初来高値 -->
@@ -162,16 +167,12 @@
 
         <div v-if="sectorLoading" class="text-gray-400 text-xs mb-2">読み込み中...</div>
         <template v-else>
+          <div class="grid grid-cols-2 gap-4">
           <!-- 日本セクター ヒートマップ -->
-          <div class="mb-2">
+          <div>
             <div class="text-xs text-gray-500 font-medium mb-1">日本</div>
             <HeatMap v-if="jpSectorData.length" :sectors="jpSectorData" />
             <div v-else class="text-gray-400 text-xs">データなし</div>
-          </div>
-
-          <!-- 日本セクター 業種トレンドバー -->
-          <div v-if="jpSectorData.length" class="mb-3" style="overflow: hidden">
-            <SectorTrendBar :sectors="jpSectorData" :columns="4" />
           </div>
 
           <!-- 米国セクター -->
@@ -206,6 +207,7 @@
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </template>
       </div>

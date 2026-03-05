@@ -215,6 +215,9 @@ export class NkflowStack extends Stack {
       }),
       memorySize: 512,
       timeout: Duration.seconds(300),
+      // [IMPORTANT] stocks.db は 500MB+ になるため /tmp に余裕が必要。
+      // 3072MB 未満に減らすと "No space left on device" で正規化が失敗する。
+      ephemeralStorageSize: cdk.Size.mebibytes(3072),
       role: newsFetchRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
