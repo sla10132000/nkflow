@@ -8,39 +8,41 @@
         <span class="text-red-600 font-medium">下降{{ downCount }}</span>
       </span>
     </div>
-    <div class="space-y-px">
-      <div
-        v-for="s in sorted"
-        :key="s.sector"
-        class="flex items-center gap-1 text-xs h-4"
-      >
-        <span class="w-20 text-gray-600 truncate shrink-0 text-right text-[11px]">{{ s.sector }}</span>
-        <div class="flex-1 flex items-center h-3">
-          <!-- Left half (negative) -->
-          <div class="w-1/2 flex justify-end">
-            <div
-              v-if="s.avg_return < 0"
-              class="h-full bg-red-400 rounded-l"
-              :style="{ width: `${barPct(s.avg_return)}%` }"
-            />
-          </div>
-          <!-- Center line -->
-          <div class="w-px h-full bg-gray-300 shrink-0" />
-          <!-- Right half (positive) -->
-          <div class="w-1/2">
-            <div
-              v-if="s.avg_return >= 0"
-              class="h-full bg-green-400 rounded-r"
-              :style="{ width: `${barPct(s.avg_return)}%` }"
-            />
-          </div>
-        </div>
-        <span
-          class="w-12 text-right font-medium shrink-0 text-[11px]"
-          :class="s.avg_return >= 0 ? 'text-green-600' : 'text-red-600'"
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+      <div v-for="(column, ci) in columns" :key="ci" class="space-y-px">
+        <div
+          v-for="s in column"
+          :key="s.sector"
+          class="flex items-center gap-1 text-xs h-4"
         >
-          {{ s.avg_return >= 0 ? '+' : '' }}{{ (s.avg_return * 100).toFixed(1) }}%
-        </span>
+          <span class="w-20 text-gray-600 truncate shrink-0 text-right text-[11px]">{{ s.sector }}</span>
+          <div class="flex-1 flex items-center h-3">
+            <!-- Left half (negative) -->
+            <div class="w-1/2 flex justify-end">
+              <div
+                v-if="s.avg_return < 0"
+                class="h-full bg-red-400 rounded-l"
+                :style="{ width: `${barPct(s.avg_return)}%` }"
+              />
+            </div>
+            <!-- Center line -->
+            <div class="w-px h-full bg-gray-300 shrink-0" />
+            <!-- Right half (positive) -->
+            <div class="w-1/2">
+              <div
+                v-if="s.avg_return >= 0"
+                class="h-full bg-green-400 rounded-r"
+                :style="{ width: `${barPct(s.avg_return)}%` }"
+              />
+            </div>
+          </div>
+          <span
+            class="w-12 text-right font-medium shrink-0 text-[11px]"
+            :class="s.avg_return >= 0 ? 'text-green-600' : 'text-red-600'"
+          >
+            {{ s.avg_return >= 0 ? '+' : '' }}{{ (s.avg_return * 100).toFixed(1) }}%
+          </span>
+        </div>
       </div>
     </div>
   </div>
@@ -61,6 +63,11 @@ const props = defineProps<{ sectors: SectorItem[] }>();
 const sorted = computed(() =>
 	[...props.sectors].sort((a, b) => b.avg_return - a.avg_return),
 );
+
+const columns = computed(() => {
+	const half = Math.ceil(sorted.value.length / 2);
+	return [sorted.value.slice(0, half), sorted.value.slice(half)];
+});
 
 const upCount = computed(
 	() => props.sectors.filter((s) => s.avg_return > 0).length,
