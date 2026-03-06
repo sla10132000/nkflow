@@ -273,13 +273,14 @@ def fetch_us_indices(db_path: str) -> dict:
     Returns:
         {"status": "ok", "rows_inserted": N, "tickers": [...]}
     """
-    from src.config import FEAR_INDEX_TICKERS, US_INDEX_TICKERS, US_SECTOR_ETF_TICKERS
+    from src.config import COMMODITY_TICKERS, FEAR_INDEX_TICKERS, US_INDEX_TICKERS, US_SECTOR_ETF_TICKERS
 
-    # 米国株価指数 + 恐怖指数 + セクター ETF を同じテーブルに保存
+    # 米国株価指数 + 恐怖指数 + セクター ETF + コモディティを同じテーブルに保存
     combined_tickers: dict[str, str] = {
         **US_INDEX_TICKERS,
         **FEAR_INDEX_TICKERS,
         **{k: v["name"] for k, v in US_SECTOR_ETF_TICKERS.items()},
+        **COMMODITY_TICKERS,
     }
 
     conn = sqlite3.connect(db_path)

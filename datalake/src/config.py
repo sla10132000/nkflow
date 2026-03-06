@@ -69,6 +69,14 @@ US_SECTOR_ETF_TICKERS: dict[str, dict[str, str]] = {
 FEAR_INDEX_TICKERS: dict[str, str] = {
     "^VIX": "VIX",
 }
+
+# コモディティ先物 (Phase 26): us_indices テーブルに保存
+COMMODITY_TICKERS: dict[str, str] = {
+    "GC=F": "Gold Futures",    # 金
+    "CL=F": "WTI Crude Oil",   # WTI原油
+    "SI=F": "Silver Futures",  # 銀
+    "HG=F": "Copper Futures",  # 銅
+}
 # BTC Fear & Greed Index
 ALTERNATIVE_ME_FNG_URL = "https://api.alternative.me/fng/"
 
