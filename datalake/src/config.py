@@ -72,10 +72,13 @@ FEAR_INDEX_TICKERS: dict[str, str] = {
 
 # コモディティ先物 (Phase 26): us_indices テーブルに保存
 COMMODITY_TICKERS: dict[str, str] = {
-    "GC=F": "Gold Futures",    # 金
-    "CL=F": "WTI Crude Oil",   # WTI原油
-    "SI=F": "Silver Futures",  # 銀
-    "HG=F": "Copper Futures",  # 銅
+    "GC=F": "Gold Futures",        # 金
+    "CL=F": "WTI Crude Oil",       # WTI原油
+    "SI=F": "Silver Futures",      # 銀
+    "HG=F": "Copper Futures",      # 銅
+    "NG=F": "Natural Gas",         # 天然ガス
+    "ZW=F": "Wheat Futures",       # 小麦
+    "ZC=F": "Corn Futures",        # コーン
 }
 # BTC Fear & Greed Index
 ALTERNATIVE_ME_FNG_URL = "https://api.alternative.me/fng/"

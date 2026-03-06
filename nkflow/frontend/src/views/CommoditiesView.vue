@@ -6,7 +6,7 @@
     <div v-if="error" class="bg-red-50 text-red-700 rounded p-3 text-sm">{{ error }}</div>
 
     <!-- サマリカード -->
-    <div v-if="summaryData.length" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <div v-if="summaryData.length" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
       <div
         v-for="s in summaryData"
         :key="s.symbol"
@@ -112,6 +112,9 @@ const COMMODITIES = [
 	{ symbol: "CL=F", label: "原油 (WTI)" },
 	{ symbol: "SI=F", label: "銀" },
 	{ symbol: "HG=F", label: "銅" },
+	{ symbol: "NG=F", label: "天然ガス" },
+	{ symbol: "ZW=F", label: "小麦" },
+	{ symbol: "ZC=F", label: "コーン" },
 ];
 
 const PERIODS = [

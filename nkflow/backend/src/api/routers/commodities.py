@@ -6,18 +6,24 @@ from fastapi import APIRouter, Depends, Query
 from src.api.storage import get_connection
 
 # コモディティティッカー一覧 (表示名マッピング)
-_COMMODITY_TICKERS = ("GC=F", "CL=F", "SI=F", "HG=F")
+_COMMODITY_TICKERS = ("GC=F", "CL=F", "SI=F", "HG=F", "NG=F", "ZW=F", "ZC=F")
 _COMMODITY_NAMES: dict[str, str] = {
     "GC=F": "Gold Futures",
     "CL=F": "WTI Crude Oil",
     "SI=F": "Silver Futures",
     "HG=F": "Copper Futures",
+    "NG=F": "Natural Gas",
+    "ZW=F": "Wheat Futures",
+    "ZC=F": "Corn Futures",
 }
 _COMMODITY_LABELS: dict[str, str] = {
     "GC=F": "金",
     "CL=F": "原油 (WTI)",
     "SI=F": "銀",
     "HG=F": "銅",
+    "NG=F": "天然ガス",
+    "ZW=F": "小麦",
+    "ZC=F": "コーン",
 }
 _COMMODITY_PLACEHOLDERS = ",".join(f"'{t}'" for t in _COMMODITY_TICKERS)
 
