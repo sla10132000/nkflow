@@ -1,11 +1,12 @@
 <template>
   <div class="w-full">
-    <!-- 凡例補足 (MarketPressureTimeline と色統一: 弱気=青 / 中立=灰 / 過熱=琥珀) -->
-    <div class="flex items-center gap-3 text-xs text-gray-500 mb-1 px-1">
-      <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(59,130,246,0.18);" />
-      <span>弱気域 (スコア &lt; 0)</span>
-      <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(202,138,4,0.15);" />
-      <span>過熱域 (スコア &gt; 0)</span>
+    <!-- 凡例: ゾーン背景 (MarketPressureTimeline と統一) -->
+    <div v-if="activeZones.length" class="flex flex-wrap gap-x-3 gap-y-1 mb-1 px-1 text-xs text-gray-400">
+      <span>背景:</span>
+      <span v-for="z in activeZones" :key="z" class="flex items-center gap-1">
+        <span class="inline-block w-3 h-3 rounded-sm border border-gray-200"
+              :style="{ background: ZONE_BG[z] ?? 'transparent' }" />{{ ZONE_LABEL[z] ?? z }}
+      </span>
     </div>
     <!-- responsive:true + maintainAspectRatio:false には親の固定高さが必要 -->
     <div style="position: relative; height: 220px;">
@@ -50,6 +51,33 @@ const props = withDefaults(
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 let chartInstance: Chart | null = null;
+
+// MarketPressureTimeline と同一のゾーン色設定
+const ZONE_BG: Record<string, string> = {
+	ceiling: "rgba(220,38,38,0.15)",
+	overheat: "rgba(202,138,4,0.12)",
+	neutral: "rgba(22,163,74,0.08)",
+	weak: "rgba(59,130,246,0.18)",
+	bottom: "rgba(30,58,95,0.12)",
+};
+
+const ZONE_LABEL: Record<string, string> = {
+	ceiling: "天井",
+	overheat: "過熱",
+	neutral: "中立",
+	weak: "弱気",
+	bottom: "底",
+};
+
+// 乖離スコアからゾーンを計算
+function computeZone(score: number | null | undefined): string {
+	if (score == null) return "neutral";
+	if (score > 0.5) return "ceiling";
+	if (score > 0.2) return "overheat";
+	if (score < -0.5) return "bottom";
+	if (score < -0.2) return "weak";
+	return "neutral";
+}
 
 const slicedIndicators = computed(() => props.indicators.slice(-props.weeks));
 
@@ -184,52 +212,63 @@ const chartOptions = computed<ChartOptions>(() => ({
 	},
 }));
 
-// ゾーン背景 + ゼロライン強調プラグイン
+// 現在表示中ゾーン一覧 (凡例表示用)
+const activeZones = computed(() => {
+	const zones = slicedIndicators.value.map((d) => computeZone(d.divergence_score));
+	return [...new Set(zones)].sort(
+		(a, b) => Object.keys(ZONE_BG).indexOf(a) - Object.keys(ZONE_BG).indexOf(b),
+	);
+});
+
+/** 縦色帯ゾーン + 閾値ライン プラグイン (MarketPressureTimeline と同方式) */
 const zoneBgPlugin = {
 	id: "investorFlowZone",
 	beforeDraw(chart: Chart) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const { ctx, chartArea, scales } = chart as any;
+		const { ctx, chartArea, scales, data } = chart as any;
 		const y2 = scales?.y2;
 		if (!y2 || !chartArea) return;
 
-		const zeroY: number = y2.getPixelForValue(0);
-		const { top, bottom, left, right } = chartArea;
-		const width = right - left;
+		const n: number = data.labels?.length ?? 0;
+		if (!n) return;
+
+		const bw = (chartArea.right - chartArea.left) / n;
+		const { top, bottom, left } = chartArea;
 
 		ctx.save();
 
-		// 正領域 (スコア > 0 = 過熱): 薄琥珀 (MarketPressureTimeline の過熱ゾーンと統一)
-		const amberTop = Math.max(top, Math.min(zeroY, bottom));
-		if (amberTop > top) {
-			ctx.fillStyle = "rgba(202,138,4,0.08)";
-			ctx.fillRect(left, top, width, amberTop - top);
-		}
+		// 各時点を縦帯で塗る (MarketPressureTimeline と同方式)
+		slicedIndicators.value.forEach((d, i) => {
+			const zone = computeZone(d.divergence_score);
+			ctx.fillStyle = ZONE_BG[zone] ?? "rgba(107,114,128,0.05)";
+			ctx.fillRect(left + i * bw, top, bw, bottom - top);
+		});
 
-		// 負領域 (スコア < 0 = 弱気): 薄青 (MarketPressureTimeline の弱気ゾーンと統一)
-		const blueBottom = Math.min(bottom, Math.max(zeroY, top));
-		if (blueBottom < bottom) {
-			ctx.fillStyle = "rgba(59,130,246,0.08)";
-			ctx.fillRect(left, blueBottom, width, bottom - blueBottom);
-		}
+		// 閾値ライン: ±0.5, ±0.2 (MarketPressureTimeline の閾値ラインと同方式)
+		const thresholds = [
+			{ val: 0.5, color: "rgba(220,38,38,0.55)", label: "+0.5" },
+			{ val: 0.2, color: "rgba(202,138,4,0.55)", label: "+0.2" },
+			{ val: 0, color: "rgba(107,114,128,0.4)", label: "0" },
+			{ val: -0.2, color: "rgba(59,130,246,0.55)", label: "−0.2" },
+			{ val: -0.5, color: "rgba(29,78,216,0.55)", label: "−0.5" },
+		];
 
-		// ゼロライン (破線で強調)
-		if (zeroY >= top && zeroY <= bottom) {
-			ctx.strokeStyle = "rgba(107,114,128,0.5)";
-			ctx.lineWidth = 1.5;
-			ctx.setLineDash([5, 3]);
+		thresholds.forEach(({ val, color, label }) => {
+			const y: number = y2.getPixelForValue(val);
+			if (y < top || y > bottom) return;
+			ctx.strokeStyle = color;
+			ctx.lineWidth = 1;
+			ctx.setLineDash(val === 0 ? [5, 3] : [4, 3]);
 			ctx.beginPath();
-			ctx.moveTo(left, zeroY);
-			ctx.lineTo(right, zeroY);
+			ctx.moveTo(chartArea.left, y);
+			ctx.lineTo(chartArea.right, y);
 			ctx.stroke();
 			ctx.setLineDash([]);
-
-			// ゼロラインラベル
-			ctx.fillStyle = "rgba(107,114,128,0.7)";
+			ctx.fillStyle = color;
 			ctx.font = "9px sans-serif";
-			ctx.textAlign = "left";
-			ctx.fillText("0 (中立)", left + 4, zeroY - 3);
-		}
+			ctx.textAlign = "right";
+			ctx.fillText(label, chartArea.right - 2, y - 2);
+		});
 
 		ctx.restore();
 	},

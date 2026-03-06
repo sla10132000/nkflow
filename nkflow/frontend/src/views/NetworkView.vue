@@ -70,37 +70,31 @@
         </div>
       </div>
 
-      <!-- 信用圧力タイムライン -->
-      <div class="border-b border-gray-100">
-        <div class="px-3 py-2">
-          <button
-            @click="showPressureTimeline = !showPressureTimeline"
-            class="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >信用圧力タイムライン {{ showPressureTimeline ? '▲' : '▼' }}</button>
-        </div>
-        <div v-if="showPressureTimeline" class="px-3 pb-3">
+      <!-- 2カラム横並び: 信用圧力タイムライン (左) + 投資主体別フロー (右) -->
+      <div class="grid grid-cols-2 divide-x divide-gray-100">
+
+        <!-- 左: 信用圧力タイムライン -->
+        <div class="p-3">
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">信用圧力タイムライン</h2>
           <MarketPressureTimeline :days="pressureDays" />
         </div>
-      </div>
 
-      <!-- 投資主体別フロー -->
-      <div class="p-3">
-        <div class="flex flex-wrap items-center gap-3 mb-2">
-          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">投資主体別フロー (東証プライム)</h2>
-          <template v-if="latestFlow">
-            <span class="text-xs text-gray-400">最新週: {{ latestFlow.week_end }}</span>
-            <span :class="regimeFlowBadgeClass(latestFlow.indicators.flow_regime)" class="text-xs px-2 py-0.5 rounded-full font-medium">
-              {{ flowRegimeLabel(latestFlow.indicators.flow_regime) }}
-            </span>
-            <span class="text-xs text-gray-400">乖離スコア: {{ latestFlow.indicators.divergence_score != null ? latestFlow.indicators.divergence_score.toFixed(2) : '—' }}</span>
-          </template>
-        </div>
-        <DivergenceGauge v-if="latestFlow" :value="latestFlow.indicators.divergence_score" :regime="latestFlow.indicators.flow_regime" />
-        <div class="mt-3">
+        <!-- 右: 投資主体別フロー -->
+        <div class="p-3">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">投資主体別フロー (東証プライム)</h2>
+            <template v-if="latestFlow">
+              <span :class="regimeFlowBadgeClass(latestFlow.indicators.flow_regime)" class="text-xs px-2 py-0.5 rounded-full font-medium">
+                {{ flowRegimeLabel(latestFlow.indicators.flow_regime) }}
+              </span>
+              <span class="text-xs text-gray-400">乖離: {{ latestFlow.indicators.divergence_score != null ? latestFlow.indicators.divergence_score.toFixed(2) : '—' }}</span>
+            </template>
+          </div>
           <InvestorFlowChart v-if="flowIndicators.length" :indicators="flowIndicators" :weeks="sharedWeeks" />
           <p v-else-if="!loadingFlow" class="text-sm text-gray-500">データなし</p>
           <p v-if="loadingFlow" class="text-sm text-gray-500">読み込み中...</p>
         </div>
+
       </div>
     </div>
 

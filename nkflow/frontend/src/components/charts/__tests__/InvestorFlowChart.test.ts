@@ -80,10 +80,12 @@ describe("InvestorFlowChart", () => {
 		expect(wrapper.find("canvas").exists()).toBe(true);
 	});
 
-	it("ゾーン凡例が表示される (弱気域/過熱域)", () => {
+	it("ゾーン凡例が表示される (背景: ラベル付き)", () => {
 		const wrapper = mountChart();
-		expect(wrapper.text()).toContain("弱気域");
-		expect(wrapper.text()).toContain("過熱域");
+		// activeZones があるときは「背景:」ラベルと少なくとも1ゾーン名が表示される
+		expect(wrapper.text()).toContain("背景:");
+		// sampleIndicators の divergence_score: 0.4 → 過熱, -0.2 → 中立
+		expect(wrapper.text()).toContain("過熱");
 	});
 
 	it("divergence_score が null でもクラッシュしない", () => {
