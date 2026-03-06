@@ -23,7 +23,7 @@ import { Construct } from 'constructs';
 const DOMAIN_NAME = 'nkflow.senken.app';
 const HOSTED_ZONE_DOMAIN = 'senken.app';
 
-const BACKEND = path.join(__dirname, '../backend');
+const BACKEND = path.join(__dirname, '../../backend');
 // datalake is a shared module at repo root, not under nkflow/
 const DATALAKE = path.join(__dirname, '../../../datalake');
 

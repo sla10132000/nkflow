@@ -1,5 +1,17 @@
-"""API 用 環境変数と定数"""
+"""API + バッチ共通 環境変数と定数"""
 import os
+
+# AWS
+S3_BUCKET = os.environ.get("S3_BUCKET", "")
+S3_SQLITE_KEY = "data/stocks.db"
+S3_KUZU_KEY = "data/kuzu_db.tar.gz"
+
+# J-Quants (SSM Parameter Store から取得)
+JQUANTS_API_KEY = os.environ.get("JQUANTS_API_KEY", "")
+JQUANTS_PLAN = os.environ.get("JQUANTS_PLAN", "standard")
+
+# SNS (Phase 12)
+SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
 
 
 def _resolve_local_path(env_key: str, default_path: str) -> str:
@@ -18,6 +30,37 @@ def _resolve_local_path(env_key: str, default_path: str) -> str:
 
 # ローカルパス
 SQLITE_PATH = _resolve_local_path("SQLITE_PATH", "/tmp/stocks.db")
+KUZU_PATH = _resolve_local_path("KUZU_PATH", "/tmp/kuzu_db")
+
+# 米国株価指数 (Phase 20)
+US_INDEX_TICKERS: dict[str, str] = {
+    "^GSPC": "S&P 500",
+    "^DJI": "Dow Jones",
+    "^IXIC": "NASDAQ Composite",
+}
+US_INDEX_INITIAL_PERIOD = "10y"
+
+# 恐怖指数 (Phase 21)
+FEAR_INDEX_TICKERS: dict[str, str] = {
+    "^VIX": "VIX",
+}
+ALTERNATIVE_ME_FNG_URL = "https://api.alternative.me/fng/"
+
+# 分析パラメータ — 相関・因果
+CORRELATION_PERIODS = [20, 60, 120]
+GRANGER_MAX_LAG = 5
+GRANGER_P_THRESHOLD = 0.05
+CORRELATION_THRESHOLD = 0.5
+COMMUNITY_RESOLUTION = 1.0
+
+# 分析パラメータ — 統計分析ウィンドウ
+GRANGER_WINDOW = 60
+LEAD_LAG_MAX = 5
+LEAD_LAG_THRESHOLD = 0.3
+FUND_FLOW_WINDOW = 20
+REGIME_SHORT_WINDOW = 5
+REGIME_LONG_WINDOW = 20
+MAX_GRANGER_STOCKS = 100
 
 # 米国セクター ETF (Phase 23b): API ルーターで参照
 US_SECTOR_ETF_TICKERS: dict[str, dict[str, str]] = {
