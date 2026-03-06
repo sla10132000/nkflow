@@ -140,6 +140,74 @@ class TestFetchExchangeRates:
 # 信用残高取得テスト
 # ─────────────────────────────────────────────────────────────────────────────
 
+class TestRawSaveExchangeRates:
+    @patch("src.pipeline.raw_store.save_raw")
+    def test_fetch_exchange_rates_saves_raw(self, mock_save_raw, db_conn):
+        mock_save_raw.return_value = "raw/yahoo_finance/exchange_rates/2025-01-04.json"
+        from src.ingestion.yahoo_finance import fetch_exchange_rates
+
+        with patch("requests.get") as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.json.return_value = FAKE_YAHOO_RESPONSE
+            mock_resp.raise_for_status.return_value = None
+            mock_get.return_value = mock_resp
+
+            fetch_exchange_rates(db_conn, target_date="2025-01-04")
+
+        mock_save_raw.assert_called_once()
+        args = mock_save_raw.call_args[0]
+        assert args[0] == "yahoo_finance"
+        assert args[1] == "exchange_rates"
+        assert args[2] == "2025-01-04"
+        assert isinstance(args[3], dict)  # {pair_name: [records]}
+
+
+class TestRawSaveNikkeiClose:
+    @patch("src.pipeline.raw_store.save_raw")
+    def test_fetch_nikkei_close_saves_raw(self, mock_save_raw, db_conn):
+        mock_save_raw.return_value = "raw/yahoo_finance/nikkei/2025-01-03.json"
+        from src.ingestion.yahoo_finance import fetch_nikkei_close
+
+        with patch("requests.get") as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.json.return_value = FAKE_N225_RESPONSE
+            mock_resp.raise_for_status.return_value = None
+            mock_get.return_value = mock_resp
+
+            fetch_nikkei_close(db_conn, target_date="2025-01-03")
+
+        mock_save_raw.assert_called_once()
+        args = mock_save_raw.call_args[0]
+        assert args[0] == "yahoo_finance"
+        assert args[1] == "nikkei"
+
+
+class TestRawSaveMarginBalance:
+    def _make_client(self, df):
+        import jquantsapi
+        client = MagicMock(spec=jquantsapi.ClientV2)
+        client.get_mkt_margin_interest_range.return_value = df
+        return client
+
+    @patch("src.pipeline.raw_store.save_raw")
+    def test_fetch_margin_balance_saves_raw(self, mock_save_raw, db_conn):
+        mock_save_raw.return_value = "raw/jquants_margin/margin_balance/2025-01-10.json"
+        from src.ingestion.yahoo_finance import fetch_margin_balance
+
+        df = pd.DataFrame({
+            "Code": ["72030"], "Date": ["20250110"],
+            "LongVol": [1000000], "ShrtVol": [100000],
+        })
+        client = self._make_client(df)
+
+        fetch_margin_balance(db_conn, target_date="2025-01-10", client=client)
+
+        mock_save_raw.assert_called_once()
+        args = mock_save_raw.call_args[0]
+        assert args[0] == "jquants_margin"
+        assert args[1] == "margin_balance"
+
+
 class TestFetchMarginBalance:
     def _make_client(self, df: pd.DataFrame):
         """J-Quants v2 クライアントのモックを作成する"""

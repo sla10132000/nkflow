@@ -115,6 +115,9 @@ def fetch_nikkei_close(conn: sqlite3.Connection, target_date: Optional[str] = No
         logger.warning("日経225: データ取得できませんでした")
         return False
 
+    from src.pipeline.raw_store import save_raw
+    save_raw("yahoo_finance", "nikkei", target_date, df)
+
     row = df[df["date"] <= target_date].sort_values("date").tail(1)
     if row.empty:
         logger.warning(f"日経225: {target_date} 以前のデータなし")
@@ -174,12 +177,15 @@ def fetch_exchange_rates(
         target_date = date.today().isoformat()
 
     total_rows = 0
+    raw_data: dict[str, list] = {}
 
     for yahoo_symbol, pair_name in FX_PAIRS:
         df = _fetch_yahoo_ohlcv(yahoo_symbol, days=30)
         if df.empty:
             logger.warning(f"{pair_name}: データ取得できませんでした")
             continue
+
+        raw_data[pair_name] = df.to_dict(orient="records")
 
         # 当日以前のデータのみに絞る
         df = df[df["date"] <= target_date].copy()
@@ -230,6 +236,10 @@ def fetch_exchange_rates(
         conn.commit()
         total_rows += len(rows)
         logger.info(f"exchange_rates: {pair_name} {len(rows)} 行挿入")
+
+    if raw_data:
+        from src.pipeline.raw_store import save_raw
+        save_raw("yahoo_finance", "exchange_rates", target_date, raw_data)
 
     return total_rows
 
@@ -477,6 +487,9 @@ def fetch_margin_balance(
     if df is None or df.empty:
         logger.info("信用残高データなし")
         return 0
+
+    from src.pipeline.raw_store import save_raw
+    save_raw("jquants_margin", "margin_balance", target_date, df)
 
     # カラム名の正規化 (v2 実際のカラム名: LongVol/ShrtVol)
     col_map = {
