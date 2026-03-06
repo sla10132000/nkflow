@@ -67,7 +67,7 @@ install-frontend:
 	cd nkflow/frontend && npm install
 
 install-cdk:
-	cd cdk && npm ci
+	cd nkflow/cdk && npm ci
 
 # -----------------------------------------------------------------------
 # Dev server
@@ -115,21 +115,21 @@ build-frontend:
 	cd nkflow/frontend && npm run build
 
 build-cdk:
-	cd cdk && npm run build
+	cd nkflow/cdk && npm run build
 
 # -----------------------------------------------------------------------
 # CDK / Deploy
 # -----------------------------------------------------------------------
 
 diff: build-cdk
-	cd cdk && npx cdk diff NkflowStack
+	cd nkflow/cdk && npx cdk diff NkflowStack
 
 # CDK + frontend を両方デプロイ (通常はこれを使う)
 deploy: deploy-cdk deploy-frontend
 
 # CDK のみ (backend/Lambda/インフラ変更時)
 deploy-cdk: build-cdk
-	cd cdk && npx cdk deploy NkflowStack --require-approval never
+	cd nkflow/cdk && npx cdk deploy NkflowStack --require-approval never
 
 # frontend のみ: ビルドして S3 へ同期
 # ⚠️ GitHub Actions は frontend/ を自動デプロイしない — Vue 変更後は必ずこれを実行

@@ -5,8 +5,9 @@ on:
     branches:
       - main
     paths:
-      - 'cdk/**'
-      - 'backend/**'
+      - 'nkflow/cdk/**'
+      - 'nkflow/backend/**'
+      - 'datalake/**'
       - '.github/workflows/deploy-cdk.yml'
   workflow_dispatch:
 
@@ -28,7 +29,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: cdk/package-lock.json
+          cache-dependency-path: nkflow/cdk/package-lock.json
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -37,19 +38,19 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Install CDK dependencies
-        working-directory: cdk
+        working-directory: nkflow/cdk
         run: npm ci
 
       - name: Build TypeScript
-        working-directory: cdk
+        working-directory: nkflow/cdk
         run: npm run build
 
       - name: CDK Bootstrap (初回のみ冪等実行)
-        working-directory: cdk
+        working-directory: nkflow/cdk
         run: npx cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/ap-northeast-1
 
       - name: CDK Deploy
-        working-directory: cdk
+        working-directory: nkflow/cdk
         run: npx cdk deploy NkflowStack --require-approval never --outputs-file /tmp/cdk-outputs.json
 
       - name: Show stack outputs
