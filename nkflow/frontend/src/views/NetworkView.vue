@@ -70,16 +70,10 @@
         </div>
       </div>
 
-      <!-- 縦並び: 信用圧力タイムライン (上) + 投資主体別フロー (下) -->
+      <!-- 縦並び: 投資主体別フロー (上) + 信用圧力タイムライン (下) -->
       <div class="flex flex-col divide-y divide-gray-100">
 
-        <!-- 左: 信用圧力タイムライン -->
-        <div class="p-3">
-          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">信用圧力タイムライン</h2>
-          <MarketPressureTimeline :days="pressureDays" />
-        </div>
-
-        <!-- 右: 投資主体別フロー -->
+        <!-- 上: 投資主体別フロー -->
         <div class="p-3">
           <div class="flex flex-wrap items-center gap-2 mb-2">
             <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">投資主体別フロー (東証プライム)</h2>
@@ -93,6 +87,12 @@
           <InvestorFlowChart v-if="flowIndicators.length" :indicators="flowIndicators" :weeks="sharedWeeks" />
           <p v-else-if="!loadingFlow" class="text-sm text-gray-500">データなし</p>
           <p v-if="loadingFlow" class="text-sm text-gray-500">読み込み中...</p>
+        </div>
+
+        <!-- 下: 信用圧力タイムライン -->
+        <div class="p-3">
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">信用圧力タイムライン</h2>
+          <MarketPressureTimeline :days="pressureDays" />
         </div>
 
       </div>
