@@ -47,12 +47,15 @@ def sync_stock_master(conn: sqlite3.Connection, client=None) -> int:
     logger.info("銘柄マスタを取得中...")
 
     # ClientV2 (v2 API) と旧 Client (v1 API) でメソッド名・カラム名が異なる
+    from src.pipeline.raw_store import save_raw
+
     import jquantsapi as _jq
     if isinstance(client, _jq.ClientV2):
         df = client.get_eq_master()
         if df is None or df.empty:
             logger.warning("eq_master が空でした")
             return 0
+        save_raw("jquants", "stock_master", date.today().isoformat(), df)
         # v2: Mkt == '0111' がプライム市場
         if "Mkt" in df.columns:
             df = df[df["Mkt"] == "0111"].copy()
@@ -66,6 +69,7 @@ def sync_stock_master(conn: sqlite3.Connection, client=None) -> int:
         if df is None or df.empty:
             logger.warning("listed_info が空でした")
             return 0
+        save_raw("jquants", "stock_master", date.today().isoformat(), df)
         # v1: MarketCode == '0111' がプライム市場
         if "MarketCode" in df.columns:
             df = df[df["MarketCode"] == "0111"].copy()
@@ -146,6 +150,10 @@ def fetch_daily(
     if df is None or df.empty:
         logger.info(f"{target_date} は取引日ではありません (データなし)")
         return 0
+
+    # Raw data save (正規化前の生データを保存)
+    from src.pipeline.raw_store import save_raw
+    save_raw("jquants", "daily_prices", target_date, df)
 
     # カラム名の正規化
     available = {k: v for k, v in col_map.items() if k in df.columns}

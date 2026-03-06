@@ -2,7 +2,7 @@
 import sqlite3
 import sys
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 import pandas as pd
 import pytest
@@ -187,3 +187,52 @@ class TestFetchDaily:
             "FROM daily_prices WHERE code='7203'"
         ).fetchone()
         assert all(v is None for v in row)
+
+
+class TestRawSave:
+    @patch("src.pipeline.raw_store.save_raw")
+    def test_sync_stock_master_saves_raw(self, mock_save_raw, db_conn, mock_client):
+        mock_save_raw.return_value = "raw/jquants/stock_master/2026-03-06.json"
+        from src.ingestion.jquants import sync_stock_master
+
+        sync_stock_master(db_conn, client=mock_client)
+
+        mock_save_raw.assert_called_once()
+        args = mock_save_raw.call_args
+        assert args[0][0] == "jquants"
+        assert args[0][1] == "stock_master"
+        # payload は DataFrame
+        assert isinstance(args[0][3], pd.DataFrame)
+
+    @patch("src.pipeline.raw_store.save_raw")
+    def test_fetch_daily_saves_raw(self, mock_save_raw, db_conn, mock_client):
+        mock_save_raw.return_value = "raw/jquants/daily_prices/2025-01-06.json"
+        db_conn.executemany(
+            "INSERT INTO stocks VALUES (?, ?, ?)",
+            [("7203", "トヨタ", "輸送用機器"),
+             ("6758", "ソニー", "電気機器"),
+             ("6902", "デンソー", "輸送用機器")],
+        )
+        db_conn.commit()
+
+        from src.ingestion.jquants import fetch_daily
+
+        fetch_daily(db_conn, target_date="2025-01-06", client=mock_client)
+
+        mock_save_raw.assert_called_once()
+        args = mock_save_raw.call_args
+        assert args[0][0] == "jquants"
+        assert args[0][1] == "daily_prices"
+        assert args[0][2] == "2025-01-06"
+
+    @patch("src.pipeline.raw_store.save_raw")
+    def test_fetch_daily_no_raw_on_non_trading_day(self, mock_save_raw, db_conn, mock_client):
+        mock_client.get_prices_daily_quotes.return_value = pd.DataFrame()
+        db_conn.execute("INSERT INTO stocks VALUES ('7203', 'トヨタ', '輸送用機器')")
+        db_conn.commit()
+
+        from src.ingestion.jquants import fetch_daily
+
+        fetch_daily(db_conn, target_date="2025-01-04", client=mock_client)
+
+        mock_save_raw.assert_not_called()
