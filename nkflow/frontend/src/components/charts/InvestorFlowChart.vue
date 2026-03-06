@@ -1,5 +1,12 @@
 <template>
   <div class="w-full">
+    <!-- 凡例補足 -->
+    <div class="flex items-center gap-3 text-xs text-gray-500 mb-1 px-1">
+      <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(34,197,94,0.15);" />
+      <span>底入れ域 (スコア &lt; 0)</span>
+      <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(239,68,68,0.12);" />
+      <span>天井警戒域 (スコア &gt; 0)</span>
+    </div>
     <canvas ref="canvasRef" :height="220" />
   </div>
 </template>
@@ -86,13 +93,21 @@ const chartData = computed<ChartData>(() => ({
 		},
 		{
 			type: "line" as const,
-			label: "乖離スコア",
+			label: "乖離スコア (↑天井警戒 / ↓底入れ)",
 			data: slicedIndicators.value.map((d) => d.divergence_score),
-			borderColor: "rgba(34,197,94,0.9)",
-			backgroundColor: "rgba(34,197,94,0.1)",
+			borderColor: "rgba(34,197,94,1)",
+			backgroundColor: "transparent",
 			borderWidth: 2,
-			pointRadius: 3,
-			pointBackgroundColor: "rgba(34,197,94,0.9)",
+			pointRadius: 4,
+			pointBackgroundColor: slicedIndicators.value.map((d) => {
+				const s = d.divergence_score;
+				if (s === null || s === undefined) return "rgba(34,197,94,0.9)";
+				if (s > 0.2) return "rgba(239,68,68,0.9)";
+				if (s < -0.2) return "rgba(34,197,94,0.9)";
+				return "rgba(156,163,175,0.9)";
+			}),
+			pointBorderColor: "white",
+			pointBorderWidth: 1,
 			yAxisID: "y2",
 			order: 1,
 			tension: 0.3,
@@ -115,7 +130,14 @@ const chartOptions = computed<ChartOptions>(() => ({
 					const label = ctx.dataset.label ?? "";
 					const val = ctx.parsed.y;
 					if (ctx.datasetIndex === 2) {
-						return `${label}: ${val != null ? val.toFixed(2) : "—"}`;
+						if (val === null || val === undefined) return `${label}: —`;
+						const desc =
+							val > 0.3
+								? " [天井警戒]"
+								: val < -0.3
+									? " [底入れ]"
+									: " [中立]";
+						return `${label}: ${val.toFixed(2)}${desc}`;
 					}
 					return `${label}: ${val != null ? val.toLocaleString() : "—"}`;
 				},
@@ -139,12 +161,77 @@ const chartOptions = computed<ChartOptions>(() => ({
 			position: "right",
 			min: -1,
 			max: 1,
-			ticks: { font: { size: 10 }, stepSize: 0.5 },
+			ticks: {
+				font: { size: 10 },
+				stepSize: 0.5,
+				// @ts-expect-error chart.js callback type
+				callback(val: number) {
+					if (val === 1) return "+1 天井";
+					if (val === -1) return "-1 底入れ";
+					if (val === 0) return "0 中立";
+					return val.toFixed(1);
+				},
+			},
 			grid: { drawOnChartArea: false },
-			title: { display: true, text: "スコア", font: { size: 10 } },
+			title: {
+				display: true,
+				text: "乖離スコア",
+				font: { size: 10 },
+			},
 		},
 	},
 }));
+
+// ゾーン背景 + ゼロライン強調プラグイン
+const zoneBgPlugin = {
+	id: "investorFlowZone",
+	beforeDraw(chart: Chart) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const { ctx, chartArea, scales } = chart as any;
+		const y2 = scales?.y2;
+		if (!y2 || !chartArea) return;
+
+		const zeroY: number = y2.getPixelForValue(0);
+		const { top, bottom, left, right } = chartArea;
+		const width = right - left;
+
+		ctx.save();
+
+		// 正領域 (スコア > 0 = 天井警戒): 薄赤
+		const redTop = Math.max(top, Math.min(zeroY, bottom));
+		if (redTop > top) {
+			ctx.fillStyle = "rgba(239,68,68,0.07)";
+			ctx.fillRect(left, top, width, redTop - top);
+		}
+
+		// 負領域 (スコア < 0 = 底入れ): 薄緑
+		const greenBottom = Math.min(bottom, Math.max(zeroY, top));
+		if (greenBottom < bottom) {
+			ctx.fillStyle = "rgba(34,197,94,0.07)";
+			ctx.fillRect(left, greenBottom, width, bottom - greenBottom);
+		}
+
+		// ゼロライン (破線で強調)
+		if (zeroY >= top && zeroY <= bottom) {
+			ctx.strokeStyle = "rgba(107,114,128,0.5)";
+			ctx.lineWidth = 1.5;
+			ctx.setLineDash([5, 3]);
+			ctx.beginPath();
+			ctx.moveTo(left, zeroY);
+			ctx.lineTo(right, zeroY);
+			ctx.stroke();
+			ctx.setLineDash([]);
+
+			// ゼロラインラベル
+			ctx.fillStyle = "rgba(107,114,128,0.7)";
+			ctx.font = "9px sans-serif";
+			ctx.textAlign = "left";
+			ctx.fillText("0 (中立)", left + 4, zeroY - 3);
+		}
+
+		ctx.restore();
+	},
+};
 
 function buildChart() {
 	if (!canvasRef.value) return;
@@ -156,6 +243,7 @@ function buildChart() {
 		type: "bar",
 		data: chartData.value,
 		options: chartOptions.value,
+		plugins: [zoneBgPlugin],
 	});
 }
 

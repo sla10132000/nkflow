@@ -83,8 +83,9 @@
         <div class="flex items-center gap-4 mb-2">
           <span class="text-xs text-gray-500">最新週: {{ latestFlow.week_end }}</span>
           <span :class="regimeFlowBadgeClass(latestFlow.indicators.flow_regime)" class="text-xs px-2 py-0.5 rounded-full font-medium">
-            {{ latestFlow.indicators.flow_regime?.toUpperCase() || 'N/A' }}
+            {{ flowRegimeLabel(latestFlow.indicators.flow_regime) }}
           </span>
+          <span class="text-xs text-gray-400">乖離スコア: {{ latestFlow.indicators.divergence_score != null ? latestFlow.indicators.divergence_score.toFixed(2) : '—' }}</span>
         </div>
         <DivergenceGauge :value="latestFlow.indicators.divergence_score" :regime="latestFlow.indicators.flow_regime" />
       </div>
@@ -299,6 +300,14 @@ function regimeFlowBadgeClass(regime: string | null): string {
 	if (regime === "bearish") return "bg-red-100 text-red-700";
 	if (regime === "diverging") return "bg-amber-100 text-amber-700";
 	return "bg-gray-100 text-gray-600";
+}
+
+function flowRegimeLabel(regime: string | null): string {
+	if (regime === "bullish") return "強気 (海外買い優勢)";
+	if (regime === "bearish") return "弱気 (個人買い・海外売り)";
+	if (regime === "diverging") return "乖離拡大";
+	if (regime === "neutral") return "中立";
+	return regime?.toUpperCase() ?? "N/A";
 }
 const regimeLabel = computed(() => {
 	if (currentRegime.value === "risk_on") return "🟢 Risk-on";

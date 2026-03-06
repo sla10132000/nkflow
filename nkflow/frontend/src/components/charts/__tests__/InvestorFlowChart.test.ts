@@ -80,6 +80,12 @@ describe("InvestorFlowChart", () => {
 		expect(wrapper.find("canvas").exists()).toBe(true);
 	});
 
+	it("ゾーン凡例が表示される", () => {
+		const wrapper = mountChart();
+		expect(wrapper.text()).toContain("底入れ域");
+		expect(wrapper.text()).toContain("天井警戒域");
+	});
+
 	it("divergence_score が null でもクラッシュしない", () => {
 		const indicators: InvestorFlowIndicator[] = [
 			{
