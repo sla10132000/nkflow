@@ -58,7 +58,7 @@ help:
 install: install-backend install-datalake install-frontend install-cdk
 
 install-backend:
-	cd backend && uv pip install -e ".[dev]"
+	cd nkflow/backend && uv pip install -e ".[dev]"
 
 install-datalake:
 	cd datalake && uv pip install -e ".[dev]"
@@ -79,28 +79,28 @@ dev:
 # バックエンド開発サーバー (S3_BUCKET 未設定 = ローカルファイルモード)
 # 事前に: make pull  (stocks.db をS3からダウンロード)
 dev-api:
-	cd backend && SQLITE_PATH=$(SQLITE_LOCAL) .venv/bin/uvicorn src.api.main:app --host 127.0.0.1 --port 8001 --reload
+	cd nkflow/backend && SQLITE_PATH=$(SQLITE_LOCAL) .venv/bin/uvicorn src.api.main:app --host 127.0.0.1 --port 8001 --reload
 
 # -----------------------------------------------------------------------
 # Test / Lint
 # -----------------------------------------------------------------------
 
 test:
-	cd backend && .venv/bin/python -m pytest tests/ -v
-	cd datalake && $(CURDIR)/backend/.venv/bin/python -m pytest tests/ -v
+	cd nkflow/backend && .venv/bin/python -m pytest tests/ -v
+	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/python -m pytest tests/ -v
 
 test-datalake:
-	cd datalake && $(CURDIR)/backend/.venv/bin/python -m pytest tests/ -v
+	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/python -m pytest tests/ -v
 
 test-frontend:
 	cd frontend && npm test
 
 lint:
-	cd backend && .venv/bin/ruff check src/ tests/
-	cd datalake && $(CURDIR)/backend/.venv/bin/ruff check src/ tests/ scripts/
+	cd nkflow/backend && .venv/bin/ruff check src/ tests/
+	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/ruff check src/ tests/ scripts/
 
 lint-datalake:
-	cd datalake && $(CURDIR)/backend/.venv/bin/ruff check src/ tests/ scripts/
+	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/ruff check src/ tests/ scripts/
 
 lint-frontend:
 	cd frontend && npm run lint
