@@ -121,7 +121,7 @@ const chartOptions = computed(() => ({
 	responsive: true,
 	maintainAspectRatio: false,
 	layout: { padding: { right: 65 } },
-	interaction: { mode: "index", intersect: false },
+	interaction: { mode: "index" as const, intersect: false },
 	plugins: {
 		legend: { display: false },
 		tooltip: {
