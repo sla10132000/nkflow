@@ -158,11 +158,10 @@ def _upload_sqlite(sqlite_path: str) -> None:
         logger.warning(f"SQLite が存在しないためアップロードをスキップ: {sqlite_path}")
         return
 
-    # WAL チェックポイントを実行してから VACUUM
+    # WAL チェックポイントを実行 (VACUUM は /tmp disk full を引き起こすため省略)
     conn = sqlite3.connect(sqlite_path)
     try:
-        conn.execute("PRAGMA wal_checkpoint(FULL)")
-        conn.execute("VACUUM")
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         conn.commit()
     finally:
         conn.close()

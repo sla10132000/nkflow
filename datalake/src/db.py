@@ -14,6 +14,7 @@ def duckdb_sqlite(db_path: str, alias: str = "sq"):
             df = duck.execute("SELECT * FROM sq.daily_prices LIMIT 10").df()
     """
     duck = duckdb.connect()
+    duck.execute("SET home_directory='/tmp'")
     duck.execute(f"ATTACH '{db_path}' AS {alias} (TYPE SQLITE)")
     try:
         yield duck

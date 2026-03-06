@@ -1,7 +1,7 @@
 FROM public.ecr.aws/lambda/python:3.12
 
 # システム依存 (tar/gzip は KùzuDB 圧縮に使用)
-RUN dnf install -y tar gzip && dnf clean all
+RUN dnf install -y tar gzip libgomp && dnf clean all
 
 WORKDIR ${LAMBDA_TASK_ROOT}
 

@@ -152,8 +152,8 @@ def enrich_articles(conn: sqlite3.Connection) -> dict[str, int]:
     if rows:
         updates = []
         for row in rows:
-            score = analyze_sentiment(row["title_ja"], row["title"])
-            updates.append((score, row["id"]))
+            score = analyze_sentiment(row[2], row[1])  # title_ja, title
+            updates.append((score, row[0]))
         conn.executemany(
             "UPDATE news_articles SET sentiment = ? WHERE id = ?", updates
         )
@@ -168,8 +168,8 @@ def enrich_articles(conn: sqlite3.Connection) -> dict[str, int]:
     if rows:
         updates = []
         for row in rows:
-            theme = classify_theme(row["title_ja"], row["title"])
-            updates.append((theme, row["id"]))
+            theme = classify_theme(row[2], row[1])  # title_ja, title
+            updates.append((theme, row[0]))
         conn.executemany(
             "UPDATE news_articles SET category = ? WHERE id = ?", updates
         )
@@ -202,10 +202,10 @@ def enrich_articles(conn: sqlite3.Connection) -> dict[str, int]:
     if rows:
         ticker_rows = []
         for row in rows:
-            text = row["title_ja"] or row["title"] or ""
+            text = row[2] or row[1] or ""  # title_ja or title
             codes = extract_tickers_from_title(text, name_to_code)
             for code in codes:
-                ticker_rows.append((row["id"], code))
+                ticker_rows.append((row[0], code))
         if ticker_rows:
             conn.executemany(
                 "INSERT OR IGNORE INTO news_ticker_map (article_id, ticker) VALUES (?, ?)",
