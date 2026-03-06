@@ -75,6 +75,20 @@ class TestSaveRaw:
         stored = _get_raw(s3_bucket, key)
         assert stored["data"]["date"] == "2026-03-06"
 
+    def test_reconstructed_flag(self, s3_bucket):
+        data = [{"code": "7203", "close": 2500}]
+        key = save_raw("market", "equity", "jquants", "daily_prices", "2024-01-15", data, reconstructed=True)
+
+        stored = _get_raw(s3_bucket, key)
+        assert stored["reconstructed"] is True
+
+    def test_no_reconstructed_flag_by_default(self, s3_bucket):
+        data = [{"code": "7203", "close": 2500}]
+        key = save_raw("market", "equity", "jquants", "daily_prices", "2026-03-06", data)
+
+        stored = _get_raw(s3_bucket, key)
+        assert "reconstructed" not in stored
+
     def test_failure_returns_none(self, monkeypatch):
         monkeypatch.setattr(
             "src.pipeline.raw_store.S3_BUCKET", "nonexistent-bucket"

@@ -21,6 +21,7 @@ def save_raw(
     payload: Any,
     *,
     overwrite: bool = False,
+    reconstructed: bool = False,
 ) -> Optional[str]:
     """API レスポンスを S3 に JSON として保存する。
 
@@ -32,6 +33,7 @@ def save_raw(
         date_str: 対象日 (YYYY-MM-DD)
         payload: 保存するデータ (JSON シリアライズ可能な任意オブジェクト)
         overwrite: True の場合、既存ファイルを上書き (デフォルト: False)
+        reconstructed: True の場合、SQLite から再構成されたバックフィルデータ
 
     Returns:
         保存した S3 キー。失敗時は None。
@@ -58,8 +60,7 @@ def save_raw(
                 if e.response["Error"]["Code"] != "404":
                     raise
 
-        body = json.dumps(
-            {
+        envelope = {
                 "saved_at": datetime.now(timezone.utc).isoformat(),
                 "category": category,
                 "subcategory": subcategory,
@@ -67,7 +68,12 @@ def save_raw(
                 "data_type": data_type,
                 "date": date_str,
                 "data": payload,
-            },
+            }
+        if reconstructed:
+            envelope["reconstructed"] = True
+
+        body = json.dumps(
+            envelope,
             ensure_ascii=False,
             default=str,
         )
