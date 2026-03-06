@@ -7,7 +7,10 @@
       <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(239,68,68,0.12);" />
       <span>天井警戒域 (スコア &gt; 0)</span>
     </div>
-    <canvas ref="canvasRef" :height="220" />
+    <!-- responsive:true + maintainAspectRatio:false には親の固定高さが必要 -->
+    <div style="position: relative; height: 220px;">
+      <canvas ref="canvasRef" />
+    </div>
   </div>
 </template>
 

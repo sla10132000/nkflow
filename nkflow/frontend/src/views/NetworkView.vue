@@ -303,8 +303,8 @@ function regimeFlowBadgeClass(regime: string | null): string {
 }
 
 function flowRegimeLabel(regime: string | null): string {
-	if (regime === "bullish") return "強気 (海外買い優勢)";
-	if (regime === "bearish") return "弱気 (個人買い・海外売り)";
+	if (regime === "bullish" || regime === "bull") return "強気 (海外買い優勢)";
+	if (regime === "bearish" || regime === "bear") return "弱気 (個人買い・海外売り)";
 	if (regime === "diverging") return "乖離拡大";
 	if (regime === "neutral") return "中立";
 	return regime?.toUpperCase() ?? "N/A";

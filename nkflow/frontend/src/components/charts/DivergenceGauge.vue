@@ -134,7 +134,9 @@ const valueLabel = computed(() => {
 const regimeLabel = computed(() => {
 	const labels: Record<string, string> = {
 		bullish: "強気 (外国人買い優勢)",
+		bull: "強気 (外国人買い優勢)",
 		bearish: "弱気 (個人買い優勢)",
+		bear: "弱気 (個人買い優勢)",
 		neutral: "中立",
 		diverging: "乖離拡大",
 	};
@@ -144,8 +146,10 @@ const regimeLabel = computed(() => {
 const regimeClass = computed(() => {
 	switch (props.regime) {
 		case "bullish":
+		case "bull":
 			return "bg-blue-100 text-blue-700";
 		case "bearish":
+		case "bear":
 			return "bg-red-100 text-red-700";
 		case "diverging":
 			return "bg-amber-100 text-amber-700";
