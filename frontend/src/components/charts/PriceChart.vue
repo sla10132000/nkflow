@@ -268,7 +268,6 @@ watch(
 	() => {
 		updateData();
 	},
-	{ deep: true },
 );
 
 watch(

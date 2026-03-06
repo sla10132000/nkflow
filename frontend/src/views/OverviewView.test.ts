@@ -6,14 +6,14 @@ import { createMockApi } from "../test/mocks/useApi";
 const mockApi = createMockApi();
 vi.mock("../composables/useApi", () => ({ useApi: () => mockApi }));
 
-// Stub child components
-vi.mock("../components/charts/HeatMap.vue", () => ({
+// Stub child components (パスは overview/ に移動済み)
+vi.mock("../components/overview/HeatMap.vue", () => ({
 	default: { template: "<div data-testid='heatmap-stub' />" },
 }));
-vi.mock("../components/charts/NikkeiAreaChart.vue", () => ({
+vi.mock("../components/overview/NikkeiAreaChart.vue", () => ({
 	default: { template: "<div data-testid='nikkei-area-chart-stub' />" },
 }));
-vi.mock("../components/charts/SectorTrendBar.vue", () => ({
+vi.mock("../components/overview/SectorTrendBar.vue", () => ({
 	default: { template: "<div data-testid='sector-trend-bar-stub' />" },
 }));
 

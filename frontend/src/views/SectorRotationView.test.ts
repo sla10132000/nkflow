@@ -5,11 +5,11 @@ import { createMockApi } from "../test/mocks/useApi";
 const mockApi = createMockApi();
 vi.mock("../composables/useApi", () => ({ useApi: () => mockApi }));
 
-// Stub child components
-vi.mock("../components/charts/SectorReturnHeatmap.vue", () => ({
+// Stub child components (パスはドメイン別フォルダに移動済み)
+vi.mock("../components/sector-rotation/SectorReturnHeatmap.vue", () => ({
 	default: { template: "<div data-testid='heatmap-stub' />" },
 }));
-vi.mock("../components/charts/SectorRotationTimeline.vue", () => ({
+vi.mock("../components/sector-rotation/SectorRotationTimeline.vue", () => ({
 	default: { template: "<div data-testid='timeline-stub' />" },
 }));
 

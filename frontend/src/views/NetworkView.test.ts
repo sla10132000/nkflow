@@ -6,20 +6,20 @@ import { createMockApi } from "../test/mocks/useApi";
 const mockApi = createMockApi();
 vi.mock("../composables/useApi", () => ({ useApi: () => mockApi }));
 
-// Stub child components
-vi.mock("../components/charts/FundFlowSankey.vue", () => ({
+// Stub child components (パスはドメイン別フォルダに移動済み)
+vi.mock("../components/fund-flow/FundFlowSankey.vue", () => ({
 	default: { template: "<div data-testid='sankey-stub' />" },
 }));
-vi.mock("../components/charts/FundFlowTimeline.vue", () => ({
+vi.mock("../components/fund-flow/FundFlowTimeline.vue", () => ({
 	default: {
 		template: "<div data-testid='timeline-stub' />",
 		emits: ["anchor-changed"],
 	},
 }));
-vi.mock("../components/charts/MarketPressureGauge.vue", () => ({
+vi.mock("../components/market-pressure/MarketPressureGauge.vue", () => ({
 	default: { template: "<div data-testid='gauge-stub' />" },
 }));
-vi.mock("../components/charts/MarketPressureTimeline.vue", () => ({
+vi.mock("../components/market-pressure/MarketPressureTimeline.vue", () => ({
 	default: { template: "<div data-testid='pressure-timeline-stub' />" },
 }));
 vi.mock("../components/network/GraphView.vue", () => ({

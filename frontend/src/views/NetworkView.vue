@@ -289,12 +289,16 @@ const outflowCount = computed(() => {
 		.length;
 });
 
-function applyRangePreset(pr: { days: number }) {
+function setRangeDates(pr: { days: number }) {
 	const to = new Date();
 	const from = new Date();
 	from.setDate(to.getDate() - pr.days);
 	dateTo.value = fmt(to);
 	dateFrom.value = fmt(from);
+}
+
+function applyRangePreset(pr: { days: number }) {
+	setRangeDates(pr);
 	loadNetwork();
 }
 
@@ -375,9 +379,8 @@ function onNodeClick(id: string) {
 }
 
 onMounted(() => {
-	applyRangePreset({ days: 7 });
-	marketStore.fetchSummary();
-	loadPressure();
+	setRangeDates({ days: 7 });
+	Promise.all([loadNetwork(), marketStore.fetchSummary(), loadPressure()]);
 });
 </script>
 
