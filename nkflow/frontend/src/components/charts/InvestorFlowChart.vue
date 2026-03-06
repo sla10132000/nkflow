@@ -164,12 +164,11 @@ const chartOptions = computed<ChartOptions>(() => ({
 			ticks: {
 				font: { size: 10 },
 				stepSize: 0.5,
-				// @ts-expect-error chart.js callback type
-				callback(val: number) {
+				callback(val: string | number) {
 					if (val === 1) return "+1 天井";
 					if (val === -1) return "-1 底入れ";
 					if (val === 0) return "0 中立";
-					return val.toFixed(1);
+					return typeof val === "number" ? val.toFixed(1) : val;
 				},
 			},
 			grid: { drawOnChartArea: false },
