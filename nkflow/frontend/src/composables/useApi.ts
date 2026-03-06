@@ -1,4 +1,9 @@
 import axios from "axios";
+import type {
+	InvestorFlowIndicator,
+	InvestorFlowLatest,
+	InvestorFlowWeekly,
+} from "../types";
 
 const api = axios.create({
 	baseURL: import.meta.env.VITE_API_BASE || "",
@@ -87,8 +92,12 @@ export const useApi = () => ({
 		api.get("/api/sector-rotation/prediction").then((r) => r.data),
 
 	// Phase 18: ニュース
-	getNews: (params?: { date?: string; ticker?: string; category?: string; limit?: number }) =>
-		api.get("/api/news", { params }).then((r) => r.data),
+	getNews: (params?: {
+		date?: string;
+		ticker?: string;
+		category?: string;
+		limit?: number;
+	}) => api.get("/api/news", { params }).then((r) => r.data),
 
 	getNewsSummary: (date?: string) =>
 		api
@@ -141,5 +150,26 @@ export const useApi = () => ({
 			.get("/api/us-sectors/heatmap", {
 				params: { periods, period_type: periodType },
 			})
+			.then((r) => r.data),
+
+	// Phase 25: 投資主体別フロー
+	getInvestorFlowsTimeseries: (weeks = 26, investorType?: string) => {
+		const params = new URLSearchParams({ weeks: String(weeks) });
+		if (investorType) params.set("investor_type", investorType);
+		return api
+			.get<InvestorFlowWeekly[]>(`/api/investor-flows/timeseries?${params}`)
+			.then((r) => r.data);
+	},
+
+	getInvestorFlowsIndicators: (weeks = 26) =>
+		api
+			.get<InvestorFlowIndicator[]>("/api/investor-flows/indicators", {
+				params: { weeks },
+			})
+			.then((r) => r.data),
+
+	getInvestorFlowsLatest: () =>
+		api
+			.get<InvestorFlowLatest>("/api/investor-flows/latest")
 			.then((r) => r.data),
 });

@@ -76,6 +76,23 @@
       </div>
     </div>
 
+    <!-- 投資主体別フロー -->
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mt-4">
+      <h2 class="text-sm font-semibold text-gray-700 mb-3">投資主体別フロー (東証プライム)</h2>
+      <div v-if="latestFlow" class="mb-3">
+        <div class="flex items-center gap-4 mb-2">
+          <span class="text-xs text-gray-500">最新週: {{ latestFlow.week_end }}</span>
+          <span :class="regimeFlowBadgeClass(latestFlow.indicators.flow_regime)" class="text-xs px-2 py-0.5 rounded-full font-medium">
+            {{ latestFlow.indicators.flow_regime?.toUpperCase() || 'N/A' }}
+          </span>
+        </div>
+        <DivergenceGauge :value="latestFlow.indicators.divergence_score" :regime="latestFlow.indicators.flow_regime" />
+      </div>
+      <InvestorFlowChart v-if="flowIndicators.length" :indicators="flowIndicators" :weeks="13" />
+      <p v-else-if="!loadingFlow" class="text-sm text-gray-500">データなし</p>
+      <p v-if="loadingFlow" class="text-sm text-gray-500">読み込み中...</p>
+    </div>
+
     <!-- 資金フロー分析 (フィルタ + サンキー + ネットワーク) -->
     <div class="rounded-lg border border-blue-200 bg-blue-50/30 space-y-3 p-3">
       <!-- フィルタ -->
@@ -188,6 +205,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import DivergenceGauge from "../components/charts/DivergenceGauge.vue";
+import InvestorFlowChart from "../components/charts/InvestorFlowChart.vue";
 import FundFlowSankey from "../components/fund-flow/FundFlowSankey.vue";
 import FundFlowTimeline from "../components/fund-flow/FundFlowTimeline.vue";
 import MarketPressureGauge from "../components/market-pressure/MarketPressureGauge.vue";
@@ -195,7 +214,12 @@ import MarketPressureTimeline from "../components/market-pressure/MarketPressure
 import GraphView from "../components/network/GraphView.vue";
 import { useApi } from "../composables/useApi";
 import { useMarketStore } from "../stores/useMarketStore";
-import type { MarketPressureTimeseries, NetworkData } from "../types";
+import type {
+	InvestorFlowIndicator,
+	InvestorFlowLatest,
+	MarketPressureTimeseries,
+	NetworkData,
+} from "../types";
 import { fmt, lastBusinessDay, periodToDateRange } from "../utils/dateRange";
 import { fmtNum } from "../utils/formatters";
 
@@ -215,6 +239,9 @@ const dateTo = ref("");
 const dateSingle = ref("");
 const anchorDate = ref<string | null>(null);
 const pressureData = ref<MarketPressureTimeseries | null>(null);
+const latestFlow = ref<InvestorFlowLatest | null>(null);
+const flowIndicators = ref<InvestorFlowIndicator[]>([]);
+const loadingFlow = ref(false);
 
 const currentRegime = computed(() => marketStore.regime);
 
@@ -266,6 +293,13 @@ const regimeBadgeClass = computed(() => {
 		return "bg-red-100 text-red-700 border-red-200";
 	return "bg-gray-100 text-gray-600 border-gray-300";
 });
+
+function regimeFlowBadgeClass(regime: string | null): string {
+	if (regime === "bullish") return "bg-blue-100 text-blue-700";
+	if (regime === "bearish") return "bg-red-100 text-red-700";
+	if (regime === "diverging") return "bg-amber-100 text-amber-700";
+	return "bg-gray-100 text-gray-600";
+}
 const regimeLabel = computed(() => {
 	if (currentRegime.value === "risk_on") return "🟢 Risk-on";
 	if (currentRegime.value === "risk_off") return "🔴 Risk-off";
@@ -332,6 +366,22 @@ async function loadPressure() {
 	}
 }
 
+async function loadInvestorFlows() {
+	loadingFlow.value = true;
+	try {
+		const [latest, indicators] = await Promise.all([
+			api.getInvestorFlowsLatest(),
+			api.getInvestorFlowsIndicators(26),
+		]);
+		latestFlow.value = latest;
+		flowIndicators.value = indicators;
+	} catch {
+		// 非クリティカル: 既存セクションに影響させない
+	} finally {
+		loadingFlow.value = false;
+	}
+}
+
 async function loadNetwork() {
 	loading.value = true;
 	error.value = "";
@@ -380,7 +430,12 @@ function onNodeClick(id: string) {
 
 onMounted(() => {
 	setRangeDates({ days: 7 });
-	Promise.all([loadNetwork(), marketStore.fetchSummary(), loadPressure()]);
+	Promise.all([
+		loadNetwork(),
+		marketStore.fetchSummary(),
+		loadPressure(),
+		loadInvestorFlows(),
+	]);
 });
 </script>
 

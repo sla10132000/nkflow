@@ -309,3 +309,48 @@ export interface TdSequentialBar {
 	countdown_bull: number; // 0-13 (0 = inactive)
 	countdown_bear: number; // 0-13 (0 = inactive)
 }
+
+// ─── Phase 25: 投資主体別フロー ──────────────────────────────────────────────
+
+export interface InvestorFlowWeekly {
+	week_start: string;
+	week_end: string;
+	investor_type: string;
+	sales: number;
+	purchases: number;
+	balance: number;
+}
+
+export interface InvestorFlowIndicator {
+	week_end: string;
+	foreigners_net: number;
+	individuals_net: number;
+	foreigners_4w_ma: number | null;
+	individuals_4w_ma: number | null;
+	foreigners_momentum: number | null;
+	individuals_momentum: number | null;
+	divergence_score: number | null;
+	nikkei_return_4w: number | null;
+	flow_regime: string | null;
+}
+
+export interface InvestorFlowSignal {
+	type: string;
+	direction: string;
+	confidence: number;
+}
+
+export interface InvestorFlowLatest {
+	week_end: string;
+	flows: {
+		foreigners: { sales: number; purchases: number; balance: number };
+		individuals: { sales: number; purchases: number; balance: number };
+	};
+	indicators: {
+		divergence_score: number | null;
+		flow_regime: string | null;
+		foreigners_4w_ma: number | null;
+		individuals_4w_ma: number | null;
+	};
+	signal: InvestorFlowSignal | null;
+}

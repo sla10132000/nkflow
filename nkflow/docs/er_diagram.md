@@ -363,6 +363,48 @@ erDiagram
 | 米国指数 | `us_indices` | stocks.db |
 | TD Sequential | `td_sequential` | stocks.db |
 | ポートフォリオ | `portfolio_holdings`, `portfolio_transactions`, `portfolio_snapshots` | portfolio.db |
+| 投資主体別フロー | `investor_flow_weekly`, `investor_flow_indicators` | stocks.db |
+
+---
+
+## 投資主体別フローテーブル (Phase 25)
+
+```mermaid
+erDiagram
+    investor_flow_weekly {
+        INTEGER id PK
+        TEXT week_start
+        TEXT week_end
+        TEXT investor_type
+        REAL sales
+        REAL purchases
+        REAL balance
+        TEXT created_at
+    }
+
+    investor_flow_indicators {
+        INTEGER id PK
+        TEXT week_end
+        REAL foreigners_net
+        REAL individuals_net
+        REAL foreigners_4w_ma
+        REAL individuals_4w_ma
+        REAL foreigners_momentum
+        REAL individuals_momentum
+        REAL divergence_score
+        REAL nikkei_return_4w
+        TEXT flow_regime
+        TEXT created_at
+    }
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `investor_type` | TEXT | `"foreigners"` / `"individuals"` / `"institutions"` |
+| `sales` / `purchases` | REAL | 売買代金 (円) |
+| `balance` | REAL | 差引 (purchases - sales) |
+| `divergence_score` | REAL | -1.0 (底入れ) 〜 +1.0 (天井警房) |
+| `flow_regime` | TEXT | `"bullish"` / `"bearish"` / `"neutral"` / `"diverging"` |
 
 ---
 

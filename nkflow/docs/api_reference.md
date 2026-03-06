@@ -21,6 +21,7 @@ Base URL: `https://<api-gateway-url>/prod/api`
 11. [Sector Rotation — セクターローテーション分析](#11-sector-rotation--セクターローテーション分析)
 12. [News — ニュース記事](#12-news--ニュース記事)
 13. [US Indices — 米国株価指数](#13-us-indices--米国株価指数)
+16. [Investor Flows — 投資主体別フロー](#16-investor-flows--投資主体別フロー)
 
 ---
 
@@ -1136,6 +1137,135 @@ vis-network 互換のネットワークデータを返す。
 ### 認証
 
 現在は認証なし (パブリック API)。
+
+---
+
+## 16. Investor Flows — 投資主体別フロー
+
+### `GET /api/investor-flows/timeseries`
+
+東証プライム市場の投資主体別週次売買データを返す。
+
+**Query Parameters**
+
+| パラメータ | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `weeks` | int | 26 | 取得週数 |
+| `investor_type` | string | (all) | `foreigners` / `individuals` / `institutions` |
+
+**Response** `200 OK` — `InvestorFlowWeekly[]`
+
+```json
+[
+  {
+    "week_start": "2026-02-24",
+    "week_end": "2026-02-28",
+    "investor_type": "foreigners",
+    "sales": 8500000000000,
+    "purchases": 9200000000000,
+    "balance": 700000000000
+  }
+]
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `week_start` | string | 週開始日 (YYYY-MM-DD) |
+| `week_end` | string | 週終了日 (YYYY-MM-DD) |
+| `investor_type` | string | 投資家分類 |
+| `sales` | number | 売買代金 (円) |
+| `purchases` | number | 買付代金 (円) |
+| `balance` | number | 差引 = purchases - sales (円) |
+
+---
+
+### `GET /api/investor-flows/indicators`
+
+投資主体別指標列 (移動平均・モメンタム・乖離スコア) を返す。
+
+**Query Parameters**
+
+| パラメータ | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `weeks` | int | 26 | 取得週数 |
+
+**Response** `200 OK` — `InvestorFlowIndicator[]`
+
+```json
+[
+  {
+    "week_end": "2026-02-28",
+    "foreigners_net": 700000000000,
+    "individuals_net": -450000000000,
+    "foreigners_4w_ma": 520000000000,
+    "individuals_4w_ma": -380000000000,
+    "foreigners_momentum": 0.12,
+    "individuals_momentum": -0.08,
+    "divergence_score": 0.42,
+    "nikkei_return_4w": 0.023,
+    "flow_regime": "bullish"
+  }
+]
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `week_end` | string | 週終了日 |
+| `foreigners_net` | number | 海外投資家差引 (円) |
+| `individuals_net` | number | 個人差引 (円) |
+| `foreigners_4w_ma` | number类null | 海外 4週移動平均 |
+| `individuals_4w_ma` | number类null | 個人 4週移動平均 |
+| `foreigners_momentum` | number类null | 海外モメンタム |
+| `individuals_momentum` | number类null | 個人モメンタム |
+| `divergence_score` | number类null | 乖離スコア -1.0(底入れ)～+1.0(天井警房) |
+| `nikkei_return_4w` | number类null | 日経平均 4週リターン |
+| `flow_regime` | string类null | `bullish` / `bearish` / `neutral` / `diverging` |
+
+---
+
+### `GET /api/investor-flows/latest`
+
+最新週の投資主体別フローサマリを返す。
+
+**Response** `200 OK` — `InvestorFlowLatest`
+
+```json
+{
+  "week_end": "2026-02-28",
+  "flows": {
+    "foreigners": {
+      "sales": 8500000000000,
+      "purchases": 9200000000000,
+      "balance": 700000000000
+    },
+    "individuals": {
+      "sales": 6800000000000,
+      "purchases": 6350000000000,
+      "balance": -450000000000
+    }
+  },
+  "indicators": {
+    "divergence_score": 0.42,
+    "flow_regime": "bullish",
+    "foreigners_4w_ma": 520000000000,
+    "individuals_4w_ma": -380000000000
+  },
+  "signal": {
+    "type": "investor_divergence",
+    "direction": "bullish",
+    "confidence": 0.78
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `week_end` | string | 最新週終了日 |
+| `flows.foreigners` | object | 海外売買・差引 |
+| `flows.individuals` | object | 個人売買・差引 |
+| `indicators.divergence_score` | number类null | 乖離スコア (-1～+1) |
+| `indicators.flow_regime` | string类null | フローレジーム |
+| `signal` | object类null | シグナル情報 |
 
 ---
 

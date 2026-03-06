@@ -1,6 +1,6 @@
 # nkflow 画面設計書
 
-> 最終更新: 2026-03-05
+> 最終更新: 2026-03-06
 
 ---
 
@@ -331,6 +331,8 @@
 | 信用圧力ゲージ | `MarketPressureGauge` | `latestPressure.pl_ratio`, `pl_zone`, `buy_growth_4w` |
 | 資金フロータイムライン | `FundFlowTimeline` | `/api/fund-flow/timeseries`, `/api/fund-flow/cumulative` |
 | 信用圧力タイムライン | `MarketPressureTimeline` | `/api/market-pressure/timeseries` |
+| 投資主体別フロー乖離ゲージ | `DivergenceGauge` | `latestFlow.indicators.divergence_score` |
+| 投資主体別フローチャート | `InvestorFlowChart` | `/api/investor-flows/indicators` |
 | サンキーダイアグラム | `FundFlowSankey` | `networkData.edges` |
 | ネットワークグラフ | `GraphView` | `networkData` (nodes + edges) |
 
@@ -499,6 +501,8 @@
 | `FundFlowSankey` | SVG サンキー | セクター間資金移動 | Network |
 | `SectorReturnHeatmap` | HTML テーブル | セクター×期間ヒートマップ | SectorRotation |
 | `SectorRotationTimeline` | CSS バー | ローテーション状態推移 | SectorRotation |
+| `InvestorFlowChart` | Chart.js 棒/折れ線複合 | 投資主体別差引+乖離スコア | Network |
+| `DivergenceGauge` | SVG バーゲージ | 海外/個人乖離スコア (-1〜+1) | Network |
 
 ### 9.2 ネットワークコンポーネント (`frontend/src/components/network/`)
 
@@ -578,3 +582,11 @@
 | POST | `/api/portfolio/transactions` | 取引追加 | body: `code`, `date`, `action`, `quantity`, `price` |
 | GET | `/api/portfolio/performance` | パフォーマンス推移 | `days` |
 | GET | `/api/portfolio/signals` | 保有銘柄シグナル | `days` |
+
+### 10.7 投資主体別フロー (Phase 25)
+
+| メソッド | パス | 概要 | 主なパラメータ |
+|---------|------|------|---------------|
+| GET | `/api/investor-flows/timeseries` | 週次売買データ一覧 | `weeks` (default: 26), `investor_type` |
+| GET | `/api/investor-flows/indicators` | 投資主体別指標一覧 | `weeks` (default: 26) |
+| GET | `/api/investor-flows/latest` | 最新週のサマリ | — |

@@ -51,15 +51,21 @@ export function createMockApi() {
 		getForex: vi.fn().mockResolvedValue([]),
 		getForexLatest: vi.fn().mockResolvedValue([]),
 		getJpSectorPerformance: vi.fn().mockResolvedValue([]), // Phase 17 (共通期間セレクタ)
-		getUsSectorPerformance: vi.fn().mockResolvedValue({ // Phase 23b
+		getUsSectorPerformance: vi.fn().mockResolvedValue({
+			// Phase 23b
 			date: null,
 			period: "1d",
 			sectors: [],
 		}),
-		getUsSectorHeatmap: vi.fn().mockResolvedValue({ // Phase 23b
+		getUsSectorHeatmap: vi.fn().mockResolvedValue({
+			// Phase 23b
 			periods: [],
 			sectors: [],
 		}),
+		// Phase 25: 投資主体別フロー
+		getInvestorFlowsTimeseries: vi.fn().mockResolvedValue([]),
+		getInvestorFlowsIndicators: vi.fn().mockResolvedValue([]),
+		getInvestorFlowsLatest: vi.fn().mockResolvedValue(null),
 	};
 }
 
