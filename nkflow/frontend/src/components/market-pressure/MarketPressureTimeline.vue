@@ -1,18 +1,7 @@
 <template>
   <div>
-    <div v-if="loading" class="flex items-center justify-center h-48 text-gray-500 text-sm">
-      読み込み中...
-    </div>
-    <div v-else-if="!data || data.dates.length === 0"
-         class="flex items-center justify-center h-48 text-gray-500 text-sm">
-      データなし（信用残データは週次蓄積中）
-    </div>
-    <div v-else class="h-64 relative">
-      <Line :data="chartData" :options="chartOptions" :plugins="chartPlugins" />
-    </div>
-
-    <!-- 凡例: ライン -->
-    <div class="flex gap-4 mt-2 text-xs text-gray-500">
+    <!-- 凡例: ライン (上部) -->
+    <div class="flex gap-4 mb-1 text-xs text-gray-500">
       <span class="flex items-center gap-1">
         <span class="inline-block w-3 h-1 rounded" style="background:#60a5fa"></span>評価損益率
       </span>
@@ -20,8 +9,8 @@
         <span class="inline-block w-3 h-1 rounded border-dashed border border-amber-400"></span>買残増加率(4週)
       </span>
     </div>
-    <!-- 凡例: 閾値ライン -->
-    <div class="flex gap-3 mt-1 text-xs text-gray-400">
+    <!-- 凡例: 閾値ライン (上部) -->
+    <div class="flex gap-3 mb-1 text-xs text-gray-400">
       <span>閾値:</span>
       <span class="flex items-center gap-1">
         <span class="inline-block w-3 h-0 border-t border-dashed" style="border-color:#dc2626"></span>+15% 天井
@@ -36,13 +25,24 @@
         <span class="inline-block w-3 h-0 border-t border-dashed" style="border-color:#1d4ed8"></span>-10% 弱気
       </span>
     </div>
-    <!-- 凡例: ゾーン背景 -->
-    <div v-if="activeZones.length" class="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-400">
+    <!-- 凡例: ゾーン背景 (上部・固定) -->
+    <div class="flex flex-wrap gap-x-3 gap-y-1 mb-1 text-xs text-gray-400">
       <span>背景:</span>
-      <span v-for="z in activeZones" :key="z" class="flex items-center gap-1">
+      <span v-for="z in ZONE_KEYS" :key="z" class="flex items-center gap-1">
         <span class="inline-block w-3 h-3 rounded-sm border border-gray-200"
               :style="{ background: ZONE_BG[z] ?? 'transparent' }"></span>{{ ZONE_LABEL[z] ?? z }}
       </span>
+    </div>
+
+    <div v-if="loading" class="flex items-center justify-center h-48 text-gray-500 text-sm">
+      読み込み中...
+    </div>
+    <div v-else-if="!data || data.dates.length === 0"
+         class="flex items-center justify-center h-48 text-gray-500 text-sm">
+      データなし（信用残データは週次蓄積中）
+    </div>
+    <div v-else class="h-64 relative">
+      <Line :data="chartData" :options="chartOptions" :plugins="chartPlugins" />
     </div>
   </div>
 </template>
@@ -80,14 +80,7 @@ const ZONE_LABEL: Record<string, string> = {
 	bottom: "底",
 };
 
-const activeZones = computed(() => {
-	const zones = data.value?.pl_zone;
-	if (!zones?.length) return [];
-	return [...new Set(zones)].sort(
-		(a, b) =>
-			Object.keys(ZONE_BG).indexOf(a) - Object.keys(ZONE_BG).indexOf(b),
-	);
-});
+const ZONE_KEYS = ["ceiling", "overheat", "neutral", "weak", "bottom"] as const;
 
 const chartData = computed(() => {
 	if (!data.value) return { labels: [], datasets: [] };
@@ -144,7 +137,7 @@ const chartOptions = computed(() => ({
 		},
 	},
 	scales: {
-		x: baseXScale({ ticks: { font: { size: 9 }, maxTicksLimit: 10 } }),
+		x: baseXScale({ ticks: { font: { size: 9 } } }),
 		y: baseYScale({
 			ticks: {
 				callback: (v: string | number) => `${(Number(v) * 100).toFixed(0)}%`,

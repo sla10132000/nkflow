@@ -1,9 +1,9 @@
 <template>
   <div class="w-full">
     <!-- 凡例: ゾーン背景 (MarketPressureTimeline と統一) -->
-    <div v-if="activeZones.length" class="flex flex-wrap gap-x-3 gap-y-1 mb-1 px-1 text-xs text-gray-400">
+    <div class="flex flex-wrap gap-x-3 gap-y-1 mb-1 px-1 text-xs text-gray-400">
       <span>背景:</span>
-      <span v-for="z in activeZones" :key="z" class="flex items-center gap-1">
+      <span v-for="z in ZONE_KEYS" :key="z" class="flex items-center gap-1">
         <span class="inline-block w-3 h-3 rounded-sm border border-gray-200"
               :style="{ background: ZONE_BG[z] ?? 'transparent' }" />{{ ZONE_LABEL[z] ?? z }}
       </span>
@@ -214,13 +214,7 @@ const chartOptions = computed<ChartOptions>(() => ({
 	},
 }));
 
-// 現在表示中ゾーン一覧 (凡例表示用)
-const activeZones = computed(() => {
-	const zones = slicedIndicators.value.map((d) => computeZone(d.divergence_score));
-	return [...new Set(zones)].sort(
-		(a, b) => Object.keys(ZONE_BG).indexOf(a) - Object.keys(ZONE_BG).indexOf(b),
-	);
-});
+const ZONE_KEYS = ["ceiling", "overheat", "neutral", "weak", "bottom"] as const;
 
 /** 縦色帯ゾーン + 閾値ライン プラグイン (MarketPressureTimeline と同方式) */
 const zoneBgPlugin = {
