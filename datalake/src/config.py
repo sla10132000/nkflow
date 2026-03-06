@@ -5,6 +5,7 @@ import os
 S3_BUCKET = os.environ["S3_BUCKET"]
 S3_SQLITE_KEY = "data/stocks.db"
 S3_KUZU_KEY = "data/kuzu_db.tar.gz"
+S3_RAW_PREFIX = "raw"
 
 # J-Quants (SSM Parameter Store から取得)
 # Lambda 起動時に storage.get_api_key() で SSM から読み込む
