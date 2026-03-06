@@ -200,6 +200,30 @@ def handler(event: dict, context: Any) -> dict:
             logger.error(f"run_all 失敗 (処理は継続): {e}")
             errors.append(f"statistics: {e}")
 
+        # ── 5.5. 投資主体別フロー取得・指標計算 (Phase 23) ───────
+        try:
+            from src.ingestion import jquants as _jquants_fetch
+            from src.transform import statistics as statistics_mod
+
+            from_date_flow = (
+                date.fromisoformat(target_date) - timedelta(weeks=4)
+            ).isoformat()
+            flow_rows = _jquants_fetch.fetch_investor_flows(
+                conn, from_date_flow, target_date
+            )
+            logger.info(f"fetch_investor_flows: {flow_rows} 件")
+            flow_indicators = statistics_mod.compute_investor_flow_indicators(
+                SQLITE_PATH, target_date
+            )
+            logger.info(f"compute_investor_flow_indicators: {flow_indicators} 件")
+            flow_signals = signals.generate_investor_flow_signals(
+                SQLITE_PATH, target_date
+            )
+            logger.info(f"generate_investor_flow_signals: {flow_signals} 件")
+        except Exception as e:
+            logger.error(f"investor_flows 失敗 (処理は継続): {e}")
+            errors.append(f"investor_flows: {e}")
+
         # ── 6. グラフ更新・探索 ───────────────────────────────────
         graph_results: dict = {}
         try:
