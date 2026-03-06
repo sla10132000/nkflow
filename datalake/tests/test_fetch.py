@@ -192,21 +192,23 @@ class TestFetchDaily:
 class TestRawSave:
     @patch("src.pipeline.raw_store.save_raw")
     def test_sync_stock_master_saves_raw(self, mock_save_raw, db_conn, mock_client):
-        mock_save_raw.return_value = "raw/jquants/stock_master/2026-03-06.json"
+        mock_save_raw.return_value = "raw/market/equity/jquants/stock_master/2026-03-06.json"
         from src.ingestion.jquants import sync_stock_master
 
         sync_stock_master(db_conn, client=mock_client)
 
         mock_save_raw.assert_called_once()
         args = mock_save_raw.call_args
-        assert args[0][0] == "jquants"
-        assert args[0][1] == "stock_master"
+        assert args[0][0] == "market"
+        assert args[0][1] == "equity"
+        assert args[0][2] == "jquants"
+        assert args[0][3] == "stock_master"
         # payload は DataFrame
-        assert isinstance(args[0][3], pd.DataFrame)
+        assert isinstance(args[0][5], pd.DataFrame)
 
     @patch("src.pipeline.raw_store.save_raw")
     def test_fetch_daily_saves_raw(self, mock_save_raw, db_conn, mock_client):
-        mock_save_raw.return_value = "raw/jquants/daily_prices/2025-01-06.json"
+        mock_save_raw.return_value = "raw/market/equity/jquants/daily_prices/2025-01-06.json"
         db_conn.executemany(
             "INSERT INTO stocks VALUES (?, ?, ?)",
             [("7203", "トヨタ", "輸送用機器"),
@@ -221,9 +223,11 @@ class TestRawSave:
 
         mock_save_raw.assert_called_once()
         args = mock_save_raw.call_args
-        assert args[0][0] == "jquants"
-        assert args[0][1] == "daily_prices"
-        assert args[0][2] == "2025-01-06"
+        assert args[0][0] == "market"
+        assert args[0][1] == "equity"
+        assert args[0][2] == "jquants"
+        assert args[0][3] == "daily_prices"
+        assert args[0][4] == "2025-01-06"
 
     @patch("src.pipeline.raw_store.save_raw")
     def test_fetch_daily_no_raw_on_non_trading_day(self, mock_save_raw, db_conn, mock_client):

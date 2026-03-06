@@ -55,7 +55,7 @@ def sync_stock_master(conn: sqlite3.Connection, client=None) -> int:
         if df is None or df.empty:
             logger.warning("eq_master が空でした")
             return 0
-        save_raw("jquants", "stock_master", date.today().isoformat(), df)
+        save_raw("market", "equity", "jquants", "stock_master", date.today().isoformat(), df)
         # v2: Mkt == '0111' がプライム市場
         if "Mkt" in df.columns:
             df = df[df["Mkt"] == "0111"].copy()
@@ -69,7 +69,7 @@ def sync_stock_master(conn: sqlite3.Connection, client=None) -> int:
         if df is None or df.empty:
             logger.warning("listed_info が空でした")
             return 0
-        save_raw("jquants", "stock_master", date.today().isoformat(), df)
+        save_raw("market", "equity", "jquants", "stock_master", date.today().isoformat(), df)
         # v1: MarketCode == '0111' がプライム市場
         if "MarketCode" in df.columns:
             df = df[df["MarketCode"] == "0111"].copy()
@@ -153,7 +153,7 @@ def fetch_daily(
 
     # Raw data save (正規化前の生データを保存)
     from src.pipeline.raw_store import save_raw
-    save_raw("jquants", "daily_prices", target_date, df)
+    save_raw("market", "equity", "jquants", "daily_prices", target_date, df)
 
     # カラム名の正規化
     available = {k: v for k, v in col_map.items() if k in df.columns}

@@ -116,7 +116,7 @@ def fetch_nikkei_close(conn: sqlite3.Connection, target_date: Optional[str] = No
         return False
 
     from src.pipeline.raw_store import save_raw
-    save_raw("yahoo_finance", "nikkei", target_date, df)
+    save_raw("market", "index", "yahoo_finance", "nikkei", target_date, df)
 
     row = df[df["date"] <= target_date].sort_values("date").tail(1)
     if row.empty:
@@ -239,7 +239,7 @@ def fetch_exchange_rates(
 
     if raw_data:
         from src.pipeline.raw_store import save_raw
-        save_raw("yahoo_finance", "exchange_rates", target_date, raw_data)
+        save_raw("market", "fx", "yahoo_finance", "exchange_rates", target_date, raw_data)
 
     return total_rows
 
@@ -346,7 +346,7 @@ def fetch_us_indices(db_path: str) -> dict:
 
         if raw_data:
             from src.pipeline.raw_store import save_raw
-            save_raw("yahoo_finance", "us_indices", date.today().isoformat(), raw_data)
+            save_raw("market", "index", "yahoo_finance", "us_indices", date.today().isoformat(), raw_data)
 
     finally:
         conn.close()
@@ -389,7 +389,7 @@ def fetch_crypto_fear_greed(db_path: str, days: int = 30) -> int:
         return 0
 
     from src.pipeline.raw_store import save_raw
-    save_raw("yahoo_finance", "crypto_fng", date.today().isoformat(), data)
+    save_raw("market", "sentiment", "yahoo_finance", "crypto_fng", date.today().isoformat(), data)
 
     records = data.get("data", [])
     if not records:
@@ -499,7 +499,7 @@ def fetch_margin_balance(
         return 0
 
     from src.pipeline.raw_store import save_raw
-    save_raw("jquants_margin", "margin_balance", target_date, df)
+    save_raw("market", "credit", "jquants_margin", "margin_balance", target_date, df)
 
     # カラム名の正規化 (v2 実際のカラム名: LongVol/ShrtVol)
     col_map = {

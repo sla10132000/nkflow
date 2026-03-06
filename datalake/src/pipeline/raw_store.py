@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def save_raw(
+    category: str,
+    subcategory: str,
     source: str,
     data_type: str,
     date_str: str,
@@ -23,6 +25,8 @@ def save_raw(
     """API レスポンスを S3 に JSON として保存する。
 
     Args:
+        category: ドメインカテゴリ (例: "market", "disaster")
+        subcategory: サブカテゴリ (例: "equity", "fx", "natural")
         source: データソース名 (例: "jquants", "yahoo_finance")
         data_type: データ種別 (例: "daily_prices", "exchange_rates")
         date_str: 対象日 (YYYY-MM-DD)
@@ -32,7 +36,7 @@ def save_raw(
     Returns:
         保存した S3 キー。失敗時は None。
     """
-    s3_key = f"{S3_RAW_PREFIX}/{source}/{data_type}/{date_str}.json"
+    s3_key = f"{S3_RAW_PREFIX}/{category}/{subcategory}/{source}/{data_type}/{date_str}.json"
 
     try:
         import pandas as pd
@@ -57,6 +61,8 @@ def save_raw(
         body = json.dumps(
             {
                 "saved_at": datetime.now(timezone.utc).isoformat(),
+                "category": category,
+                "subcategory": subcategory,
                 "source": source,
                 "data_type": data_type,
                 "date": date_str,

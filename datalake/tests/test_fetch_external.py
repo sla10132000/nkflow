@@ -143,7 +143,7 @@ class TestFetchExchangeRates:
 class TestRawSaveExchangeRates:
     @patch("src.pipeline.raw_store.save_raw")
     def test_fetch_exchange_rates_saves_raw(self, mock_save_raw, db_conn):
-        mock_save_raw.return_value = "raw/yahoo_finance/exchange_rates/2025-01-04.json"
+        mock_save_raw.return_value = "raw/market/fx/yahoo_finance/exchange_rates/2025-01-04.json"
         from src.ingestion.yahoo_finance import fetch_exchange_rates
 
         with patch("requests.get") as mock_get:
@@ -156,16 +156,18 @@ class TestRawSaveExchangeRates:
 
         mock_save_raw.assert_called_once()
         args = mock_save_raw.call_args[0]
-        assert args[0] == "yahoo_finance"
-        assert args[1] == "exchange_rates"
-        assert args[2] == "2025-01-04"
-        assert isinstance(args[3], dict)  # {pair_name: [records]}
+        assert args[0] == "market"
+        assert args[1] == "fx"
+        assert args[2] == "yahoo_finance"
+        assert args[3] == "exchange_rates"
+        assert args[4] == "2025-01-04"
+        assert isinstance(args[5], dict)  # {pair_name: [records]}
 
 
 class TestRawSaveNikkeiClose:
     @patch("src.pipeline.raw_store.save_raw")
     def test_fetch_nikkei_close_saves_raw(self, mock_save_raw, db_conn):
-        mock_save_raw.return_value = "raw/yahoo_finance/nikkei/2025-01-03.json"
+        mock_save_raw.return_value = "raw/market/index/yahoo_finance/nikkei/2025-01-03.json"
         from src.ingestion.yahoo_finance import fetch_nikkei_close
 
         with patch("requests.get") as mock_get:
@@ -178,8 +180,10 @@ class TestRawSaveNikkeiClose:
 
         mock_save_raw.assert_called_once()
         args = mock_save_raw.call_args[0]
-        assert args[0] == "yahoo_finance"
-        assert args[1] == "nikkei"
+        assert args[0] == "market"
+        assert args[1] == "index"
+        assert args[2] == "yahoo_finance"
+        assert args[3] == "nikkei"
 
 
 class TestRawSaveMarginBalance:
@@ -191,7 +195,7 @@ class TestRawSaveMarginBalance:
 
     @patch("src.pipeline.raw_store.save_raw")
     def test_fetch_margin_balance_saves_raw(self, mock_save_raw, db_conn):
-        mock_save_raw.return_value = "raw/jquants_margin/margin_balance/2025-01-10.json"
+        mock_save_raw.return_value = "raw/market/credit/jquants_margin/margin_balance/2025-01-10.json"
         from src.ingestion.yahoo_finance import fetch_margin_balance
 
         df = pd.DataFrame({
@@ -204,8 +208,10 @@ class TestRawSaveMarginBalance:
 
         mock_save_raw.assert_called_once()
         args = mock_save_raw.call_args[0]
-        assert args[0] == "jquants_margin"
-        assert args[1] == "margin_balance"
+        assert args[0] == "market"
+        assert args[1] == "credit"
+        assert args[2] == "jquants_margin"
+        assert args[3] == "margin_balance"
 
 
 class TestFetchMarginBalance:
@@ -450,7 +456,7 @@ class TestFetchCryptoFearGreed:
     @patch("src.pipeline.raw_store.save_raw")
     def test_saves_raw_data(self, mock_save_raw, db_path):
         """raw データが S3 に保存されること"""
-        mock_save_raw.return_value = "raw/yahoo_finance/crypto_fng/2026-03-06.json"
+        mock_save_raw.return_value = "raw/market/sentiment/yahoo_finance/crypto_fng/2026-03-06.json"
         from src.ingestion.yahoo_finance import fetch_crypto_fear_greed
 
         with patch("requests.get") as mock_get:
@@ -459,6 +465,8 @@ class TestFetchCryptoFearGreed:
 
         mock_save_raw.assert_called_once()
         args = mock_save_raw.call_args[0]
-        assert args[0] == "yahoo_finance"
-        assert args[1] == "crypto_fng"
-        assert isinstance(args[3], dict)  # 生の API レスポンス全体
+        assert args[0] == "market"
+        assert args[1] == "sentiment"
+        assert args[2] == "yahoo_finance"
+        assert args[3] == "crypto_fng"
+        assert isinstance(args[5], dict)  # 生の API レスポンス全体
