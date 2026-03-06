@@ -829,3 +829,225 @@ def run_all(
     _backfill_market_pressure(db_path)
 
     logger.info("=== run_all 完了 ===")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 投資主体別フロー指標計算 (Phase 23)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_investor_flow_indicators(db_path: str, target_date: str) -> int:
+    """
+    investor_flow_weekly から投資主体別フロー指標を計算して investor_flow_indicators に保存する。
+
+    計算指標:
+      - foreigners_net / individuals_net: 週次の差引 (balance の符号付き値)
+      - foreigners_4w_ma: 海外差引の4週移動平均
+      - individuals_4w_ma: 個人差引の4週移動平均
+      - foreigners_momentum: foreigners_net[t] - foreigners_net[t-4]  (4週前比変化)
+      - individuals_momentum: individuals_net[t] - individuals_net[t-4]
+      - divergence_score: 個人と海外のダイバージェンス (-1.0〜+1.0)
+          z_foreign = (foreigners_4w_ma - mean_26w) / std_26w
+          z_individual = (individuals_4w_ma - mean_26w) / std_26w
+          divergence_score = clip((z_individual - z_foreign) / 2, -1.0, 1.0)
+      - nikkei_return_4w: 日経平均4週リターン (daily_summary.nikkei_close から計算)
+      - flow_regime: bull / topping / bear / bottoming (直前を維持する場合あり)
+
+    flow_regime 判定:
+      bull:     foreigners_4w_ma > 0 AND individuals_4w_ma < 0
+      topping:  foreigners_momentum < 0 AND individuals_momentum > 0 AND nikkei_return_4w > 0
+      bear:     foreigners_4w_ma < 0 AND individuals_4w_ma > 0 AND nikkei_return_4w < 0
+      bottoming: foreigners_momentum > 0 AND individuals_momentum < 0 AND nikkei_return_4w < 0
+      上記に当てはまらない場合: 直前レジームを維持
+
+    Args:
+        db_path: SQLite ファイルパス
+        target_date: 'YYYY-MM-DD' — この日以前で最新のデータを対象とする
+
+    Returns:
+        更新した週数
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    try:
+        # ── 1. 週次フロー (foreigners / individuals) を取得 (過去 30 週分) ──
+        flow_df = pd.read_sql(
+            """
+            SELECT week_end,
+                   MAX(CASE WHEN investor_type = 'foreigners'  THEN balance END) AS foreigners_net,
+                   MAX(CASE WHEN investor_type = 'individuals' THEN balance END) AS individuals_net
+            FROM investor_flow_weekly
+            WHERE week_end <= ?
+            GROUP BY week_end
+            ORDER BY week_end ASC
+            """,
+            conn,
+            params=(target_date,),
+        )
+
+        if flow_df.empty or len(flow_df) < 1:
+            logger.info("compute_investor_flow_indicators: フローデータなし — スキップ")
+            return 0
+
+        flow_df["week_end"] = pd.to_datetime(flow_df["week_end"])
+        flow_df = flow_df.sort_values("week_end").reset_index(drop=True)
+
+        # ── 2. 日経平均終値を取得してリターン計算 ──────────────────────────
+        nikkei_df = pd.read_sql(
+            """
+            SELECT date, nikkei_close
+            FROM daily_summary
+            WHERE nikkei_close IS NOT NULL
+            ORDER BY date ASC
+            """,
+            conn,
+        )
+        nikkei_df["date"] = pd.to_datetime(nikkei_df["date"])
+
+        # ── 3. 指標を計算 ────────────────────────────────────────────────
+        n = len(flow_df)
+
+        # 4週移動平均
+        flow_df["foreigners_4w_ma"] = (
+            flow_df["foreigners_net"].rolling(window=4, min_periods=1).mean()
+        )
+        flow_df["individuals_4w_ma"] = (
+            flow_df["individuals_net"].rolling(window=4, min_periods=1).mean()
+        )
+
+        # 4週前比モメンタム (4週前の値が存在する場合のみ)
+        flow_df["foreigners_momentum"] = flow_df["foreigners_net"].diff(4)
+        flow_df["individuals_momentum"] = flow_df["individuals_net"].diff(4)
+
+        # divergence_score: 過去26週の平均・標準偏差で z-score 化
+        # min_periods は window を超えてはいけないため、window_26 を下限とする
+        window_26 = min(26, n)
+        div_min_periods = min(4, window_26)
+        f_mean = flow_df["foreigners_4w_ma"].rolling(window=window_26, min_periods=div_min_periods).mean()
+        f_std  = flow_df["foreigners_4w_ma"].rolling(window=window_26, min_periods=div_min_periods).std()
+        i_mean = flow_df["individuals_4w_ma"].rolling(window=window_26, min_periods=div_min_periods).mean()
+        i_std  = flow_df["individuals_4w_ma"].rolling(window=window_26, min_periods=div_min_periods).std()
+
+        # ゼロ除算を避けるため std が 0 の場合は NaN → divergence_score = 0
+        z_foreign = np.where(
+            f_std != 0,
+            (flow_df["foreigners_4w_ma"] - f_mean) / f_std,
+            0.0,
+        )
+        z_individual = np.where(
+            i_std != 0,
+            (flow_df["individuals_4w_ma"] - i_mean) / i_std,
+            0.0,
+        )
+        flow_df["divergence_score"] = np.clip((z_individual - z_foreign) / 2.0, -1.0, 1.0)
+
+        # ── 4. nikkei_return_4w: 各 week_end に対して4週前からの日経リターン ──
+        def _nikkei_return_4w(week_end: pd.Timestamp) -> Optional[float]:
+            """week_end 時点での日経平均4週リターンを返す。"""
+            if nikkei_df.empty:
+                return None
+            cutoff_4w = week_end - pd.Timedelta(weeks=4)
+            close_now_rows = nikkei_df[nikkei_df["date"] <= week_end]
+            close_4w_rows  = nikkei_df[nikkei_df["date"] <= cutoff_4w]
+            if close_now_rows.empty or close_4w_rows.empty:
+                return None
+            close_now = float(close_now_rows.iloc[-1]["nikkei_close"])
+            close_4w  = float(close_4w_rows.iloc[-1]["nikkei_close"])
+            if close_4w == 0:
+                return None
+            return (close_now - close_4w) / close_4w
+
+        flow_df["nikkei_return_4w"] = flow_df["week_end"].apply(_nikkei_return_4w)
+
+        # ── 5. flow_regime 判定 ───────────────────────────────────────
+        # 直前レジームを維持するため過去の保存済み値を読み込む
+        prev_regimes = conn.execute(
+            "SELECT week_end, flow_regime FROM investor_flow_indicators ORDER BY week_end ASC"
+        ).fetchall()
+        prev_regime_map: dict[str, str] = {r["week_end"]: r["flow_regime"] for r in prev_regimes}
+
+        def _determine_flow_regime(
+            row: pd.Series,
+            prev_regime: Optional[str],
+        ) -> str:
+            f4w = row.get("foreigners_4w_ma")
+            i4w = row.get("individuals_4w_ma")
+            f_mom = row.get("foreigners_momentum")
+            i_mom = row.get("individuals_momentum")
+            nk4w = row.get("nikkei_return_4w")
+
+            # NaN チェック — None または NaN は 0 扱いではなく判定不可
+            def _is_valid(v) -> bool:
+                return v is not None and not (isinstance(v, float) and np.isnan(v))
+
+            if _is_valid(f4w) and _is_valid(i4w):
+                if f4w > 0 and i4w < 0:
+                    return "bull"
+                if _is_valid(nk4w):
+                    if _is_valid(f4w) and _is_valid(i4w) and f4w < 0 and i4w > 0 and nk4w < 0:
+                        return "bear"
+
+            if _is_valid(f_mom) and _is_valid(i_mom) and _is_valid(nk4w):
+                if f_mom < 0 and i_mom > 0 and nk4w > 0:
+                    return "topping"
+                if f_mom > 0 and i_mom < 0 and nk4w < 0:
+                    return "bottoming"
+
+            # 判定できない場合は直前レジームを維持
+            return prev_regime or "bull"
+
+        # ── 6. DB に INSERT OR REPLACE ─────────────────────────────
+        rows_to_insert: list[tuple] = []
+        prev_regime: Optional[str] = None
+
+        for _, row in flow_df.iterrows():
+            week_end_str = row["week_end"].strftime("%Y-%m-%d")
+
+            # 直前レジームを取得 (保存済み or 直前ループ値)
+            saved_prev = prev_regime_map.get(week_end_str)
+            regime = _determine_flow_regime(row, saved_prev or prev_regime)
+            prev_regime = regime
+
+            def _to_float_or_none(v) -> Optional[float]:
+                if v is None:
+                    return None
+                try:
+                    f = float(v)
+                    return None if np.isnan(f) else f
+                except (TypeError, ValueError):
+                    return None
+
+            rows_to_insert.append((
+                week_end_str,
+                _to_float_or_none(row.get("foreigners_net")),
+                _to_float_or_none(row.get("individuals_net")),
+                _to_float_or_none(row.get("foreigners_4w_ma")),
+                _to_float_or_none(row.get("individuals_4w_ma")),
+                _to_float_or_none(row.get("foreigners_momentum")),
+                _to_float_or_none(row.get("individuals_momentum")),
+                _to_float_or_none(row.get("divergence_score")),
+                _to_float_or_none(row.get("nikkei_return_4w")),
+                regime,
+            ))
+
+        if not rows_to_insert:
+            return 0
+
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO investor_flow_indicators
+                (week_end, foreigners_net, individuals_net,
+                 foreigners_4w_ma, individuals_4w_ma,
+                 foreigners_momentum, individuals_momentum,
+                 divergence_score, nikkei_return_4w, flow_regime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows_to_insert,
+        )
+        conn.commit()
+
+    finally:
+        conn.close()
+
+    logger.info(f"compute_investor_flow_indicators: {len(rows_to_insert)} 週分更新")
+    return len(rows_to_insert)

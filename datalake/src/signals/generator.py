@@ -414,3 +414,160 @@ def generate(db_path: str, target_date: str, graph_results: dict) -> int:
 
     logger.info(f"signals.generate: {len(rows_to_insert)} 件生成 ({target_date})")
     return len(rows_to_insert)
+
+
+# ── 投資主体別フローシグナル (Phase 23) ──────────────────────────────────────
+
+_FLOW_SIGNAL_TOPPING     = "investor_flow_topping"
+_FLOW_SIGNAL_BOTTOMING   = "investor_flow_bottoming"
+_FLOW_SIGNAL_DIVERGENCE  = "investor_flow_divergence"
+
+
+def generate_investor_flow_signals(db_path: str, target_date: str) -> int:
+    """
+    investor_flow_indicators の最新データからシグナルを生成して signals テーブルに保存する。
+
+    シグナル種別と生成条件:
+      investor_flow_topping (bearish):
+        divergence_score >= 0.5 AND foreigners_momentum < 0 AND nikkei_return_4w > 0
+      investor_flow_bottoming (bullish):
+        divergence_score <= -0.5 AND foreigners_momentum > 0 AND nikkei_return_4w < 0
+      investor_flow_divergence (bearish if score>0, bullish if score<0):
+        abs(divergence_score) >= 0.3 (上記2つのシグナルが生成されない場合のみ)
+
+    confidence = min(abs(divergence_score), 1.0)
+
+    重複排除: 同じ date + signal_type が既に存在する場合は INSERT しない。
+    signals.code は NULL (市場全体シグナル)、sector は NULL。
+
+    Args:
+        db_path: SQLite ファイルパス
+        target_date: 'YYYY-MM-DD'
+
+    Returns:
+        生成したシグナル数
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    try:
+        # target_date 以前で最新の指標を取得
+        row = conn.execute(
+            """
+            SELECT week_end, foreigners_net, individuals_net,
+                   foreigners_4w_ma, individuals_4w_ma,
+                   foreigners_momentum, individuals_momentum,
+                   divergence_score, nikkei_return_4w, flow_regime
+            FROM investor_flow_indicators
+            WHERE week_end <= ?
+            ORDER BY week_end DESC
+            LIMIT 1
+            """,
+            (target_date,),
+        ).fetchone()
+
+        if row is None:
+            logger.info(f"generate_investor_flow_signals: 指標データなし ({target_date})")
+            return 0
+
+        week_end       = row["week_end"]
+        div_score      = row["divergence_score"]
+        f_momentum     = row["foreigners_momentum"]
+        nk_return_4w   = row["nikkei_return_4w"]
+        flow_regime    = row["flow_regime"]
+
+        # 必須値が None の場合はスキップ
+        if div_score is None or f_momentum is None:
+            logger.info(f"generate_investor_flow_signals: 必須指標が NULL ({week_end})")
+            return 0
+
+        # ── シグナル判定 ──────────────────────────────────────────────
+        signals_to_create: list[dict] = []
+        nk_valid = nk_return_4w is not None
+
+        is_topping = (
+            div_score >= 0.5
+            and f_momentum < 0
+            and nk_valid and nk_return_4w > 0
+        )
+        is_bottoming = (
+            div_score <= -0.5
+            and f_momentum > 0
+            and nk_valid and nk_return_4w < 0
+        )
+
+        if is_topping:
+            signals_to_create.append({
+                "signal_type": _FLOW_SIGNAL_TOPPING,
+                "direction": "bearish",
+            })
+        if is_bottoming:
+            signals_to_create.append({
+                "signal_type": _FLOW_SIGNAL_BOTTOMING,
+                "direction": "bullish",
+            })
+
+        # divergence のみ (topping / bottoming が出ていない場合)
+        if not is_topping and not is_bottoming and abs(div_score) >= 0.3:
+            direction = "bearish" if div_score > 0 else "bullish"
+            signals_to_create.append({
+                "signal_type": _FLOW_SIGNAL_DIVERGENCE,
+                "direction": direction,
+            })
+
+        if not signals_to_create:
+            logger.info(f"generate_investor_flow_signals: シグナル条件未達 ({week_end})")
+            return 0
+
+        # ── 重複排除: 同じ date + signal_type が既に存在する場合はスキップ ──
+        existing = {
+            r["signal_type"]
+            for r in conn.execute(
+                "SELECT signal_type FROM signals WHERE date = ? AND signal_type LIKE 'investor_flow_%'",
+                (week_end,),
+            ).fetchall()
+        }
+
+        reasoning_base: dict = {
+            "foreigners_net":      row["foreigners_net"],
+            "individuals_net":     row["individuals_net"],
+            "divergence_score":    div_score,
+            "nikkei_return_4w":    nk_return_4w,
+            "flow_regime":         flow_regime,
+        }
+
+        rows_to_insert: list[tuple] = []
+        for sig in signals_to_create:
+            if sig["signal_type"] in existing:
+                logger.debug(f"重複スキップ: {sig['signal_type']} ({week_end})")
+                continue
+            confidence = min(abs(div_score), 1.0)
+            rows_to_insert.append((
+                week_end,
+                sig["signal_type"],
+                None,   # code = NULL (市場全体)
+                None,   # sector = NULL
+                sig["direction"],
+                round(confidence, 4),
+                json.dumps(reasoning_base, ensure_ascii=False),
+            ))
+
+        if not rows_to_insert:
+            logger.info(f"generate_investor_flow_signals: 全シグナルが重複 ({week_end})")
+            return 0
+
+        conn.executemany(
+            """
+            INSERT INTO signals
+                (date, signal_type, code, sector, direction, confidence, reasoning)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows_to_insert,
+        )
+        conn.commit()
+
+    finally:
+        conn.close()
+
+    logger.info(f"generate_investor_flow_signals: {len(rows_to_insert)} 件生成 ({week_end})")
+    return len(rows_to_insert)
