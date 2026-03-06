@@ -9,6 +9,7 @@ RUN pip install uv && uv pip install --system -r pyproject.toml
 # ソースコード
 COPY src/ src/
 COPY lib/ lib/
+COPY scripts/ scripts/
 
 # Lambda ハンドラ
 CMD ["src.api.handler.handler"]

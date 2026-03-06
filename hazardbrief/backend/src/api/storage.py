@@ -54,7 +54,10 @@ def ensure_db() -> str:
 def _init_new_db(db_path: str) -> None:
     """空の DB を初期化する。"""
     import sys
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+    # Lambda: /var/task/scripts/  ローカル: backend/scripts/
+    scripts_dir = os.path.join(os.path.dirname(__file__), "../..")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
     from scripts.init_sqlite import init_sqlite
     init_sqlite(db_path)
 
