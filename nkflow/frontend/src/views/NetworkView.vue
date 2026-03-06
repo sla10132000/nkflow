@@ -54,44 +54,54 @@
       </div>
     </div>
 
-    <!-- 信用圧力タイムライン -->
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
-      <div class="flex items-center gap-3 px-3 py-2">
-        <button
-          @click="showPressureTimeline = !showPressureTimeline"
-          class="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
-        >信用圧力タイムライン {{ showPressureTimeline ? '▲' : '▼' }}</button>
+    <!-- 信用圧力タイムライン + 投資主体別フロー (共有期間ボタンでグループ化) -->
+    <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <!-- 共有ヘッダー: 期間ボタン -->
+      <div class="flex items-center gap-3 px-3 py-2 border-b border-gray-100">
+        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">期間</span>
         <div class="flex gap-1">
-          <button v-for="d in [30, 60, 90, 180]" :key="d"
-            @click="pressureDays = d; loadPressure()"
+          <button v-for="w in [4, 9, 13, 26]" :key="w"
+            @click="setSharedWeeks(w)"
             class="px-2 py-0.5 text-xs rounded border transition-colors"
-            :class="pressureDays === d
+            :class="sharedWeeks === w
               ? 'border-blue-500 text-blue-600 bg-blue-50'
               : 'border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600'"
-          >{{ Math.round(d / 7) }}週</button>
+          >{{ w }}週</button>
         </div>
       </div>
-      <div v-if="showPressureTimeline" class="border-t border-gray-100 p-3">
-        <MarketPressureTimeline :days="pressureDays" />
-      </div>
-    </div>
 
-    <!-- 投資主体別フロー -->
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mt-4">
-      <h2 class="text-sm font-semibold text-gray-700 mb-3">投資主体別フロー (東証プライム)</h2>
-      <div v-if="latestFlow" class="mb-3">
-        <div class="flex items-center gap-4 mb-2">
-          <span class="text-xs text-gray-500">最新週: {{ latestFlow.week_end }}</span>
-          <span :class="regimeFlowBadgeClass(latestFlow.indicators.flow_regime)" class="text-xs px-2 py-0.5 rounded-full font-medium">
-            {{ flowRegimeLabel(latestFlow.indicators.flow_regime) }}
-          </span>
-          <span class="text-xs text-gray-400">乖離スコア: {{ latestFlow.indicators.divergence_score != null ? latestFlow.indicators.divergence_score.toFixed(2) : '—' }}</span>
+      <!-- 信用圧力タイムライン -->
+      <div class="border-b border-gray-100">
+        <div class="px-3 py-2">
+          <button
+            @click="showPressureTimeline = !showPressureTimeline"
+            class="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
+          >信用圧力タイムライン {{ showPressureTimeline ? '▲' : '▼' }}</button>
         </div>
-        <DivergenceGauge :value="latestFlow.indicators.divergence_score" :regime="latestFlow.indicators.flow_regime" />
+        <div v-if="showPressureTimeline" class="px-3 pb-3">
+          <MarketPressureTimeline :days="pressureDays" />
+        </div>
       </div>
-      <InvestorFlowChart v-if="flowIndicators.length" :indicators="flowIndicators" :weeks="13" />
-      <p v-else-if="!loadingFlow" class="text-sm text-gray-500">データなし</p>
-      <p v-if="loadingFlow" class="text-sm text-gray-500">読み込み中...</p>
+
+      <!-- 投資主体別フロー -->
+      <div class="p-3">
+        <div class="flex flex-wrap items-center gap-3 mb-2">
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">投資主体別フロー (東証プライム)</h2>
+          <template v-if="latestFlow">
+            <span class="text-xs text-gray-400">最新週: {{ latestFlow.week_end }}</span>
+            <span :class="regimeFlowBadgeClass(latestFlow.indicators.flow_regime)" class="text-xs px-2 py-0.5 rounded-full font-medium">
+              {{ flowRegimeLabel(latestFlow.indicators.flow_regime) }}
+            </span>
+            <span class="text-xs text-gray-400">乖離スコア: {{ latestFlow.indicators.divergence_score != null ? latestFlow.indicators.divergence_score.toFixed(2) : '—' }}</span>
+          </template>
+        </div>
+        <DivergenceGauge v-if="latestFlow" :value="latestFlow.indicators.divergence_score" :regime="latestFlow.indicators.flow_regime" />
+        <div class="mt-3">
+          <InvestorFlowChart v-if="flowIndicators.length" :indicators="flowIndicators" :weeks="sharedWeeks" />
+          <p v-else-if="!loadingFlow" class="text-sm text-gray-500">データなし</p>
+          <p v-if="loadingFlow" class="text-sm text-gray-500">読み込み中...</p>
+        </div>
+      </div>
     </div>
 
     <!-- 資金フロー分析 (フィルタ + サンキー + ネットワーク) -->
@@ -232,7 +242,8 @@ const networkData = ref<NetworkData | null>(null);
 const selectedNode = ref<string | null>(null);
 const activeVisualizationTab = ref<"sankey" | "network">("sankey");
 const showPressureTimeline = ref(true);
-const pressureDays = ref(90);
+const sharedWeeks = ref(13);
+const pressureDays = computed(() => sharedWeeks.value * 7);
 const period = ref("20d");
 const fundFlowFilter = ref<"period" | "range" | "date">("range");
 const dateFrom = ref("");
@@ -380,6 +391,7 @@ async function loadInvestorFlows() {
 	try {
 		const [latest, indicators] = await Promise.all([
 			api.getInvestorFlowsLatest(),
+			// 常に26週分ロード; 表示件数は sharedWeeks で制御
 			api.getInvestorFlowsIndicators(26),
 		]);
 		latestFlow.value = latest;
@@ -389,6 +401,11 @@ async function loadInvestorFlows() {
 	} finally {
 		loadingFlow.value = false;
 	}
+}
+
+function setSharedWeeks(w: number) {
+	sharedWeeks.value = w;
+	loadPressure();
 }
 
 async function loadNetwork() {

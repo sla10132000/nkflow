@@ -80,10 +80,10 @@ describe("InvestorFlowChart", () => {
 		expect(wrapper.find("canvas").exists()).toBe(true);
 	});
 
-	it("ゾーン凡例が表示される", () => {
+	it("ゾーン凡例が表示される (弱気域/過熱域)", () => {
 		const wrapper = mountChart();
-		expect(wrapper.text()).toContain("底入れ域");
-		expect(wrapper.text()).toContain("天井警戒域");
+		expect(wrapper.text()).toContain("弱気域");
+		expect(wrapper.text()).toContain("過熱域");
 	});
 
 	it("divergence_score が null でもクラッシュしない", () => {

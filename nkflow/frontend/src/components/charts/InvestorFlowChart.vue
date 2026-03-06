@@ -1,11 +1,11 @@
 <template>
   <div class="w-full">
-    <!-- 凡例補足 -->
+    <!-- 凡例補足 (MarketPressureTimeline と色統一: 弱気=青 / 中立=灰 / 過熱=琥珀) -->
     <div class="flex items-center gap-3 text-xs text-gray-500 mb-1 px-1">
-      <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(34,197,94,0.15);" />
-      <span>底入れ域 (スコア &lt; 0)</span>
-      <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(239,68,68,0.12);" />
-      <span>天井警戒域 (スコア &gt; 0)</span>
+      <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(59,130,246,0.18);" />
+      <span>弱気域 (スコア &lt; 0)</span>
+      <span class="inline-block w-3 h-2 rounded-sm" style="background:rgba(202,138,4,0.15);" />
+      <span>過熱域 (スコア &gt; 0)</span>
     </div>
     <!-- responsive:true + maintainAspectRatio:false には親の固定高さが必要 -->
     <div style="position: relative; height: 220px;">
@@ -96,18 +96,18 @@ const chartData = computed<ChartData>(() => ({
 		},
 		{
 			type: "line" as const,
-			label: "乖離スコア (↑天井警戒 / ↓底入れ)",
+			label: "乖離スコア (↑過熱 / ↓弱気)",
 			data: slicedIndicators.value.map((d) => d.divergence_score),
-			borderColor: "rgba(34,197,94,1)",
+			borderColor: "rgba(107,114,128,0.8)",
 			backgroundColor: "transparent",
 			borderWidth: 2,
 			pointRadius: 4,
 			pointBackgroundColor: slicedIndicators.value.map((d) => {
 				const s = d.divergence_score;
-				if (s === null || s === undefined) return "rgba(34,197,94,0.9)";
-				if (s > 0.2) return "rgba(239,68,68,0.9)";
-				if (s < -0.2) return "rgba(34,197,94,0.9)";
-				return "rgba(156,163,175,0.9)";
+				if (s === null || s === undefined) return "rgba(107,114,128,0.9)";
+				if (s > 0.2) return "rgba(202,138,4,0.9)";   // 過熱 = 琥珀 (MarketPressureTimeline と統一)
+				if (s < -0.2) return "rgba(59,130,246,0.9)"; // 弱気 = 青 (MarketPressureTimeline と統一)
+				return "rgba(156,163,175,0.9)";               // 中立 = グレー
 			}),
 			pointBorderColor: "white",
 			pointBorderWidth: 1,
@@ -136,9 +136,9 @@ const chartOptions = computed<ChartOptions>(() => ({
 						if (val === null || val === undefined) return `${label}: —`;
 						const desc =
 							val > 0.3
-								? " [天井警戒]"
+								? " [過熱]"
 								: val < -0.3
-									? " [底入れ]"
+									? " [弱気]"
 									: " [中立]";
 						return `${label}: ${val.toFixed(2)}${desc}`;
 					}
@@ -168,8 +168,8 @@ const chartOptions = computed<ChartOptions>(() => ({
 				font: { size: 10 },
 				stepSize: 0.5,
 				callback(val: string | number) {
-					if (val === 1) return "+1 天井";
-					if (val === -1) return "-1 底入れ";
+					if (val === 1) return "+1 過熱";
+					if (val === -1) return "-1 弱気";
 					if (val === 0) return "0 中立";
 					return typeof val === "number" ? val.toFixed(1) : val;
 				},
@@ -199,18 +199,18 @@ const zoneBgPlugin = {
 
 		ctx.save();
 
-		// 正領域 (スコア > 0 = 天井警戒): 薄赤
-		const redTop = Math.max(top, Math.min(zeroY, bottom));
-		if (redTop > top) {
-			ctx.fillStyle = "rgba(239,68,68,0.07)";
-			ctx.fillRect(left, top, width, redTop - top);
+		// 正領域 (スコア > 0 = 過熱): 薄琥珀 (MarketPressureTimeline の過熱ゾーンと統一)
+		const amberTop = Math.max(top, Math.min(zeroY, bottom));
+		if (amberTop > top) {
+			ctx.fillStyle = "rgba(202,138,4,0.08)";
+			ctx.fillRect(left, top, width, amberTop - top);
 		}
 
-		// 負領域 (スコア < 0 = 底入れ): 薄緑
-		const greenBottom = Math.min(bottom, Math.max(zeroY, top));
-		if (greenBottom < bottom) {
-			ctx.fillStyle = "rgba(34,197,94,0.07)";
-			ctx.fillRect(left, greenBottom, width, bottom - greenBottom);
+		// 負領域 (スコア < 0 = 弱気): 薄青 (MarketPressureTimeline の弱気ゾーンと統一)
+		const blueBottom = Math.min(bottom, Math.max(zeroY, top));
+		if (blueBottom < bottom) {
+			ctx.fillStyle = "rgba(59,130,246,0.08)";
+			ctx.fillRect(left, blueBottom, width, bottom - blueBottom);
 		}
 
 		// ゼロライン (破線で強調)
