@@ -33,12 +33,16 @@ s3://nkflow-data-{account}/
     │       └── jquants_margin/
     │           └── margin_balance/{YYYY-MM-DD}.json    # 信用残高 (週次)
     │
-    ├── disaster/                                       # 災害データ (将来)
+    ├── disaster/                                       # 災害データ
     │   ├── natural/                                    # 自然災害
-    │   │   └── jma/
-    │   │       ├── earthquake/{YYYY-MM-DD}.json
-    │   │       └── weather/{YYYY-MM-DD}.json
-    │   └── infra/                                      # インフラ障害
+    │   │   ├── jma/
+    │   │   │   ├── earthquake_list/{YYYY-MM-DD}.json   # JMA 地震リスト (日次)
+    │   │   │   ├── earthquake_detail/{YYYY-MM-DD}.json # JMA 地震詳細 (震度4+のみ)
+    │   │   │   ├── warning_map/{YYYY-MM-DD}.json       # JMA 気象警報 (警報以上のみ)
+    │   │   │   └── tsunami/{YYYY-MM-DD}.json           # JMA 津波警報
+    │   │   └── usgs/
+    │   │       └── earthquake/{YYYY-MM-DD}.json        # USGS 日本周辺 M3.0+ (GeoJSON)
+    │   └── infra/                                      # インフラ障害 (将来)
     │       └── tepco/
     │           └── outage/{YYYY-MM-DD}.json
     │
@@ -62,7 +66,7 @@ s3://nkflow-data-{account}/
 | `market` | `index` | 株価指数 (日経225, S&P 500 等) | 実装済み |
 | `market` | `sentiment` | 市場センチメント (Fear & Greed 等) | 実装済み |
 | `market` | `credit` | 信用取引 (信用残高) | 実装済み |
-| `disaster` | `natural` | 自然災害 (地震, 気象) | 将来 |
+| `disaster` | `natural` | 自然災害 (地震, 気象, 津波) | 実装済み |
 | `disaster` | `infra` | インフラ障害 (停電等) | 将来 |
 | `news` | `feed` | ニュースフィード | 将来 |
 | `macro` | `stats` | マクロ経済統計 | 将来 |
@@ -167,6 +171,57 @@ s3://nkflow-data-{account}/
 | 取得範囲 | 直近14日 (DB に8週未満の場合は180日バックフィル) |
 | `data` 形式 | records リスト (`[{"Code": "72030", "Date": "20260228", "LongVol": 1000000, "ShrtVol": 100000}]`) |
 | 注意 | 週次データのため、毎日保存されるが内容は週1回しか更新されない |
+
+### disaster / natural / jma / earthquake_list
+
+| 項目 | 値 |
+|---|---|
+| 取得元 | JMA 防災情報 (`https://www.jma.go.jp/bosai/quake/data/list.json`) |
+| 認証 | なし (公開 API) |
+| 取得頻度 | 毎日 1回 (取引日に依存しない) |
+| 取得範囲 | list.json から target_date の地震イベントをフィルタ |
+| `data` 形式 | `[{"eid": "...", "at": "2026-03-06T...", "anm": "北海道北西沖", "mag": "5.2", "maxi": "4", ...}]` |
+| 保存条件 | 対象日にイベントがある場合のみ |
+
+### disaster / natural / jma / earthquake_detail
+
+| 項目 | 値 |
+|---|---|
+| 取得元 | JMA 防災情報 (`https://www.jma.go.jp/bosai/quake/data/{filename}`) |
+| 取得頻度 | earthquake_list に震度4以上がある場合のみ |
+| `data` 形式 | 詳細 JSON のリスト (`[{"Head": {...}, "Body": {"Earthquake": {...}}}]`) |
+
+### disaster / natural / jma / warning_map
+
+| 項目 | 値 |
+|---|---|
+| 取得元 | JMA 防災情報 (`https://www.jma.go.jp/bosai/warning/data/warning/map.json`) |
+| 認証 | なし |
+| 取得頻度 | 毎日 1回 |
+| `data` 形式 | 警報以上のエリアリスト (`[{"code": "011000", "warnings": [{"code": "03", "status": "発表"}], ...}]`) |
+| 保存条件 | 警報以上が発表中の場合のみ (注意報のみの日は保存しない) |
+| 注意 | 元の map.json は約235KB。警報以上のエリアのみ抽出して保存 |
+
+### disaster / natural / jma / tsunami
+
+| 項目 | 値 |
+|---|---|
+| 取得元 | JMA 防災情報 (`https://www.jma.go.jp/bosai/tsunami/data/list.json`) |
+| 認証 | なし |
+| 取得頻度 | 毎日 1回 |
+| `data` 形式 | 津波警報リスト |
+| 保存条件 | 空配列でない場合のみ (津波警報は稀) |
+
+### disaster / natural / usgs / earthquake
+
+| 項目 | 値 |
+|---|---|
+| 取得元 | USGS FDSNWS (`https://earthquake.usgs.gov/fdsnws/event/1/query`) |
+| 認証 | なし |
+| 取得頻度 | 毎日 1回 |
+| パラメータ | `format=geojson`, 日本周辺 (lat 30-46, lon 128-146), M3.0+, target_date |
+| `data` 形式 | GeoJSON FeatureCollection (`{"type": "FeatureCollection", "features": [{"properties": {"mag": 4.7, "sig": 340, ...}, "geometry": {...}}]}`) |
+| 保存条件 | features が空でない場合のみ |
 
 ---
 

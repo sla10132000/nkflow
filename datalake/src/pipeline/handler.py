@@ -3,6 +3,7 @@
 EventBridge Scheduler から呼び出される。
 
 実行順序:
+  0.5. disaster.fetch_all_disaster_data() - JMA/USGS 災害データを raw layer に保存
   0. fetch_news.normalize_news() - S3 raw ニュース → SQLite 正規化 (Phase 18)
   1. storage.get_credentials()   - SSM から J-Quants クレデンシャル取得
   2. storage.download()          - S3 から SQLite / KùzuDB を復元
@@ -92,6 +93,16 @@ def handler(event: dict, context: Any) -> dict:
     conn = sqlite3.connect(SQLITE_PATH)
 
     try:
+        # ── 0.5. 災害データ取得 (raw layer only, 取引日に依存しない) ──
+        try:
+            from src.ingestion import disaster
+
+            disaster_result = disaster.fetch_all_disaster_data(target_date)
+            logger.info(f"fetch_disaster: {disaster_result}")
+        except Exception as e:
+            logger.error(f"fetch_disaster 失敗 (処理は継続): {e}")
+            errors.append(f"fetch_disaster: {e}")
+
         # ── 0. ニュース正規化 + 後処理 (Phase 18/24, 非ブロッキング) ──
         try:
             news_count = fetch_news.normalize_news(conn, target_date)
