@@ -245,6 +245,9 @@ class TestBatchHandler:
             patch("src.ingestion.yahoo_finance.fetch_nikkei_close"),
             patch("src.ingestion.yahoo_finance.fetch_us_indices", return_value={}),
             patch("src.signals.generator.generate", return_value=0),
+            patch("src.ingestion.jquants.fetch_investor_flows", return_value=0),          # Phase 23
+            patch("src.transform.statistics.compute_investor_flow_indicators", return_value=0),  # Phase 23
+            patch("src.signals.generator.generate_investor_flow_signals", return_value=0),      # Phase 23
         ]
 
     def test_returns_200_on_trading_day(self, tmp_path, monkeypatch):
