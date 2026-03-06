@@ -64,7 +64,7 @@ install-datalake:
 	cd datalake && uv pip install -e ".[dev]"
 
 install-frontend:
-	cd frontend && npm install
+	cd nkflow/frontend && npm install
 
 install-cdk:
 	cd cdk && npm ci
@@ -74,7 +74,7 @@ install-cdk:
 # -----------------------------------------------------------------------
 
 dev:
-	cd frontend && npm run dev
+	cd nkflow/frontend && npm run dev
 
 # バックエンド開発サーバー (S3_BUCKET 未設定 = ローカルファイルモード)
 # 事前に: make pull  (stocks.db をS3からダウンロード)
@@ -93,7 +93,7 @@ test-datalake:
 	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/python -m pytest tests/ -v
 
 test-frontend:
-	cd frontend && npm test
+	cd nkflow/frontend && npm test
 
 lint:
 	cd nkflow/backend && .venv/bin/ruff check src/ tests/
@@ -103,7 +103,7 @@ lint-datalake:
 	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/ruff check src/ tests/ scripts/
 
 lint-frontend:
-	cd frontend && npm run lint
+	cd nkflow/frontend && npm run lint
 
 # -----------------------------------------------------------------------
 # Build
@@ -112,7 +112,7 @@ lint-frontend:
 build: build-frontend build-cdk
 
 build-frontend:
-	cd frontend && npm run build
+	cd nkflow/frontend && npm run build
 
 build-cdk:
 	cd cdk && npm run build
@@ -134,7 +134,7 @@ deploy-cdk: build-cdk
 # frontend のみ: ビルドして S3 へ同期
 # ⚠️ GitHub Actions は frontend/ を自動デプロイしない — Vue 変更後は必ずこれを実行
 deploy-frontend: build-frontend
-	aws s3 sync frontend/dist/ s3://$(S3_BUCKET)/frontend/ --delete
+	aws s3 sync nkflow/frontend/dist/ s3://$(S3_BUCKET)/frontend/ --delete
 
 # -----------------------------------------------------------------------
 # Git
