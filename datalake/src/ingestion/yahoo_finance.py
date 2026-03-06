@@ -285,6 +285,7 @@ def fetch_us_indices(db_path: str) -> dict:
     conn = sqlite3.connect(db_path)
     total_rows = 0
     tickers_done: list[str] = []
+    raw_data: dict[str, list] = {}
 
     try:
         for ticker, name in combined_tickers.items():
@@ -303,6 +304,8 @@ def fetch_us_indices(db_path: str) -> dict:
                     logger.info(f"us_indices: {ticker} データなし")
                     tickers_done.append(ticker)
                     continue
+
+                raw_data[ticker] = df.to_dict(orient="records")
 
                 # 最新日以降のみに絞る (差分更新の重複防止)
                 if latest is not None:
@@ -340,6 +343,10 @@ def fetch_us_indices(db_path: str) -> dict:
 
             except Exception as e:
                 logger.error(f"us_indices: {ticker} 処理失敗 (継続): {e}")
+
+        if raw_data:
+            from src.pipeline.raw_store import save_raw
+            save_raw("yahoo_finance", "us_indices", date.today().isoformat(), raw_data)
 
     finally:
         conn.close()
@@ -380,6 +387,9 @@ def fetch_crypto_fear_greed(db_path: str, days: int = 30) -> int:
     except Exception as e:
         logger.warning(f"BTC Fear & Greed 取得失敗: {e}")
         return 0
+
+    from src.pipeline.raw_store import save_raw
+    save_raw("yahoo_finance", "crypto_fng", date.today().isoformat(), data)
 
     records = data.get("data", [])
     if not records:

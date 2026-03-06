@@ -446,3 +446,19 @@ class TestFetchCryptoFearGreed:
         count = conn.execute("SELECT COUNT(*) FROM crypto_fear_greed").fetchone()[0]
         conn.close()
         assert count == 2  # 重複なし
+
+    @patch("src.pipeline.raw_store.save_raw")
+    def test_saves_raw_data(self, mock_save_raw, db_path):
+        """raw データが S3 に保存されること"""
+        mock_save_raw.return_value = "raw/yahoo_finance/crypto_fng/2026-03-06.json"
+        from src.ingestion.yahoo_finance import fetch_crypto_fear_greed
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = self._mock_get_ok()
+            fetch_crypto_fear_greed(db_path, days=2)
+
+        mock_save_raw.assert_called_once()
+        args = mock_save_raw.call_args[0]
+        assert args[0] == "yahoo_finance"
+        assert args[1] == "crypto_fng"
+        assert isinstance(args[3], dict)  # 生の API レスポンス全体

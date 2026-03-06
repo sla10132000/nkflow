@@ -113,3 +113,19 @@ class TestFetchUsIndices:
 
         assert result["status"] == "ok"
         assert result["rows_inserted"] == 0
+
+    @patch("src.pipeline.raw_store.save_raw")
+    def test_saves_raw_data(self, mock_save_raw, db_path):
+        """raw データが S3 に保存されること"""
+        mock_save_raw.return_value = "raw/yahoo_finance/us_indices/2026-03-06.json"
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = _mock_get_ok()
+            from src.ingestion.yahoo_finance import fetch_us_indices
+            fetch_us_indices(db_path)
+
+        mock_save_raw.assert_called_once()
+        args = mock_save_raw.call_args[0]
+        assert args[0] == "yahoo_finance"
+        assert args[1] == "us_indices"
+        assert isinstance(args[3], dict)  # {ticker: [records]}
+        assert len(args[3]) == 15  # 15 tickers
