@@ -68,14 +68,25 @@ async def serve_frontend(path: str) -> Response:
     suffix = "." + key.rsplit(".", 1)[-1] if "." in key.split("/")[-1] else ""
     content_type = _EXT_CONTENT_TYPE.get(suffix, "application/octet-stream")
 
+    # index.html またはハッシュなしパスは毎回再取得させる
+    is_html = suffix in ("", ".html")
+    cache_header = "no-store" if is_html else "public, max-age=31536000, immutable"
+
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)
-        return Response(content=obj["Body"].read(), media_type=content_type)
+        return Response(
+            content=obj["Body"].read(),
+            media_type=content_type,
+            headers={"Cache-Control": cache_header},
+        )
     except Exception:
         # SPA フォールバック: Vue Router のクライアントサイドルーティング用
         try:
             obj = s3.get_object(Bucket=bucket, Key="frontend/index.html")
-            return Response(content=obj["Body"].read(),
-                            media_type="text/html; charset=utf-8")
+            return Response(
+                content=obj["Body"].read(),
+                media_type="text/html; charset=utf-8",
+                headers={"Cache-Control": "no-store"},
+            )
         except Exception:
             return Response(content="Not Found", status_code=404)
