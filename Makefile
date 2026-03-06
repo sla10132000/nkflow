@@ -1,4 +1,5 @@
 S3_BUCKET := nkflow-data-268914462689
+HB_S3_BUCKET := hazardbrief-data-$(shell aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "000000000000")
 
 .PHONY: help \
         install install-backend install-datalake install-frontend install-cdk \
@@ -7,7 +8,10 @@ S3_BUCKET := nkflow-data-268914462689
         build build-frontend build-cdk \
         diff deploy deploy-cdk deploy-frontend \
         pull push push-db \
-        migrate
+        migrate \
+        deploy-hazardbrief deploy-hazardbrief-cdk deploy-hazardbrief-frontend \
+        test-hazardbrief-backend test-hazardbrief-frontend \
+        install-hazardbrief
 
 # デフォルトターゲット
 help:
@@ -167,3 +171,31 @@ push-db:
 	sqlite3 $(SQLITE_LOCAL) "PRAGMA wal_checkpoint(TRUNCATE);"
 	aws s3 cp $(SQLITE_LOCAL) s3://$(S3_BUCKET)/data/stocks.db
 	@echo "Uploaded from: $(SQLITE_LOCAL)"
+
+# -----------------------------------------------------------------------
+# HazardBrief
+# -----------------------------------------------------------------------
+
+install-hazardbrief:
+	cd hazardbrief/backend && uv pip install -e ".[dev]"
+	cd hazardbrief/frontend && npm install
+	cd hazardbrief/cdk && npm ci
+
+# HazardBrief: CDK + frontend を両方デプロイ
+deploy-hazardbrief: deploy-hazardbrief-cdk deploy-hazardbrief-frontend
+
+# HazardBrief: CDK のみデプロイ (backend/Lambda/インフラ変更時)
+deploy-hazardbrief-cdk:
+	cd hazardbrief/cdk && npm run build && npx cdk deploy HazardBriefStack --require-approval never
+
+# HazardBrief: frontend のみビルド&S3同期 (Vue変更時)
+deploy-hazardbrief-frontend:
+	cd hazardbrief/frontend && npm run build && aws s3 sync dist/ s3://$$(aws cloudformation describe-stacks --stack-name HazardBriefStack --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucketName`].OutputValue' --output text)/frontend/ --delete
+
+# HazardBrief: backend テスト
+test-hazardbrief-backend:
+	cd hazardbrief/backend && .venv/bin/python -m pytest tests/ -v
+
+# HazardBrief: frontend テスト
+test-hazardbrief-frontend:
+	cd hazardbrief/frontend && npx vitest run

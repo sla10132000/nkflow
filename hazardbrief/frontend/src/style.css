@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet CSS import */
+@import "leaflet/dist/leaflet.css";
+
+/* カスタムスタイル */
+body {
+  font-family: "Noto Sans JP", system-ui, -apple-system, sans-serif;
+}
+
+/* リスクレベルのカラーユーティリティ */
+.risk-low {
+  @apply bg-green-50 border-green-200 text-green-800;
+}
+
+.risk-medium {
+  @apply bg-amber-50 border-amber-200 text-amber-800;
+}
+
+.risk-high {
+  @apply bg-orange-50 border-orange-200 text-orange-800;
+}
+
+.risk-unknown {
+  @apply bg-gray-50 border-gray-200 text-gray-600;
+}
+
+.risk-badge-low {
+  @apply bg-green-100 text-green-700;
+}
+
+.risk-badge-medium {
+  @apply bg-amber-100 text-amber-700;
+}
+
+.risk-badge-high {
+  @apply bg-orange-100 text-orange-700;
+}
+
+.risk-badge-unknown {
+  @apply bg-gray-100 text-gray-600;
+}
