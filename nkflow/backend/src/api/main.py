@@ -5,7 +5,7 @@ import os
 import boto3
 from fastapi import FastAPI, Response
 
-from src.api.routers import backtest, fear_indices, forex, margin, network, news, portfolio, prices, sector_rotation, stock, summary, td_sequential, us_indices, ytd_highs
+from src.api.routers import backtest, fear_indices, forex, investor_flows, margin, network, news, portfolio, prices, sector_rotation, stock, summary, td_sequential, us_indices, ytd_highs
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ app.include_router(us_indices.router, prefix="/api")       # Phase 20
 app.include_router(fear_indices.router, prefix="/api")     # Phase 21
 app.include_router(td_sequential.router, prefix="/api")    # Phase 22
 app.include_router(ytd_highs.router, prefix="/api")        # 年初来高値
+app.include_router(investor_flows.router, prefix="/api")   # Phase 23 投資主体別フロー
 
 
 @app.on_event("startup")
