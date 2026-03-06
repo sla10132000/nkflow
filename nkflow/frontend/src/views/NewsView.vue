@@ -13,10 +13,19 @@
         {{ preset.label }}
       </button>
       <input v-model="filterDate" type="date" class="input" />
+      <button
+        :class="showFavoritesOnly ? 'btn-primary' : 'btn-secondary'"
+        class="ml-auto flex items-center gap-1"
+        @click="showFavoritesOnly = !showFavoritesOnly"
+      >
+        <span>{{ showFavoritesOnly ? '★' : '☆' }}</span>
+        <span>お気に入り</span>
+        <span v-if="favoritesCount > 0" class="text-xs opacity-75">({{ favoritesCount }})</span>
+      </button>
     </div>
 
     <!-- サマリ -->
-    <div v-if="summary" class="card">
+    <div v-if="summary && !showFavoritesOnly" class="card">
       <div class="flex flex-wrap gap-4 text-sm">
         <span class="font-medium">合計: {{ summary.total }}件</span>
         <template v-if="summary.sentiment_dist">
@@ -39,11 +48,11 @@
 
     <!-- コンテンツ -->
     <div class="card">
-      <LoadingState :loading="loading" :empty="articles.length === 0">
-        <template #empty>記事なし</template>
+      <LoadingState :loading="loading" :empty="displayedArticles.length === 0">
+        <template #empty>{{ showFavoritesOnly ? 'お気に入りなし' : '記事なし' }}</template>
         <div class="space-y-1">
           <div
-            v-for="article in articles"
+            v-for="article in displayedArticles"
             :key="article.id"
             class="flex items-start gap-2 border-b border-gray-100 pb-1.5 last:border-0"
           >
@@ -79,6 +88,14 @@
                 <span v-if="article.tickers" class="text-blue-400">{{ article.tickers }}</span>
               </div>
             </div>
+            <button
+              class="flex-shrink-0 text-lg leading-none"
+              :class="isFavorite(article.id) ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'"
+              :aria-label="isFavorite(article.id) ? 'お気に入りから削除' : 'お気に入りに追加'"
+              @click="toggleFavorite(article.id)"
+            >
+              {{ isFavorite(article.id) ? '★' : '☆' }}
+            </button>
           </div>
         </div>
       </LoadingState>
@@ -90,18 +107,28 @@
 import { computed, onMounted, ref, watch } from "vue";
 import LoadingState from "../components/shared/LoadingState.vue";
 import { useApi } from "../composables/useApi";
+import { useFavorites } from "../composables/useFavorites";
 import type { NewsArticle, NewsSummary } from "../types";
 import { newsCategoryColor } from "../utils/colors";
 import { daysAgoJst, todayJst } from "../utils/dateRange";
 import { formatDateFull, formatDateTime } from "../utils/formatters";
 
 const api = useApi();
+const { favoritesCount, isFavorite, toggleFavorite } = useFavorites();
 
 const articles = ref<NewsArticle[]>([]);
 const summary = ref<NewsSummary | null>(null);
 const loading = ref(false);
 const filterDate = ref("");
 const filterCategory = ref("");
+const showFavoritesOnly = ref(false);
+
+const displayedArticles = computed(() => {
+	if (showFavoritesOnly.value) {
+		return articles.value.filter((a) => isFavorite(a.id));
+	}
+	return articles.value;
+});
 
 const datePresets = computed(() => [
 	{ label: "最新", value: "" },

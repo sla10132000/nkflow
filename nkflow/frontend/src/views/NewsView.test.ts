@@ -5,6 +5,18 @@ import { createMockApi } from "../test/mocks/useApi";
 const mockApi = createMockApi();
 vi.mock("../composables/useApi", () => ({ useApi: () => mockApi }));
 
+// localStorage mock
+const storage: Record<string, string> = {};
+vi.stubGlobal("localStorage", {
+	getItem: (k: string) => storage[k] ?? null,
+	setItem: (k: string, v: string) => {
+		storage[k] = v;
+	},
+	removeItem: (k: string) => {
+		delete storage[k];
+	},
+});
+
 const { default: NewsView } = await import("./NewsView.vue");
 
 function mountView() {
@@ -42,6 +54,8 @@ describe("NewsView", () => {
 		vi.clearAllMocks();
 		mockApi.getNews.mockResolvedValue([]);
 		mockApi.getNewsSummary.mockResolvedValue(null);
+		// clear favorites storage
+		delete storage["nkflow:news-favorites"];
 	});
 
 	it("ページタイトルが表示される", async () => {
@@ -143,5 +157,73 @@ describe("NewsView", () => {
 		expect(wrapper.text()).toContain("決算");
 		expect(wrapper.text()).toContain("為替");
 		expect(wrapper.text()).toContain("円安ニュース");
+	});
+
+	// お気に入り機能
+	it("各記事にお気に入りボタンが表示される", async () => {
+		mockApi.getNews.mockResolvedValue([mockArticle]);
+		const wrapper = mountView();
+		await flushPromises();
+
+		const favBtn = wrapper.find('button[aria-label="お気に入りに追加"]');
+		expect(favBtn.exists()).toBe(true);
+		expect(favBtn.text()).toBe("☆");
+	});
+
+	it("お気に入りボタンをクリックすると星が塗りつぶされる", async () => {
+		mockApi.getNews.mockResolvedValue([mockArticle]);
+		const wrapper = mountView();
+		await flushPromises();
+
+		const favBtn = wrapper.find('button[aria-label="お気に入りに追加"]');
+		await favBtn.trigger("click");
+
+		const filledBtn = wrapper.find('button[aria-label="お気に入りから削除"]');
+		expect(filledBtn.exists()).toBe(true);
+		expect(filledBtn.text()).toBe("★");
+	});
+
+	it("お気に入りがlocalStorageに保存される", async () => {
+		mockApi.getNews.mockResolvedValue([mockArticle]);
+		const wrapper = mountView();
+		await flushPromises();
+
+		await wrapper
+			.find('button[aria-label="お気に入りに追加"]')
+			.trigger("click");
+
+		const saved = JSON.parse(storage["nkflow:news-favorites"]);
+		expect(saved).toContain("a1");
+	});
+
+	it("お気に入りフィルタを有効にするとお気に入り記事のみ表示される", async () => {
+		mockApi.getNews.mockResolvedValue([
+			{ ...mockArticle, id: "a1", title_ja: "記事A" },
+			{ ...mockArticle, id: "a2", title_ja: "記事B" },
+		]);
+		const wrapper = mountView();
+		await flushPromises();
+
+		// a1 をお気に入りに追加
+		const favBtns = wrapper.findAll('button[aria-label="お気に入りに追加"]');
+		await favBtns[0].trigger("click");
+
+		// お気に入りフィルタをON
+		const filterBtn = wrapper.find("button.ml-auto");
+		await filterBtn.trigger("click");
+
+		expect(wrapper.text()).toContain("記事A");
+		expect(wrapper.text()).not.toContain("記事B");
+	});
+
+	it("お気に入りが0件のときフィルタONで「お気に入りなし」を表示する", async () => {
+		mockApi.getNews.mockResolvedValue([mockArticle]);
+		const wrapper = mountView();
+		await flushPromises();
+
+		const filterBtn = wrapper.find("button.ml-auto");
+		await filterBtn.trigger("click");
+
+		expect(wrapper.text()).toContain("お気に入りなし");
 	});
 });
