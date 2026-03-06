@@ -5,8 +5,20 @@ from datetime import date, datetime
 from typing import Optional
 
 import pandas as pd
+import requests
 
 logger = logging.getLogger(__name__)
+
+# ── 投資主体別売買動向 investor_type マッピング ──────────────────────────────
+_INVESTOR_TYPE_MAP = {
+    "Foreigners":        "foreigners",
+    "Individuals":       "individuals",
+    "InvestmentTrusts":  "investment_trusts",
+    "TrustBanks":        "trust_banks",
+    "BusinessCompanies": "business_cos",
+}
+
+_JQUANTS_TRADES_SPEC_URL = "https://api.jquants.com/v1/markets/trades_spec"
 
 
 def _get_client():
@@ -194,3 +206,145 @@ def fetch_daily(
     conn.commit()
     logger.info(f"日次データを挿入: {len(rows)} 件 ({target_date})")
     return len(rows)
+
+
+def fetch_investor_flows(
+    conn: sqlite3.Connection,
+    from_date: str,
+    to_date: str,
+    section: str = "TSEPrime",
+    client=None,
+) -> int:
+    """
+    J-Quants API から投資主体別売買動向を取得して investor_flow_weekly に保存する。
+
+    エンドポイント: GET https://api.jquants.com/v1/markets/trades_spec
+    認証: x-api-key ヘッダー (ClientV2 の _api_key を使用)
+
+    レスポンスの各行を investor_type ごとに分解して保存する。
+    API レスポンスの 1 行 = 1 週 × 複数投資主体 → DB では 1 行 = 1 週 × 1 投資主体。
+
+    Args:
+        conn: SQLite 接続
+        from_date: 取得開始日 ('YYYY-MM-DD')
+        to_date: 取得終了日 ('YYYY-MM-DD')
+        section: 市場区分 (デフォルト: 'TSEPrime')
+        client: J-Quants APIクライアント (省略時は自動生成)
+
+    Returns:
+        保存した行数 (週 × 投資主体の組み合わせ数)
+    """
+    if client is None:
+        client = _get_client()
+
+    api_key = client._api_key
+    headers = {
+        "x-api-key": api_key,
+    }
+
+    params: dict = {
+        "section": section,
+        "from": from_date.replace("-", ""),
+        "to": to_date.replace("-", ""),
+    }
+
+    logger.info(f"投資主体別売買動向を取得中: {from_date} ~ {to_date} ({section})")
+
+    try:
+        resp = requests.get(
+            _JQUANTS_TRADES_SPEC_URL,
+            params=params,
+            headers=headers,
+            timeout=30,
+        )
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 400:
+            logger.info(f"trades_spec: データなし ({from_date}~{to_date})")
+            return 0
+        raise
+
+    data = resp.json()
+    weekly_records = data.get("trades_spec", [])
+
+    if not weekly_records:
+        logger.info("trades_spec: レスポンスが空でした")
+        return 0
+
+    rows: list[tuple] = []
+    for record in weekly_records:
+        published_date: Optional[str] = record.get("PublishedDate")
+        start_date: str = record.get("StartDate", "")
+        end_date: str = record.get("EndDate", "")
+        rec_section: str = record.get("Section", section)
+
+        # 日付を YYYY-MM-DD 形式に統一 (API は YYYYMMDD で返す場合がある)
+        start_date = _normalize_date(start_date)
+        end_date = _normalize_date(end_date)
+        if published_date:
+            published_date = _normalize_date(published_date)
+
+        if not start_date or not end_date:
+            continue
+
+        for api_prefix, investor_type in _INVESTOR_TYPE_MAP.items():
+            sales_key = f"{api_prefix}Sales"
+            purchases_key = f"{api_prefix}Purchases"
+            balance_key = f"{api_prefix}Balance"
+
+            sales = record.get(sales_key)
+            purchases = record.get(purchases_key)
+            balance = record.get(balance_key)
+
+            # 少なくとも1つの値がある場合のみ保存
+            if sales is None and purchases is None and balance is None:
+                continue
+
+            rows.append((
+                start_date,
+                end_date,
+                rec_section,
+                investor_type,
+                float(sales) if sales is not None else None,
+                float(purchases) if purchases is not None else None,
+                float(balance) if balance is not None else None,
+                published_date,
+            ))
+
+    if not rows:
+        logger.info("trades_spec: 保存可能なレコードなし")
+        return 0
+
+    conn.executemany(
+        """
+        INSERT OR REPLACE INTO investor_flow_weekly
+            (week_start, week_end, section, investor_type,
+             sales, purchases, balance, published_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        rows,
+    )
+    conn.commit()
+    logger.info(f"投資主体別売買動向を保存: {len(rows)} 件 ({from_date}~{to_date})")
+    return len(rows)
+
+
+def _normalize_date(date_str: str) -> str:
+    """
+    日付文字列を 'YYYY-MM-DD' 形式に統一する。
+    YYYYMMDD および YYYY-MM-DD の両形式に対応。
+
+    Args:
+        date_str: 日付文字列
+
+    Returns:
+        'YYYY-MM-DD' 形式の文字列。変換不能な場合は空文字列。
+    """
+    if not date_str:
+        return ""
+    date_str = str(date_str).strip()
+    if len(date_str) == 8 and date_str.isdigit():
+        return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+    if len(date_str) == 10 and date_str[4] == "-" and date_str[7] == "-":
+        return date_str
+    return ""
