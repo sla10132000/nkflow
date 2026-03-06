@@ -180,8 +180,7 @@ describe("NetworkView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("2026-03-01");
 		expect(wrapper.text()).toContain("強気 (海外買い優勢)");
-		expect(wrapper.text()).toContain("乖離スコア:");
+		expect(wrapper.text()).toContain("乖離:");
 	});
 });

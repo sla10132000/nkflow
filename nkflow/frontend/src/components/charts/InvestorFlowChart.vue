@@ -9,7 +9,7 @@
       </span>
     </div>
     <!-- responsive:true + maintainAspectRatio:false には親の固定高さが必要 -->
-    <div style="position: relative; height: 220px;">
+    <div style="position: relative; height: 256px;">
       <canvas ref="canvasRef" />
     </div>
   </div>

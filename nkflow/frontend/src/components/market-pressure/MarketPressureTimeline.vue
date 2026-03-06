@@ -72,12 +72,12 @@ const ZONE_BG: Record<string, string> = {
 };
 
 const ZONE_LABEL: Record<string, string> = {
-	ceiling: "天井圏",
+	ceiling: "天井",
 	overheat: "過熱",
 	neutral: "中立",
 	weak: "弱気",
 	sellin: "売り圧力",
-	bottom: "底値圏",
+	bottom: "底",
 };
 
 const activeZones = computed(() => {
