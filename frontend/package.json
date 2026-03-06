@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@auth0/auth0-vue": "^2.5.0",
     "axios": "^1.7.9",
     "chart.js": "^4.4.7",
     "lightweight-charts": "^5.1.0",

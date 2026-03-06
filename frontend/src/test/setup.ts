@@ -1,3 +1,18 @@
+import { vi } from "vitest";
+
+// @auth0/auth0-vue mock — テスト環境では Auth0 を使わない
+vi.mock("@auth0/auth0-vue", () => ({
+	useAuth0: () => ({
+		isAuthenticated: { value: true },
+		isLoading: { value: false },
+		user: { value: { name: "Test User", picture: null } },
+		loginWithRedirect: vi.fn(),
+		logout: vi.fn(),
+	}),
+	createAuth0: vi.fn(() => ({ install: vi.fn() })),
+	createAuthGuard: vi.fn(() => () => true),
+}));
+
 // Canvas mock — chart.js requires getContext('2d')
 HTMLCanvasElement.prototype.getContext = (() => {
 	const noop = () => {};
