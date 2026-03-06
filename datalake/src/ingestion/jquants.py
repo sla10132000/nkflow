@@ -9,16 +9,15 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# ── 投資主体別売買動向 investor_type マッピング ──────────────────────────────
-_INVESTOR_TYPE_MAP = {
-    "Foreigners":        "foreigners",
-    "Individuals":       "individuals",
-    "InvestmentTrusts":  "investment_trusts",
-    "TrustBanks":        "trust_banks",
-    "BusinessCompanies": "business_cos",
+# ── 投資主体別売買動向 investor_type マッピング (v2 API カラム名対応) ───────────
+# v2 API get_eq_investor_types() のカラム: Frgn/Ind/TrstBnk/InvTr/BusCo
+_INVESTOR_TYPE_MAP_V2 = {
+    "Frgn":    "foreigners",
+    "Ind":     "individuals",
+    "InvTr":   "investment_trusts",
+    "TrstBnk": "trust_banks",
+    "BusCo":   "business_cos",
 }
-
-_JQUANTS_TRADES_SPEC_URL = "https://api.jquants.com/v1/markets/trades_spec"
 
 
 def _get_client():
@@ -216,13 +215,10 @@ def fetch_investor_flows(
     client=None,
 ) -> int:
     """
-    J-Quants API から投資主体別売買動向を取得して investor_flow_weekly に保存する。
+    J-Quants API v2 から投資主体別売買動向を取得して investor_flow_weekly に保存する。
 
-    エンドポイント: GET https://api.jquants.com/v1/markets/trades_spec
-    認証: x-api-key ヘッダー (ClientV2 の _api_key を使用)
-
-    レスポンスの各行を investor_type ごとに分解して保存する。
-    API レスポンスの 1 行 = 1 週 × 複数投資主体 → DB では 1 行 = 1 週 × 1 投資主体。
+    client.get_eq_investor_types() (v2 API) を使用。
+    API の 1 行 = 1 週 × 複数投資主体 → DB では 1 行 = 1 週 × 1 投資主体。
 
     Args:
         conn: SQLite 接続
@@ -237,67 +233,55 @@ def fetch_investor_flows(
     if client is None:
         client = _get_client()
 
-    api_key = client._api_key
-    headers = {
-        "x-api-key": api_key,
-    }
-
-    params: dict = {
-        "section": section,
-        "from": from_date.replace("-", ""),
-        "to": to_date.replace("-", ""),
-    }
+    from_yyyymmdd = from_date.replace("-", "")
+    to_yyyymmdd = to_date.replace("-", "")
 
     logger.info(f"投資主体別売買動向を取得中: {from_date} ~ {to_date} ({section})")
 
     try:
-        resp = requests.get(
-            _JQUANTS_TRADES_SPEC_URL,
-            params=params,
-            headers=headers,
-            timeout=30,
+        df = client.get_eq_investor_types(
+            from_yyyymmdd=from_yyyymmdd,
+            to_yyyymmdd=to_yyyymmdd,
         )
-        resp.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code == 400:
-            logger.info(f"trades_spec: データなし ({from_date}~{to_date})")
-            return 0
-        raise
+    except Exception as e:
+        logger.warning(f"get_eq_investor_types 失敗: {e}")
+        return 0
 
-    data = resp.json()
-    weekly_records = data.get("trades_spec", [])
+    if df is None or df.empty:
+        logger.info("get_eq_investor_types: レスポンスが空でした")
+        return 0
 
-    if not weekly_records:
-        logger.info("trades_spec: レスポンスが空でした")
+    # section フィルタ (TSEPrime のみ)
+    if "Section" in df.columns:
+        df = df[df["Section"] == section]
+
+    if df.empty:
+        logger.info(f"get_eq_investor_types: {section} データなし")
         return 0
 
     rows: list[tuple] = []
-    for record in weekly_records:
-        published_date: Optional[str] = record.get("PublishedDate")
-        start_date: str = record.get("StartDate", "")
-        end_date: str = record.get("EndDate", "")
-        rec_section: str = record.get("Section", section)
+    for _, record in df.iterrows():
+        published_date: Optional[str] = None
+        if "PubDate" in record and pd.notna(record["PubDate"]):
+            published_date = str(record["PubDate"])[:10]
 
-        # 日付を YYYY-MM-DD 形式に統一 (API は YYYYMMDD で返す場合がある)
-        start_date = _normalize_date(start_date)
-        end_date = _normalize_date(end_date)
-        if published_date:
-            published_date = _normalize_date(published_date)
+        start_date: str = str(record.get("StDate", ""))[:10] if pd.notna(record.get("StDate")) else ""
+        end_date: str = str(record.get("EnDate", ""))[:10] if pd.notna(record.get("EnDate")) else ""
+        rec_section: str = str(record.get("Section", section))
 
         if not start_date or not end_date:
             continue
 
-        for api_prefix, investor_type in _INVESTOR_TYPE_MAP.items():
-            sales_key = f"{api_prefix}Sales"
-            purchases_key = f"{api_prefix}Purchases"
-            balance_key = f"{api_prefix}Balance"
+        for col_prefix, investor_type in _INVESTOR_TYPE_MAP_V2.items():
+            sell_col = f"{col_prefix}Sell"
+            buy_col = f"{col_prefix}Buy"
+            bal_col = f"{col_prefix}Bal"
 
-            sales = record.get(sales_key)
-            purchases = record.get(purchases_key)
-            balance = record.get(balance_key)
+            sales = record.get(sell_col)
+            purchases = record.get(buy_col)
+            balance = record.get(bal_col)
 
-            # 少なくとも1つの値がある場合のみ保存
-            if sales is None and purchases is None and balance is None:
+            if pd.isna(sales) and pd.isna(purchases) and pd.isna(balance):
                 continue
 
             rows.append((
@@ -305,9 +289,9 @@ def fetch_investor_flows(
                 end_date,
                 rec_section,
                 investor_type,
-                float(sales) if sales is not None else None,
-                float(purchases) if purchases is not None else None,
-                float(balance) if balance is not None else None,
+                float(sales) if pd.notna(sales) else None,
+                float(purchases) if pd.notna(purchases) else None,
+                float(balance) if pd.notna(balance) else None,
                 published_date,
             ))
 
