@@ -57,6 +57,12 @@ def _download_sqlite(db_path: str) -> None:
     s3_bucket = os.environ["S3_BUCKET"]
     s3_key = "data/stocks.db"
 
+    # ダウンロード中に旧ファイル + temp ファイルで /tmp 容量が 2x になるのを防ぐため
+    # 先に旧ファイルを削除してからダウンロードする
+    if os.path.exists(db_path):
+        os.remove(db_path)
+        logger.info(f"旧SQLiteを削除しました: {db_path}")
+
     s3 = boto3.client("s3")
     try:
         s3.download_file(s3_bucket, s3_key, db_path)
