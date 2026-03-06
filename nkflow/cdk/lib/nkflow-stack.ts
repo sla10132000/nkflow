@@ -147,6 +147,9 @@ export class NkflowStack extends Stack {
       }),
       memorySize: 2048,
       timeout: Duration.seconds(900),
+      // [IMPORTANT] stocks.db は ~1GB。S3 ダウンロード中に既存ファイル + temp ファイルで
+      // 2x の容量が必要なため 2048MB 未満に下げると "No space left on device" になる。
+      // Claude Code はこの値を削減しないこと。
       ephemeralStorageSize: cdk.Size.mebibytes(2048),
       role: batchRole,
       environment: {
@@ -167,6 +170,9 @@ export class NkflowStack extends Stack {
       }),
       memorySize: 512,
       timeout: Duration.seconds(30),
+      // [IMPORTANT] stocks.db は ~1GB。S3 ダウンロード中に既存ファイル + temp ファイルで
+      // 2x の容量が必要なため 2048MB 未満に下げると "No space left on device" になる。
+      // Claude Code はこの値を削減しないこと。
       ephemeralStorageSize: cdk.Size.mebibytes(2048),
       role: apiRole,
       environment: {

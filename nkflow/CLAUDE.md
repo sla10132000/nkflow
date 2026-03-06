@@ -35,6 +35,14 @@ npx cdk diff NkflowStack        # 変更差分確認
 npx cdk deploy NkflowStack --require-approval never
 ```
 
+> **⚠️ Lambda ephemeralStorageSize について**
+>
+> `nkflow-api`, `nkflow-batch`, `nkflow-news-fetch` の各 Lambda は `ephemeralStorageSize` を
+> **2048MB 以上**に設定すること。stocks.db が ~1GB あるため、S3 からのダウンロード中に
+> 既存ファイル + temp ファイルで最大 2x の容量が必要。
+> 不足すると Lambda が `OSError: [Errno 28] No space left on device` で落ちる。
+> **この値を削減しないこと。**
+
 ### Frontend (Vue SPA)
 
 > **重要: フロントエンドは CDK deploy と独立しており、自動デプロイされない。**
