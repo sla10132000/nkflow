@@ -18,6 +18,7 @@ import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import { Construct } from 'constructs';
 
 const BACKEND = path.join(__dirname, '../../backend');
+const DATALAKE = path.join(__dirname, '../../datalake');
 
 export class NkflowStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -133,7 +134,7 @@ export class NkflowStack extends Stack {
     // ─────────────────────────────────────────────────────────────
     const batchLambda = new lambda.DockerImageFunction(this, 'NkflowBatchLambda', {
       functionName: 'nkflow-batch',
-      code: lambda.DockerImageCode.fromImageAsset(BACKEND, {
+      code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
         file: 'Dockerfile.batch',
         platform: Platform.LINUX_AMD64,
       }),
@@ -209,7 +210,7 @@ export class NkflowStack extends Stack {
 
     const newsFetchLambda = new lambda.DockerImageFunction(this, 'NkflowNewsFetchLambda', {
       functionName: 'nkflow-news-fetch',
-      code: lambda.DockerImageCode.fromImageAsset(BACKEND, {
+      code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
         file: 'Dockerfile.news',
         platform: Platform.LINUX_AMD64,
       }),
@@ -249,7 +250,7 @@ export class NkflowStack extends Stack {
 
     const notificationLambda = new lambda.DockerImageFunction(this, 'NkflowNotificationLambda', {
       functionName: 'nkflow-notification',
-      code: lambda.DockerImageCode.fromImageAsset(BACKEND, {
+      code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
         file: 'Dockerfile.notification',
         platform: Platform.LINUX_AMD64,
       }),

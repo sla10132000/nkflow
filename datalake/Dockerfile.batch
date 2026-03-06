@@ -1,0 +1,17 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+# システム依存 (tar/gzip は KùzuDB 圧縮に使用)
+RUN dnf install -y tar gzip && dnf clean all
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Python 依存
+COPY pyproject.toml .
+RUN pip install uv && uv pip install --system -r pyproject.toml
+
+# ソースコード
+COPY src/ src/
+COPY scripts/ scripts/
+
+# Lambda ハンドラ
+CMD ["src.pipeline.handler.handler"]

@@ -1,0 +1,47 @@
+[project]
+name = "nkflow-datalake"
+version = "0.1.0"
+description = "nkflow データパイプライン (バッチ処理・分析・シグナル生成)"
+requires-python = ">=3.12"
+
+dependencies = [
+    # データ取得
+    "jquants-api-client",
+    # 計算
+    "duckdb>=1.1",
+    "pandas>=2.2",
+    "numpy>=1.26",
+    # グラフDB
+    "kuzu>=0.7",
+    # 統計
+    "statsmodels>=0.14",
+    "scipy>=1.13",
+    # グラフ分析
+    "networkx>=3.3",
+    # AWS
+    "boto3>=1.34",
+    # ユーティリティ
+    "joblib>=1.4",
+    # ニュース RSS 取得
+    "feedparser>=6.0",
+    # セクターローテーション分析 (Phase 17)
+    "scikit-learn>=1.4",
+    "lightgbm>=4.0",
+    "hmmlearn>=0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov",
+    "moto[s3,ssm,sns]",
+    "httpx",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

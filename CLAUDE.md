@@ -17,12 +17,13 @@ make deploy-cdk      # CDK のみ (backend/Lambda/インフラ変更時)
 make deploy-frontend # Vue frontend のみビルド&S3同期
 make pull            # S3 → stocks.db ダウンロード (worktree 対応)
 make push-db         # stocks.db → S3 アップロード (worktree 対応)
-make test            # pytest
+make test            # backend + datalake pytest
+make test-datalake   # datalake pytest のみ
 make test-frontend   # vitest
 make lint            # ruff
 ```
 
-### Backend (Python)
+### Backend (Python — API サーバー)
 
 ```bash
 cd backend
@@ -41,6 +42,18 @@ uv pip install -e ".[dev]"
 
 # Lint
 .venv/bin/ruff check src/ tests/
+```
+
+### Datalake (Python — データパイプライン)
+
+```bash
+cd datalake
+
+# テスト (venv は backend のものを共有)
+/path/to/backend/.venv/bin/python -m pytest tests/ -v
+
+# Lint
+/path/to/backend/.venv/bin/ruff check src/ tests/ scripts/
 ```
 
 ### CDK (TypeScript)
@@ -110,29 +123,47 @@ Lambda: nkflow-api             ← Dockerfile.api
 | `data/portfolio.db` | ポートフォリオ (Phase 15) | API: 読み書き |
 | `frontend/` | Vue SPA 静的ファイル | API Lambda 経由で配信 |
 
-### バックエンド モジュール構成
+### モジュール構成
 
 ```
-backend/src/
-├── config.py               # 環境変数・定数 (S3_BUCKET は必須)
-├── batch/
-│   ├── handler.py          # Lambda エントリポイント (8ステップ逐次実行)
-│   ├── storage.py          # S3↔/tmp 同期 + SSM 認証
-│   ├── fetch.py            # J-Quants OHLCV 取得
-│   ├── fetch_external.py   # Yahoo Finance FX + J-Quants 信用残
-│   ├── compute.py          # DuckDB 騰落率・相関
-│   ├── statistics.py       # グレンジャー因果・リードラグ・資金フロー
-│   ├── graph.py            # KùzuDB グラフ更新・探索
-│   ├── signals.py          # シグナル生成 (causality_chain / cluster_breakout / margin_squeeze / yen_sensitivity)
-│   ├── tracker.py          # シグナル的中率追跡 (Phase 11)
-│   └── notifier.py         # SNS 日次レポート (Phase 12)
+datalake/src/                          # データパイプライン (バッチ処理)
+├── config.py                          # 環境変数・定数 (バッチ用)
+├── db.py                              # DuckDB ユーティリティ
+├── pipeline/
+│   ├── handler.py                     # Lambda エントリポイント (バッチオーケストレーション)
+│   └── storage.py                     # S3↔/tmp 同期 + SSM 認証
+├── ingestion/
+│   ├── jquants.py                     # J-Quants OHLCV + 銘柄マスタ取得
+│   ├── yahoo_finance.py               # Yahoo Finance FX・VIX・米国指数・信用残高
+│   └── news.py                        # ニュース正規化
+├── transform/
+│   ├── compute.py                     # DuckDB 騰落率・相関計算
+│   ├── statistics.py                  # グレンジャー因果・リードラグ・資金フロー
+│   ├── sector_rotation.py             # セクターローテーション HMM
+│   ├── td_sequential.py               # TD Sequential
+│   └── news_enrichment.py             # ニュース翻訳・分類
+├── graph/
+│   └── kuzu.py                        # KùzuDB グラフ更新・探索
+├── signals/
+│   └── generator.py                   # シグナル生成 (mega_trend_follow)
+├── notification/
+│   ├── notifier.py                    # SNS 日次レポート
+│   └── handler.py                     # 通知 Lambda ハンドラ
+├── news/
+│   ├── rss.py                         # RSS フィード解析
+│   └── handler.py                     # ニュース Lambda ハンドラ
+└── backtest/
+    └── engine.py                      # バックテストエンジン
+
+backend/src/                           # API サーバー (FastAPI)
+├── config.py                          # API 用設定 (最小限)
 └── api/
-    ├── handler.py          # Mangum(app)
-    ├── main.py             # FastAPI + ルーター登録 + フロントエンド配信
-    ├── storage.py          # stocks.db 読み取り専用接続 (1時間 TTL)
-    ├── portfolio_storage.py # portfolio.db 読み書き (writable_portfolio_connection)
-    └── routers/            # summary / prices / signals / network / stock /
-                            # accuracy / forex / margin / backtest / portfolio
+    ├── handler.py                     # Mangum(app)
+    ├── main.py                        # FastAPI + ルーター登録 + フロントエンド配信
+    ├── storage.py                     # stocks.db 読み取り専用接続 (10分 TTL)
+    ├── portfolio_storage.py           # portfolio.db 読み書き
+    └── routers/                       # summary / prices / signals / network / stock /
+                                       # accuracy / forex / margin / backtest / portfolio
 ```
 
 ### CDK スタック (NkflowStack)
