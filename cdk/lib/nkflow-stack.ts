@@ -9,6 +9,9 @@ import {
   aws_sns as sns,
   aws_sns_subscriptions as snsSubscriptions,
   aws_ssm as ssm,
+  aws_route53 as route53,
+  aws_route53_targets as route53Targets,
+  aws_certificatemanager as acm,
   Duration,
   RemovalPolicy,
   Stack,
@@ -16,6 +19,9 @@ import {
 } from 'aws-cdk-lib';
 import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import { Construct } from 'constructs';
+
+const DOMAIN_NAME = 'nkflow.senken.app';
+const HOSTED_ZONE_DOMAIN = 'senken.app';
 
 const BACKEND = path.join(__dirname, '../../backend');
 const DATALAKE = path.join(__dirname, '../../datalake');
@@ -273,6 +279,46 @@ export class NkflowStack extends Stack {
       restApiName: 'nkflow',
       binaryMediaTypes: ['*/*'],
       deployOptions: { stageName: 'prod' },
+      endpointTypes: [apigateway.EndpointType.REGIONAL],
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // 12. カスタムドメイン (nkflow.senken.app) — Route 53 + ACM + API GW
+    // ─────────────────────────────────────────────────────────────
+
+    // senken.app の Hosted Zone を参照
+    const hostedZone = route53.HostedZone.fromLookup(this, 'SenkenAppZone', {
+      domainName: HOSTED_ZONE_DOMAIN,
+    });
+
+    // ACM 証明書 (REGIONAL エンドポイントなので同じリージョンで発行)
+    const certificate = new acm.Certificate(this, 'NkflowCertificate', {
+      domainName: DOMAIN_NAME,
+      validation: acm.CertificateValidation.fromDns(hostedZone),
+    });
+
+    // API Gateway カスタムドメイン
+    const customDomain = new apigateway.DomainName(this, 'NkflowCustomDomain', {
+      domainName: DOMAIN_NAME,
+      certificate,
+      endpointType: apigateway.EndpointType.REGIONAL,
+      securityPolicy: apigateway.SecurityPolicy.TLS_1_2,
+    });
+
+    // カスタムドメイン → prod ステージのマッピング
+    new apigateway.BasePathMapping(this, 'NkflowBasePathMapping', {
+      domainName: customDomain,
+      restApi,
+      stage: restApi.deploymentStage,
+    });
+
+    // Route 53: nkflow.senken.app → API GW カスタムドメイン
+    new route53.ARecord(this, 'NkflowARecord', {
+      zone: hostedZone,
+      recordName: DOMAIN_NAME,
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.ApiGatewayDomain(customDomain)
+      ),
     });
 
     // ─────────────────────────────────────────────────────────────
@@ -303,6 +349,10 @@ export class NkflowStack extends Stack {
     new cdk.CfnOutput(this, 'FrontendUrl', {
       value: restApi.url,
       description: 'フロントエンド + API の公開 URL (API Gateway)',
+    });
+    new cdk.CfnOutput(this, 'CustomDomainUrl', {
+      value: `https://${DOMAIN_NAME}`,
+      description: 'カスタムドメイン URL',
     });
     new cdk.CfnOutput(this, 'NotificationTopicArn', {
       value: notificationTopic.topicArn,
