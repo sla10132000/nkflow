@@ -68,6 +68,14 @@
                 <span v-if="article.category" :class="['cat-badge', newsCategoryColor(article.category)]">
                   {{ article.category }}
                 </span>
+                <button
+                  class="text-base leading-none flex-shrink-0"
+                  :class="isFavorite(article.id) ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'"
+                  :aria-label="isFavorite(article.id) ? 'お気に入りから削除' : 'お気に入りに追加'"
+                  @click="toggleFavorite(article)"
+                >
+                  {{ isFavorite(article.id) ? '★' : '☆' }}
+                </button>
                 <a
                   :href="article.url"
                   target="_blank"
@@ -88,14 +96,6 @@
                 <span v-if="article.tickers" class="text-blue-400">{{ article.tickers }}</span>
               </div>
             </div>
-            <button
-              class="flex-shrink-0 text-lg leading-none"
-              :class="isFavorite(article.id) ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'"
-              :aria-label="isFavorite(article.id) ? 'お気に入りから削除' : 'お気に入りに追加'"
-              @click="toggleFavorite(article.id)"
-            >
-              {{ isFavorite(article.id) ? '★' : '☆' }}
-            </button>
           </div>
         </div>
       </LoadingState>
@@ -114,7 +114,8 @@ import { daysAgoJst, todayJst } from "../utils/dateRange";
 import { formatDateFull, formatDateTime } from "../utils/formatters";
 
 const api = useApi();
-const { favoritesCount, isFavorite, toggleFavorite } = useFavorites();
+const { favoriteArticles, favoritesCount, isFavorite, toggleFavorite } =
+	useFavorites();
 
 const articles = ref<NewsArticle[]>([]);
 const summary = ref<NewsSummary | null>(null);
@@ -125,7 +126,7 @@ const showFavoritesOnly = ref(false);
 
 const displayedArticles = computed(() => {
 	if (showFavoritesOnly.value) {
-		return articles.value.filter((a) => isFavorite(a.id));
+		return favoriteArticles.value;
 	}
 	return articles.value;
 });

@@ -1,40 +1,45 @@
 import { computed, ref } from "vue";
+import type { NewsArticle } from "../types";
 
 const STORAGE_KEY = "nkflow:news-favorites";
 
-function loadFromStorage(): Set<string> {
+function loadFromStorage(): Map<string, NewsArticle> {
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
-		if (raw) return new Set(JSON.parse(raw) as string[]);
+		if (raw) {
+			const arr = JSON.parse(raw) as NewsArticle[];
+			return new Map(arr.map((a) => [a.id, a]));
+		}
 	} catch {
 		// ignore
 	}
-	return new Set();
+	return new Map();
 }
 
-function saveToStorage(ids: Set<string>) {
-	localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+function saveToStorage(map: Map<string, NewsArticle>) {
+	localStorage.setItem(STORAGE_KEY, JSON.stringify([...map.values()]));
 }
 
-const favorites = ref<Set<string>>(loadFromStorage());
+const favoritesMap = ref<Map<string, NewsArticle>>(loadFromStorage());
 
 export function useFavorites() {
-	const favoritesCount = computed(() => favorites.value.size);
+	const favoritesCount = computed(() => favoritesMap.value.size);
+	const favoriteArticles = computed(() => [...favoritesMap.value.values()]);
 
 	function isFavorite(id: string): boolean {
-		return favorites.value.has(id);
+		return favoritesMap.value.has(id);
 	}
 
-	function toggleFavorite(id: string) {
-		const next = new Set(favorites.value);
-		if (next.has(id)) {
-			next.delete(id);
+	function toggleFavorite(article: NewsArticle) {
+		const next = new Map(favoritesMap.value);
+		if (next.has(article.id)) {
+			next.delete(article.id);
 		} else {
-			next.add(id);
+			next.set(article.id, article);
 		}
-		favorites.value = next;
+		favoritesMap.value = next;
 		saveToStorage(next);
 	}
 
-	return { favorites, favoritesCount, isFavorite, toggleFavorite };
+	return { favoriteArticles, favoritesCount, isFavorite, toggleFavorite };
 }

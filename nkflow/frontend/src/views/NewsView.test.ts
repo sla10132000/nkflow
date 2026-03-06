@@ -1,21 +1,27 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { computed, ref } from "vue";
 import { createMockApi } from "../test/mocks/useApi";
+import type { NewsArticle } from "../types";
 
 const mockApi = createMockApi();
 vi.mock("../composables/useApi", () => ({ useApi: () => mockApi }));
 
-// localStorage mock
-const storage: Record<string, string> = {};
-vi.stubGlobal("localStorage", {
-	getItem: (k: string) => storage[k] ?? null,
-	setItem: (k: string, v: string) => {
-		storage[k] = v;
-	},
-	removeItem: (k: string) => {
-		delete storage[k];
-	},
-});
+// useFavorites モック — module-level singleton の汚染を防ぐ
+const mockFavoritesMap = ref(new Map<string, NewsArticle>());
+vi.mock("../composables/useFavorites", () => ({
+	useFavorites: () => ({
+		favoriteArticles: computed(() => [...mockFavoritesMap.value.values()]),
+		favoritesCount: computed(() => mockFavoritesMap.value.size),
+		isFavorite: (id: string) => mockFavoritesMap.value.has(id),
+		toggleFavorite: (article: NewsArticle) => {
+			const next = new Map(mockFavoritesMap.value);
+			if (next.has(article.id)) next.delete(article.id);
+			else next.set(article.id, article);
+			mockFavoritesMap.value = next;
+		},
+	}),
+}));
 
 const { default: NewsView } = await import("./NewsView.vue");
 
@@ -54,8 +60,7 @@ describe("NewsView", () => {
 		vi.clearAllMocks();
 		mockApi.getNews.mockResolvedValue([]);
 		mockApi.getNewsSummary.mockResolvedValue(null);
-		// clear favorites storage
-		delete storage["nkflow:news-favorites"];
+		mockFavoritesMap.value = new Map();
 	});
 
 	it("ページタイトルが表示される", async () => {
@@ -183,7 +188,7 @@ describe("NewsView", () => {
 		expect(filledBtn.text()).toBe("★");
 	});
 
-	it("お気に入りがlocalStorageに保存される", async () => {
+	it("お気に入りボタンをクリックすると favoritesMap に記事が追加される", async () => {
 		mockApi.getNews.mockResolvedValue([mockArticle]);
 		const wrapper = mountView();
 		await flushPromises();
@@ -192,8 +197,11 @@ describe("NewsView", () => {
 			.find('button[aria-label="お気に入りに追加"]')
 			.trigger("click");
 
-		const saved = JSON.parse(storage["nkflow:news-favorites"]);
-		expect(saved).toContain("a1");
+		expect(mockFavoritesMap.value.has("a1")).toBe(true);
+		expect(mockFavoritesMap.value.get("a1")).toHaveProperty(
+			"title_ja",
+			"テスト記事",
+		);
 	});
 
 	it("お気に入りフィルタを有効にするとお気に入り記事のみ表示される", async () => {
@@ -214,6 +222,25 @@ describe("NewsView", () => {
 
 		expect(wrapper.text()).toContain("記事A");
 		expect(wrapper.text()).not.toContain("記事B");
+	});
+
+	it("APIが空 (別日付) でもお気に入りに保存済みの記事は表示される", async () => {
+		// 過去記事を直接 favoritesMap にセット (API を介さず localStorage から復元した想定)
+		mockFavoritesMap.value = new Map([
+			["old1", { ...mockArticle, id: "old1", title_ja: "過去の記事" }],
+		]);
+
+		// API は空 (現在の日付フィルタには該当記事なし)
+		mockApi.getNews.mockResolvedValue([]);
+		const wrapper = mountView();
+		await flushPromises();
+
+		// お気に入りフィルタをON
+		const filterBtn = wrapper.find("button.ml-auto");
+		await filterBtn.trigger("click");
+
+		// API に含まれていなくても表示される
+		expect(wrapper.text()).toContain("過去の記事");
 	});
 
 	it("お気に入りが0件のときフィルタONで「お気に入りなし」を表示する", async () => {
