@@ -6,7 +6,7 @@
 HTMLCanvasElement.prototype.getContext = () => null;
 
 // ResizeObserver モック
-global.ResizeObserver = class ResizeObserver {
+(globalThis as unknown as Record<string, unknown>).ResizeObserver = class ResizeObserver {
 	observe() {}
 	unobserve() {}
 	disconnect() {}

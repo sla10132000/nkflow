@@ -43,15 +43,9 @@ router.beforeEach(async (to) => {
 	// Auth0 がブラウザ環境でのみ動作するため、server-side では skip
 	if (typeof window === "undefined") return true;
 
-	try {
-		const { useAuth0 } = await import("@auth0/auth0-vue");
-		// composable はコンポーネント外では使えないため、
-		// Auth0 SDK の isAuthenticated をチェックする方法はコンポーネント内で行う
-		// ここでは単純にログインページへのリダイレクトは App.vue で処理
-		return true;
-	} catch {
-		return true;
-	}
+	// Auth0 composable はコンポーネント外では使えないため
+	// ログインページへのリダイレクトは App.vue で処理する
+	return true;
 });
 
 export default router;
