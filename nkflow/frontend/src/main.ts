@@ -22,6 +22,7 @@ app.use(
 );
 
 // Auth0 が初期化された後に全ルートへのガードを登録
-router.beforeEach(createAuthGuard(app));
+// TODO: 再有効化するときはこの行のコメントを外す
+// router.beforeEach(createAuthGuard(app));
 
 app.mount("#app");
