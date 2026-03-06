@@ -37,6 +37,8 @@ dev = [
     "moto[s3,ssm,sns]",
     "httpx",
     "ruff",
+    "fastapi",
+    "mangum",
 ]
 
 [build-system]

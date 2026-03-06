@@ -61,7 +61,7 @@ install-backend:
 	cd nkflow/backend && uv pip install -e ".[dev]"
 
 install-datalake:
-	cd datalake && uv pip install -e ".[dev]"
+	cd datalake && uv venv .venv --python 3.12 && uv pip install -e ".[dev]"
 
 install-frontend:
 	cd nkflow/frontend && npm install
@@ -87,20 +87,20 @@ dev-api:
 
 test:
 	cd nkflow/backend && .venv/bin/python -m pytest tests/ -v
-	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/python -m pytest tests/ -v
+	cd datalake && .venv/bin/python -m pytest tests/ -v
 
 test-datalake:
-	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/python -m pytest tests/ -v
+	cd datalake && .venv/bin/python -m pytest tests/ -v
 
 test-frontend:
 	cd nkflow/frontend && npm test
 
 lint:
 	cd nkflow/backend && .venv/bin/ruff check src/ tests/
-	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/ruff check src/ tests/ scripts/
+	cd datalake && .venv/bin/ruff check src/ tests/ scripts/
 
 lint-datalake:
-	cd datalake && $(CURDIR)/nkflow/backend/.venv/bin/ruff check src/ tests/ scripts/
+	cd datalake && .venv/bin/ruff check src/ tests/ scripts/
 
 lint-frontend:
 	cd nkflow/frontend && npm run lint
