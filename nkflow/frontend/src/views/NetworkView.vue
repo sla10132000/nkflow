@@ -70,8 +70,8 @@
         </div>
       </div>
 
-      <!-- 2カラム横並び: 信用圧力タイムライン (左) + 投資主体別フロー (右) -->
-      <div class="grid grid-cols-2 divide-x divide-gray-100">
+      <!-- 縦並び: 信用圧力タイムライン (上) + 投資主体別フロー (下) -->
+      <div class="flex flex-col divide-y divide-gray-100">
 
         <!-- 左: 信用圧力タイムライン -->
         <div class="p-3">

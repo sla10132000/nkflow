@@ -127,6 +127,7 @@ const chartData = computed(() => {
 const chartOptions = computed(() => ({
 	responsive: true,
 	maintainAspectRatio: false,
+	layout: { padding: { right: 65 } },
 	plugins: {
 		legend: { display: false },
 		tooltip: {
@@ -148,6 +149,7 @@ const chartOptions = computed(() => ({
 			ticks: {
 				callback: (v: string | number) => `${(Number(v) * 100).toFixed(0)}%`,
 			},
+			afterFit: (scale: { width: number }) => { scale.width = 52; },
 		}),
 	},
 }));

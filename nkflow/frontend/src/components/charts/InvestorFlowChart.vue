@@ -186,6 +186,7 @@ const chartOptions = computed<ChartOptions>(() => ({
 			ticks: { font: { size: 10 } },
 			grid: { color: "rgba(0,0,0,0.06)" },
 			title: { display: true, text: "億円", font: { size: 10 } },
+			afterFit: (scale: { width: number }) => { scale.width = 52; },
 		},
 		y2: {
 			type: "linear",
@@ -208,6 +209,7 @@ const chartOptions = computed<ChartOptions>(() => ({
 				text: "乖離スコア",
 				font: { size: 10 },
 			},
+			afterFit: (scale: { width: number }) => { scale.width = 65; },
 		},
 	},
 }));
