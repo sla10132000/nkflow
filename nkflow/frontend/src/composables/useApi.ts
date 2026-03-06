@@ -172,4 +172,13 @@ export const useApi = () => ({
 		api
 			.get<InvestorFlowLatest>("/api/investor-flows/latest")
 			.then((r) => r.data),
+
+	// Phase 26: コモディティ
+	getCommodities: (symbol = "GC=F", days = 90) =>
+		api
+			.get("/api/commodities", { params: { symbol, days } })
+			.then((r) => r.data),
+
+	getCommoditiesSummary: () =>
+		api.get("/api/commodities/summary").then((r) => r.data),
 });

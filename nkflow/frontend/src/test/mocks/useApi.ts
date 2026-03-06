@@ -66,6 +66,9 @@ export function createMockApi() {
 		getInvestorFlowsTimeseries: vi.fn().mockResolvedValue([]),
 		getInvestorFlowsIndicators: vi.fn().mockResolvedValue([]),
 		getInvestorFlowsLatest: vi.fn().mockResolvedValue(null),
+		// Phase 26: コモディティ
+		getCommodities: vi.fn().mockResolvedValue([]),
+		getCommoditiesSummary: vi.fn().mockResolvedValue([]),
 	};
 }
 

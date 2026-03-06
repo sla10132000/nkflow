@@ -354,3 +354,26 @@ export interface InvestorFlowLatest {
 	};
 	signal: InvestorFlowSignal | null;
 }
+
+// ─── Phase 26: コモディティ ──────────────────────────────────────────────────
+
+export interface CommodityBar {
+	date: string;
+	symbol: string;
+	name: string;
+	open: number | null;
+	high: number | null;
+	low: number | null;
+	close: number;
+	volume: number | null;
+	change_pct: number | null;
+}
+
+export interface CommoditySummary {
+	symbol: string;
+	name: string;
+	label: string;
+	date: string;
+	close: number;
+	change_pct: number | null;
+}

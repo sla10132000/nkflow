@@ -9,6 +9,7 @@
         <RouterLink to="/sector-rotation" class="nav-link">ローテーション</RouterLink>
         <RouterLink to="/network" class="nav-link">資金フロー</RouterLink>
         <RouterLink to="/us-market" class="nav-link">米国市場</RouterLink>
+        <RouterLink to="/commodities" class="nav-link">コモディティ</RouterLink>
 
         <!-- 右端: ユーザー情報 + ログアウト -->
         <div class="ml-auto flex items-center gap-2">
