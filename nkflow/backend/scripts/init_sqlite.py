@@ -351,6 +351,36 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
 
             CREATE INDEX IF NOT EXISTS idx_tds_code_date
                 ON td_sequential(code, date DESC);
+
+            -- === 投資主体別売買動向 (Phase 23) ===
+            CREATE TABLE IF NOT EXISTS investor_flow_weekly (
+                week_start      TEXT NOT NULL,
+                week_end        TEXT NOT NULL,
+                section         TEXT NOT NULL,
+                investor_type   TEXT NOT NULL,
+                sales           REAL,
+                purchases       REAL,
+                balance         REAL,
+                published_date  TEXT,
+                created_at      TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (week_start, week_end, section, investor_type)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_ifw_week_end
+                ON investor_flow_weekly(week_end DESC);
+
+            CREATE TABLE IF NOT EXISTS investor_flow_indicators (
+                week_end             TEXT PRIMARY KEY,
+                foreigners_net       REAL,
+                individuals_net      REAL,
+                foreigners_4w_ma     REAL,
+                individuals_4w_ma    REAL,
+                foreigners_momentum  REAL,
+                individuals_momentum REAL,
+                divergence_score     REAL,
+                nikkei_return_4w     REAL,
+                flow_regime          TEXT
+            );
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")
