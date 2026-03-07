@@ -4,18 +4,18 @@
 フェーズ位置は四半期ごとに人手でレビュー・更新する。
 
 フェーズモデル (4-phase):
-  Phase 1: 回復    — 投資不足が顕在化、価格底打ち
-  Phase 2: 加速    — 需要>供給が定着、価格上昇加速
-  Phase 3: 成熟    — 供給が追いつく、価格ピーク→下落
-  Phase 4: 底形成  — 過剰供給の調整、投資凍結
+  Phase 1: 底      — 不況、過剰供給の調整・投資凍結
+  Phase 2: 回復    — 需要回復、投資不足が顕在化・価格底打ち
+  Phase 3: ブーム  — 供給不足、需要>供給が定着・価格上昇加速
+  Phase 4: 崩壊    — 供給過剰、供給が追いつく・価格ピーク→下落
 """
 
 # フェーズ定義
 PHASES: dict[int, dict] = {
-    1: {"name": "回復",   "name_en": "Recovery",     "color": "#3b82f6", "description": "投資不足が顕在化、価格底打ち"},
-    2: {"name": "加速",   "name_en": "Acceleration", "color": "#10b981", "description": "需要>供給が定着、価格上昇加速"},
-    3: {"name": "成熟",   "name_en": "Maturity",     "color": "#f59e0b", "description": "供給が追いつく、価格ピーク→下落"},
-    4: {"name": "底形成", "name_en": "Bottom",       "color": "#ef4444", "description": "過剰供給の調整、投資凍結"},
+    1: {"name": "底",     "name_en": "Trough",   "subtitle": "不況",    "color": "#ef4444", "description": "不況・過剰供給の調整、投資凍結"},
+    2: {"name": "回復",   "name_en": "Recovery", "subtitle": "需要回復", "color": "#3b82f6", "description": "需要回復・投資不足が顕在化、価格底打ち"},
+    3: {"name": "ブーム", "name_en": "Boom",     "subtitle": "供給不足", "color": "#10b981", "description": "供給不足・需要>供給が定着、価格上昇加速"},
+    4: {"name": "崩壊",   "name_en": "Bust",     "subtitle": "供給過剰", "color": "#f59e0b", "description": "供給過剰・供給が追いつく、価格ピーク→下落"},
 }
 
 # コモディティ表示ラベル (ticker → 日本語ラベル)

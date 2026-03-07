@@ -71,7 +71,7 @@ export default { name: "SupercyclePhaseChart" };
 			>
 				<span class="phase-label" :style="{ color: ph.color }">
 					Phase {{ ph.id }}<br />
-					<span class="phase-name">{{ ph.name }}</span>
+					<span class="phase-name">{{ ph.name }}（{{ ph.subtitle }}）</span>
 				</span>
 			</div>
 		</div>

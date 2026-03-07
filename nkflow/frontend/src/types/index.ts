@@ -383,6 +383,7 @@ export interface CommoditySummary {
 export interface SupercyclePhase {
 	name: string;
 	name_en: string;
+	subtitle: string;
 	color: string;
 }
 

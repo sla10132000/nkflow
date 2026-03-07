@@ -75,40 +75,6 @@
         </div>
       </div>
 
-      <!-- 価格テーブル -->
-      <div v-if="chartData.length" class="card">
-        <h2 class="text-sm font-semibold text-gray-700 mb-2">
-          {{ selectedLabel }} 価格履歴
-        </h2>
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="text-gray-500 border-b border-gray-100">
-              <th class="text-left py-1 pr-3 font-medium">日付</th>
-              <th class="text-right py-1 pr-3 font-medium">始値</th>
-              <th class="text-right py-1 pr-3 font-medium">高値</th>
-              <th class="text-right py-1 pr-3 font-medium">安値</th>
-              <th class="text-right py-1 pr-3 font-medium">終値</th>
-              <th class="text-right py-1 font-medium">前日比</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in tableRows"
-              :key="row.date"
-              class="border-b border-gray-50 hover:bg-gray-50"
-            >
-              <td class="py-1 pr-3">{{ row.date }}</td>
-              <td class="text-right py-1 pr-3 font-mono">{{ row.open != null ? formatClose(row.open) : '—' }}</td>
-              <td class="text-right py-1 pr-3 font-mono">{{ row.high != null ? formatClose(row.high) : '—' }}</td>
-              <td class="text-right py-1 pr-3 font-mono">{{ row.low != null ? formatClose(row.low) : '—' }}</td>
-              <td class="text-right py-1 pr-3 font-mono">{{ formatClose(row.close) }}</td>
-              <td class="text-right py-1" :class="changePctClass(row.change_pct)">
-                {{ formatChangePct(row.change_pct) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </template>
 
     <!-- ═════════ サイクル分析タブ ═════════ -->
@@ -129,7 +95,7 @@
         <!-- セクター別カード (5列) -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <div
-            v-for="sector in scOverview.sectors"
+            v-for="sector in sortedSectors"
             :key="sector.id"
             class="card card-compact cursor-pointer transition-shadow"
             :class="selectedSector === sector.id ? 'ring-2 ring-blue-400' : 'hover:shadow-md'"
@@ -145,7 +111,7 @@
               </span>
             </div>
             <div class="text-xs text-gray-500 mt-1">
-              {{ scOverview.phases[String(sector.phase)]?.name }}
+              {{ scOverview.phases[String(sector.phase)]?.name }}（{{ scOverview.phases[String(sector.phase)]?.subtitle }}）
             </div>
             <!-- コモディティ一覧 (ティッカー) -->
             <div class="flex flex-wrap gap-1 mt-1">
@@ -321,9 +287,13 @@ const chartBars = computed<DailyPrice[]>(() =>
   })),
 );
 
-const tableRows = computed(() => [...chartData.value].reverse().slice(0, 30));
-
 // ── サイクル分析 computed ─────────────────────────────────────────────────────
+
+const sortedSectors = computed(() =>
+  scOverview.value
+    ? [...scOverview.value.sectors].sort((a, b) => a.phase - b.phase)
+    : [],
+);
 
 const activeScenario = computed(
   () => scOverview.value?.scenarios.find((s) => s.id === selectedScenario.value) ?? null,
