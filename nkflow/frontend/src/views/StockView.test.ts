@@ -113,7 +113,7 @@ describe("StockView", () => {
 		expect(wrapper.text()).toContain("← 戻る");
 	});
 
-	it("期間ボタンが表示される", async () => {
+	it("足種ボタンが表示される", async () => {
 		mockApi.getStock.mockResolvedValue({
 			recent_prices: [
 				{ close: 1000, return_rate: 0.01, price_range: 20, volume: 500000 },
@@ -129,9 +129,9 @@ describe("StockView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 
-		expect(wrapper.text()).toContain("1M");
-		expect(wrapper.text()).toContain("3M");
-		expect(wrapper.text()).toContain("6M");
+		expect(wrapper.text()).toContain("日足");
+		expect(wrapper.text()).toContain("週足");
+		expect(wrapper.text()).toContain("月足");
 	});
 
 	it("エラー時にメッセージを表示する", async () => {

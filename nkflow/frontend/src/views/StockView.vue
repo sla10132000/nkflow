@@ -35,54 +35,55 @@
       <div class="card">
         <div class="flex items-center gap-3 mb-2 flex-wrap">
           <h2 class="font-semibold">株価チャート</h2>
-          <!-- TD Sequential トグル + ステータス + 凡例 -->
-          <button
-            v-if="tdData.length"
-            @click="showTd = !showTd"
-            class="text-xs px-1.5 py-0.5 rounded border transition-colors"
-            :class="showTd ? 'border-blue-400 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-400'"
-          >TD</button>
-          <div v-if="showTd && tdLatest" class="flex items-center gap-2 text-xs flex-wrap">
-            <span class="text-gray-400 text-xs">TD</span>
-            <template v-if="tdLatest.setup_bull > 0">
-              <span class="font-mono font-bold text-green-600">
-                ▲S {{ tdLatest.setup_bull }}/9<span v-if="tdLatest.setup_bull === 9"> ✓</span>
-              </span>
-            </template>
-            <template v-if="tdLatest.countdown_bull > 0">
-              <span class="font-mono font-bold text-sky-600">
-                ▲CD {{ tdLatest.countdown_bull }}/13<span v-if="tdLatest.countdown_bull === 13"> 🔔</span>
-              </span>
-            </template>
-            <template v-if="tdLatest.setup_bear > 0">
-              <span class="font-mono font-bold text-red-600">
-                ▼S {{ tdLatest.setup_bear }}/9<span v-if="tdLatest.setup_bear === 9"> ✓</span>
-              </span>
-            </template>
-            <template v-if="tdLatest.countdown_bear > 0">
-              <span class="font-mono font-bold text-purple-600">
-                ▼CD {{ tdLatest.countdown_bear }}/13<span v-if="tdLatest.countdown_bear === 13"> 🔔</span>
-              </span>
-            </template>
-            <!-- 凡例 -->
-            <span class="text-gray-300">|</span>
-            <span class="text-gray-400">凡例:</span>
-            <span class="text-green-600">緑=強S</span>
-            <span class="text-sky-600">水=強CD</span>
-            <span class="text-red-600">赤=弱S</span>
-            <span class="text-purple-600">紫=弱CD</span>
-          </div>
+          <!-- TD Sequential トグル + ステータス + 凡例 (日足のみ) -->
+          <template v-if="timeframe === 'daily'">
+            <button
+              v-if="tdData.length"
+              @click="showTd = !showTd"
+              class="text-xs px-1.5 py-0.5 rounded border transition-colors"
+              :class="showTd ? 'border-blue-400 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-400'"
+            >TD</button>
+            <div v-if="showTd && tdLatest" class="flex items-center gap-2 text-xs flex-wrap">
+              <span class="text-gray-400 text-xs">TD</span>
+              <template v-if="tdLatest.setup_bull > 0">
+                <span class="font-mono font-bold text-green-600">
+                  ▲S {{ tdLatest.setup_bull }}/9<span v-if="tdLatest.setup_bull === 9"> ✓</span>
+                </span>
+              </template>
+              <template v-if="tdLatest.countdown_bull > 0">
+                <span class="font-mono font-bold text-sky-600">
+                  ▲CD {{ tdLatest.countdown_bull }}/13<span v-if="tdLatest.countdown_bull === 13"> 🔔</span>
+                </span>
+              </template>
+              <template v-if="tdLatest.setup_bear > 0">
+                <span class="font-mono font-bold text-red-600">
+                  ▼S {{ tdLatest.setup_bear }}/9<span v-if="tdLatest.setup_bear === 9"> ✓</span>
+                </span>
+              </template>
+              <template v-if="tdLatest.countdown_bear > 0">
+                <span class="font-mono font-bold text-purple-600">
+                  ▼CD {{ tdLatest.countdown_bear }}/13<span v-if="tdLatest.countdown_bear === 13"> 🔔</span>
+                </span>
+              </template>
+              <!-- 凡例 -->
+              <span class="text-gray-300">|</span>
+              <span class="text-gray-400">凡例:</span>
+              <span class="text-green-600">緑=強S</span>
+              <span class="text-sky-600">水=強CD</span>
+              <span class="text-red-600">赤=弱S</span>
+              <span class="text-purple-600">紫=弱CD</span>
+            </div>
+          </template>
           <div class="ml-auto">
-            <PeriodSelector :periods="periods.map(p => ({ value: p.days, label: p.label }))" :model-value="activeDays" @update:model-value="setVisiblePeriod($event as number)" />
+            <PeriodSelector :periods="timeframes" :model-value="timeframe" @update:model-value="timeframe = $event as Timeframe" />
           </div>
         </div>
         <div class="h-72">
           <PriceChart
-            v-if="prices.length"
-            :prices="prices"
-            :tdData="tdData.length ? tdData : undefined"
-            :showTd="showTd"
-            :visibleDays="activeDays"
+            v-if="chartPrices.length"
+            :prices="chartPrices"
+            :tdData="timeframe === 'daily' && tdData.length ? tdData : undefined"
+            :showTd="timeframe === 'daily' && showTd"
           />
           <div v-else class="text-gray-500 text-sm">価格データなし</div>
         </div>
@@ -169,6 +170,7 @@ import LoadingState from "../components/shared/LoadingState.vue";
 import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import { useApi } from "../composables/useApi";
 import type { DailyPrice, StockDetail, TdSequentialBar } from "../types";
+import { aggregateOHLCV, type Timeframe } from "../utils/aggregateOHLCV";
 import { toDate } from "../utils/dateRange";
 import { formatReturn } from "../utils/formatters";
 
@@ -178,20 +180,22 @@ const loading = ref(true);
 const error = ref("");
 const detail = ref<StockDetail | null>(null);
 const prices = ref<DailyPrice[]>([]);
-const activeDays = ref(60); // 現在の表示期間 (ボタンハイライト + PriceChart への visibleDays)
+const timeframe = ref<Timeframe>("daily");
 const tdData = ref<TdSequentialBar[]>([]);
 const tdLatest = ref<TdSequentialBar | null>(null);
 const showTd = ref(true); // TD Sequential 表示切替
 
 const latest = computed(() => detail.value?.recent_prices?.[0] ?? null);
+const chartPrices = computed(() =>
+	aggregateOHLCV(prices.value, timeframe.value),
+);
 
-const LOAD_DAYS = 250; // 常に1年分をロード
+const LOAD_DAYS = 1250; // 5年分をロード (月足で ~60本)
 
-const periods = [
-	{ label: "1M", days: 20 },
-	{ label: "3M", days: 60 },
-	{ label: "6M", days: 120 },
-	{ label: "1Y", days: 250 },
+const timeframes: { value: Timeframe; label: string }[] = [
+	{ value: "daily", label: "日足" },
+	{ value: "weekly", label: "週足" },
+	{ value: "monthly", label: "月足" },
 ];
 
 async function loadTdData(days = LOAD_DAYS) {
@@ -207,7 +211,7 @@ async function loadTdData(days = LOAD_DAYS) {
 	}
 }
 
-// 1年分のデータを一括ロード (表示期間変更時はデータ再取得不要)
+// 5年分のデータを一括ロード (足種変更時はデータ再取得不要)
 async function loadPrices() {
 	try {
 		prices.value = await api.getPrices(props.code, toDate(LOAD_DAYS));
@@ -215,11 +219,6 @@ async function loadPrices() {
 	} catch {
 		/* ignore */
 	}
-}
-
-// 期間ボタン: データ再取得なしで表示範囲だけ変更
-function setVisiblePeriod(days: number) {
-	activeDays.value = days;
 }
 
 async function loadDetail() {
