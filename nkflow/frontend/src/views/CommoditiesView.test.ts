@@ -10,6 +10,12 @@ vi.mock("../composables/useApi", () => ({ useApi: () => mockApi }));
 vi.mock("../components/charts/PriceChart.vue", () => ({
 	default: { template: "<div data-testid='price-chart-stub' />" },
 }));
+vi.mock("../components/charts/SupercyclePhaseChart.vue", () => ({
+	default: { template: "<div data-testid='supercycle-phase-chart-stub' />" },
+}));
+vi.mock("../components/charts/SupercycleSectorDetail.vue", () => ({
+	default: { template: "<div data-testid='supercycle-sector-detail-stub' />" },
+}));
 
 const { default: CommoditiesView } = await import("./CommoditiesView.vue");
 
@@ -118,5 +124,19 @@ describe("CommoditiesView", () => {
 		const wrapper = mountView();
 		await flushPromises();
 		expect(wrapper.text()).toContain("失敗");
+	});
+
+	it("タブボタン [価格] [サイクル分析] が表示される", async () => {
+		const wrapper = mountView();
+		await flushPromises();
+		expect(wrapper.text()).toContain("価格");
+		expect(wrapper.text()).toContain("サイクル分析");
+	});
+
+	it("デフォルトは価格タブ — サマリカードが表示される", async () => {
+		const wrapper = mountView();
+		await flushPromises();
+		// 価格タブがアクティブなのでサマリが表示される
+		expect(wrapper.text()).toContain("金");
 	});
 });
