@@ -1,6 +1,10 @@
 ACCOUNT := $(shell aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "000000000000")
-S3_BUCKET := nkflow-data-$(ACCOUNT)
-S3_BUCKET_DEV := nkflow-data-dev-$(ACCOUNT)
+# nkflow: datalake (データ) + frontend (静的ファイル) の 2 バケット
+DATALAKE_BUCKET_PROD := senken-datalake-prod
+DATALAKE_BUCKET_DEV  := senken-datalake-dev
+FRONTEND_BUCKET_PROD := senken-nkflow-prod-frontend
+FRONTEND_BUCKET_DEV  := senken-nkflow-dev-frontend
+# hazardbrief
 HB_S3_BUCKET := hazardbrief-data-$(ACCOUNT)
 
 .PHONY: help \
@@ -151,7 +155,7 @@ deploy-cdk-dev: build-cdk
 
 deploy-frontend-dev:
 	cd nkflow/frontend && npm run build -- --mode development
-	aws s3 sync nkflow/frontend/dist/ s3://$(S3_BUCKET_DEV)/frontend/ --delete
+	aws s3 sync nkflow/frontend/dist/ s3://$(FRONTEND_BUCKET_DEV)/ --delete
 
 # ── prod 環境デプロイ ─────────────────────────────────────────────
 deploy-prod: deploy-cdk-prod deploy-frontend-prod
@@ -161,7 +165,7 @@ deploy-cdk-prod: build-cdk
 
 deploy-frontend-prod:
 	cd nkflow/frontend && npm run build
-	aws s3 sync nkflow/frontend/dist/ s3://$(S3_BUCKET)/frontend/ --delete
+	aws s3 sync nkflow/frontend/dist/ s3://$(FRONTEND_BUCKET_PROD)/ --delete
 
 # ── 後方互換エイリアス ────────────────────────────────────────────
 # CDK + frontend を両方デプロイ (通常はこれを使う → deploy-prod のエイリアス)
@@ -196,20 +200,20 @@ SQLITE_LOCAL := $(if $(_WT_NAME),/tmp/nkflow-$(_WT_NAME)/stocks.db,/tmp/stocks.d
 # S3 から SQLite をダウンロード (ローカル分析用)
 pull:
 	@mkdir -p $(dir $(SQLITE_LOCAL))
-	aws s3 cp s3://$(S3_BUCKET)/data/stocks.db $(SQLITE_LOCAL)
+	aws s3 cp s3://$(DATALAKE_BUCKET_PROD)/data/stocks.db $(SQLITE_LOCAL)
 	@echo "Downloaded to: $(SQLITE_LOCAL)"
 
 # SQLite を S3 へアップロード (バックフィル後など)
 # WAL チェックポイントを先に実行し、WAL の変更をメイン DB ファイルに書き込んでからアップロードする
 push-db:
 	sqlite3 $(SQLITE_LOCAL) "PRAGMA wal_checkpoint(TRUNCATE);"
-	aws s3 cp $(SQLITE_LOCAL) s3://$(S3_BUCKET)/data/stocks.db
+	aws s3 cp $(SQLITE_LOCAL) s3://$(DATALAKE_BUCKET_PROD)/data/stocks.db
 	@echo "Uploaded from: $(SQLITE_LOCAL)"
 
 # prod の stocks.db を dev バケットにコピー (初回セットアップ / リフレッシュ時)
 sync-db-to-dev:
-	aws s3 cp s3://$(S3_BUCKET)/data/stocks.db s3://$(S3_BUCKET_DEV)/data/stocks.db
-	@echo "Synced prod DB to dev bucket: s3://$(S3_BUCKET_DEV)/data/stocks.db"
+	aws s3 cp s3://$(DATALAKE_BUCKET_PROD)/data/stocks.db s3://$(DATALAKE_BUCKET_DEV)/data/stocks.db
+	@echo "Synced prod DB to dev bucket: s3://$(DATALAKE_BUCKET_DEV)/data/stocks.db"
 
 # -----------------------------------------------------------------------
 # HazardBrief
