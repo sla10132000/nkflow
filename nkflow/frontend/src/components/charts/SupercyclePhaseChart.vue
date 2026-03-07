@@ -90,7 +90,7 @@ export default { name: "SupercyclePhaseChart" };
 					:class="{ 'dot-etf': dot.isEtf }"
 					:style="{ backgroundColor: SECTOR_COLORS[dot.sectorId] ?? '#94a3b8' }"
 				/>
-				<span class="dot-label">{{ dot.ticker }}</span>
+				<span class="dot-label">{{ dot.label }}</span>
 			</div>
 		</div>
 

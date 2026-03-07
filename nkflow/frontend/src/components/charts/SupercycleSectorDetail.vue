@@ -50,7 +50,7 @@ function buildChart() {
 	if (series.length === 0) return;
 
 	const datasets = series.map((s, i) => ({
-		label: `${s.ticker}${s.is_etf ? " (ETF)" : ""}`,
+		label: `${s.label}${s.is_etf ? " (ETF)" : ""}`,
 		data: s.data.map((pt) => ({ x: pt.date, y: pt.value })),
 		borderColor: COLORS[i % COLORS.length],
 		backgroundColor: "transparent",

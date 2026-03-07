@@ -113,10 +113,9 @@ describe("CommoditiesView", () => {
 	it("期間ボタンが表示される", async () => {
 		const wrapper = mountView();
 		await flushPromises();
-		expect(wrapper.text()).toContain("1W");
-		expect(wrapper.text()).toContain("1M");
-		expect(wrapper.text()).toContain("3M");
-		expect(wrapper.text()).toContain("1Y");
+		expect(wrapper.text()).toContain("日足");
+		expect(wrapper.text()).toContain("週足");
+		expect(wrapper.text()).toContain("月足");
 	});
 
 	it("エラー時にエラーメッセージが表示される", async () => {

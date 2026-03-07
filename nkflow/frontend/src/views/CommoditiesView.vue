@@ -127,7 +127,7 @@
                 v-for="c in sector.commodities"
                 :key="c.ticker"
                 class="text-xs font-mono bg-gray-100 px-1 rounded"
-              >{{ c.ticker }}</span>
+              >{{ c.label }}</span>
             </div>
           </div>
         </div>

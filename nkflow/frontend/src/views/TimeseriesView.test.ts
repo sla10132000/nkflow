@@ -47,10 +47,9 @@ describe("TimeseriesView", () => {
 
 	it("期間選択ボタンが表示される", () => {
 		const wrapper = mountView();
-		expect(wrapper.text()).toContain("1M");
-		expect(wrapper.text()).toContain("3M");
-		expect(wrapper.text()).toContain("6M");
-		expect(wrapper.text()).toContain("1Y");
+		expect(wrapper.text()).toContain("日足");
+		expect(wrapper.text()).toContain("週足");
+		expect(wrapper.text()).toContain("月足");
 	});
 
 	it("初期状態で案内メッセージが表示される", () => {
