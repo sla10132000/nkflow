@@ -52,8 +52,8 @@ def ensure_db() -> str:
     return db_path
 
 
-def _download_sqlite(db_path: str) -> None:
-    """S3 から SQLite をダウンロードする。"""
+def _download_sqlite(db_path: str, max_retries: int = 3) -> None:
+    """S3 から SQLite をダウンロードする。PreconditionFailed はリトライする。"""
     s3_bucket = os.environ["S3_BUCKET"]
     s3_key = "data/stocks.db"
 
@@ -64,13 +64,27 @@ def _download_sqlite(db_path: str) -> None:
         logger.info(f"旧SQLiteを削除しました: {db_path}")
 
     s3 = boto3.client("s3")
-    try:
-        s3.download_file(s3_bucket, s3_key, db_path)
-        logger.info(f"SQLite を S3 からダウンロードしました: {db_path}")
-    except ClientError as e:
-        if e.response["Error"]["Code"] in ("NoSuchKey", "404"):
-            logger.warning("SQLite が S3 に存在しません — 空のDBを使用します")
-        else:
+    for attempt in range(1, max_retries + 1):
+        try:
+            s3.download_file(s3_bucket, s3_key, db_path)
+            logger.info(f"SQLite を S3 からダウンロードしました: {db_path}")
+            return
+        except ClientError as e:
+            code = e.response["Error"]["Code"]
+            if code in ("NoSuchKey", "404"):
+                logger.warning("SQLite が S3 に存在しません — 空のDBを使用します")
+                return
+            if code == "PreconditionFailed" and attempt < max_retries:
+                # バッチが並行してアップロード中に ETag が変わる競合。少し待ってリトライ
+                wait = attempt * 2
+                logger.warning(
+                    f"S3 PreconditionFailed (試行 {attempt}/{max_retries}) — "
+                    f"{wait}秒後にリトライします"
+                )
+                if os.path.exists(db_path):
+                    os.remove(db_path)
+                time.sleep(wait)
+                continue
             raise
 
 
