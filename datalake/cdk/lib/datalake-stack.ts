@@ -122,6 +122,7 @@ export class DatalakeStack extends Stack {
       code: lambda.DockerImageCode.fromImageAsset(datalakeSrcDir, {
         file: 'Dockerfile.ingestor',
         platform: Platform.LINUX_AMD64,
+        exclude: ['cdk/', 'cdk/**', '.venv/', '.venv/**'],
       }),
       memorySize: 2048,
       timeout: Duration.seconds(900),
