@@ -2,6 +2,12 @@ import type { DailyPrice } from "../types";
 
 export type Timeframe = "daily" | "weekly" | "monthly";
 
+export const TIMEFRAME_OPTIONS: { value: Timeframe; label: string }[] = [
+	{ value: "daily", label: "日足" },
+	{ value: "weekly", label: "週足" },
+	{ value: "monthly", label: "月足" },
+];
+
 function isoWeekKey(date: Date): string {
 	// ISO 8601 week: Monday-based. Return "YYYY-Www" of Monday of that week.
 	const d = new Date(date);

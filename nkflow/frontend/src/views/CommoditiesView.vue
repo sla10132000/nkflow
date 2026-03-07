@@ -57,11 +57,19 @@
               {{ c.label }}
             </button>
           </div>
-          <PeriodSelector
-            :periods="PERIODS.map(p => ({ value: p.days, label: p.label }))"
-            :model-value="selectedPeriod"
-            @update:model-value="selectPeriod($event as number)"
-          />
+          <div class="flex gap-1">
+            <button
+              v-for="iv in TIMEFRAME_OPTIONS"
+              :key="iv.value"
+              class="px-2 py-0.5 text-xs rounded"
+              :class="candleInterval === iv.value
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+              @click="candleInterval = iv.value"
+            >
+              {{ iv.label }}
+            </button>
+          </div>
         </div>
 
         <div v-if="chartBars.length" class="h-52">
@@ -196,8 +204,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
-import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import SupercyclePhaseChart from "../components/charts/SupercyclePhaseChart.vue";
+import {
+  TIMEFRAME_OPTIONS,
+  type Timeframe,
+  aggregateOHLCV,
+} from "../utils/aggregateOHLCV";
 import SupercycleSectorDetail from "../components/charts/SupercycleSectorDetail.vue";
 import { useApi } from "../composables/useApi";
 import type {
@@ -235,12 +247,7 @@ const COMMODITIES = [
   { symbol: "ZC=F", label: "コーン" },
 ];
 
-const PERIODS = [
-  { label: "1W", days: 7 },
-  { label: "1M", days: 30 },
-  { label: "3M", days: 90 },
-  { label: "1Y", days: 365 },
-];
+const FETCH_DAYS = 365;
 
 // ── 価格タブ 状態 ─────────────────────────────────────────────────────────────
 
@@ -252,7 +259,7 @@ const summaryData = ref<CommoditySummary[]>([]);
 const chartData = ref<CommodityBar[]>([]);
 
 const selectedSymbol = ref("GC=F");
-const selectedPeriod = ref(90);
+const candleInterval = ref<Timeframe>("daily");
 
 // ── サイクル分析タブ 状態 ─────────────────────────────────────────────────────
 
@@ -273,7 +280,7 @@ const selectedLabel = computed(
     selectedSymbol.value,
 );
 
-const chartBars = computed<DailyPrice[]>(() =>
+const dailyBars = computed<DailyPrice[]>(() =>
   chartData.value.map((d) => ({
     code: d.symbol,
     date: d.date,
@@ -285,6 +292,10 @@ const chartBars = computed<DailyPrice[]>(() =>
     return_rate: d.change_pct ?? 0,
     price_range: (d.high ?? d.close) - (d.low ?? d.close),
   })),
+);
+
+const chartBars = computed<DailyPrice[]>(() =>
+  aggregateOHLCV(dailyBars.value, candleInterval.value),
 );
 
 // ── サイクル分析 computed ─────────────────────────────────────────────────────
@@ -325,7 +336,7 @@ async function loadChart() {
   try {
     chartData.value = (await api.getCommodities(
       selectedSymbol.value,
-      selectedPeriod.value,
+      FETCH_DAYS,
     )) as CommodityBar[];
   } catch {
     chartData.value = [];
@@ -374,10 +385,6 @@ function selectSymbol(symbol: string) {
   selectedSymbol.value = symbol;
 }
 
-function selectPeriod(days: number) {
-  selectedPeriod.value = days;
-}
-
 function selectSector(sectorId: string) {
   selectedSector.value = sectorId;
 }
@@ -388,7 +395,7 @@ function onSectorDaysChange(days: number) {
 
 // ── ウォッチ ──────────────────────────────────────────────────────────────────
 
-watch([selectedSymbol, selectedPeriod], loadChart);
+watch(selectedSymbol, loadChart);
 watch([selectedSector, sectorDays], loadSectorReturns);
 watch(activeTab, (tab) => {
   if (tab === "cycle") loadSupercycle();

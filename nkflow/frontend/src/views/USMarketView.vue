@@ -44,7 +44,19 @@
             {{ t.label }}
           </button>
         </div>
-        <PeriodSelector :periods="PERIODS.map(p => ({ value: p.days, label: p.label }))" :model-value="selectedPeriod" @update:model-value="selectPeriod($event as number)" />
+        <div class="flex gap-1">
+          <button
+            v-for="iv in TIMEFRAME_OPTIONS"
+            :key="iv.value"
+            class="px-2 py-0.5 text-xs rounded"
+            :class="chartInterval === iv.value
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+            @click="chartInterval = iv.value"
+          >
+            {{ iv.label }}
+          </button>
+        </div>
       </div>
 
       <div v-if="chartBars.length" class="h-52">
@@ -121,7 +133,19 @@
     <div class="card">
       <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
         <h2 class="text-sm font-semibold text-gray-700">USD/JPY チャート</h2>
-        <PeriodSelector :periods="PERIODS.map(p => ({ value: p.days, label: p.label }))" :model-value="forexPeriod" @update:model-value="selectForexPeriod($event as number)" />
+        <div class="flex gap-1">
+          <button
+            v-for="iv in TIMEFRAME_OPTIONS"
+            :key="iv.value"
+            class="px-2 py-0.5 text-xs rounded"
+            :class="forexInterval === iv.value
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+            @click="forexInterval = iv.value"
+          >
+            {{ iv.label }}
+          </button>
+        </div>
       </div>
       <div v-if="forexBars.length" class="h-40">
         <PriceChart :prices="forexBars" />
@@ -164,8 +188,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
-import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import { useApi } from "../composables/useApi";
+import {
+  TIMEFRAME_OPTIONS,
+  type Timeframe,
+  aggregateOHLCV,
+} from "../utils/aggregateOHLCV";
 import { useMarketStore } from "../stores/useMarketStore";
 import type {
 	DailyPrice,
@@ -201,12 +229,7 @@ const TICKER_LABELS: Record<string, string> = {
 	"^VIX": "VIX",
 };
 
-const PERIODS = [
-	{ label: "1M", days: 20 },
-	{ label: "3M", days: 60 },
-	{ label: "6M", days: 120 },
-	{ label: "1Y", days: 252 },
-];
+const FETCH_DAYS = 252;
 
 // ── 状態 ──────────────────────────────────────────────────────────────────────
 
@@ -219,10 +242,10 @@ const forexLatest = ref<ForexBar | null>(null);
 const eurUsdLatest = ref<ForexBar | null>(null);
 
 const selectedTicker = ref("^GSPC");
-const selectedPeriod = ref(60);
+const chartInterval = ref<Timeframe>("daily");
 const chartData = ref<UsIndexBar[]>([]);
 
-const forexPeriod = ref(60);
+const forexInterval = ref<Timeframe>("daily");
 const forexData = ref<ForexBar[]>([]);
 
 // ── computed ──────────────────────────────────────────────────────────────────
@@ -242,7 +265,7 @@ const summaryCards = computed(() =>
 );
 
 // UsIndexBar → DailyPrice (PriceChart 互換)
-const chartBars = computed<DailyPrice[]>(() =>
+const dailyChartBars = computed<DailyPrice[]>(() =>
 	chartData.value.map((d) => ({
 		code: d.ticker,
 		date: d.date,
@@ -256,8 +279,12 @@ const chartBars = computed<DailyPrice[]>(() =>
 	})),
 );
 
+const chartBars = computed<DailyPrice[]>(() =>
+	aggregateOHLCV(dailyChartBars.value, chartInterval.value),
+);
+
 // ForexBar → DailyPrice
-const forexBars = computed<DailyPrice[]>(() =>
+const dailyForexBars = computed<DailyPrice[]>(() =>
 	forexData.value.map((d) => ({
 		code: d.pair,
 		date: d.date,
@@ -269,6 +296,10 @@ const forexBars = computed<DailyPrice[]>(() =>
 		return_rate: d.change_rate ?? 0,
 		price_range: d.high - d.low,
 	})),
+);
+
+const forexBars = computed<DailyPrice[]>(() =>
+	aggregateOHLCV(dailyForexBars.value, forexInterval.value),
 );
 
 // ── ロード ────────────────────────────────────────────────────────────────────
@@ -294,7 +325,7 @@ async function loadChart() {
 	try {
 		chartData.value = (await api.getUsIndices(
 			selectedTicker.value,
-			selectedPeriod.value,
+			FETCH_DAYS,
 		)) as UsIndexBar[];
 	} catch {
 		chartData.value = [];
@@ -307,7 +338,7 @@ async function loadForex() {
 	try {
 		forexData.value = (await api.getForex(
 			"USDJPY",
-			forexPeriod.value,
+			FETCH_DAYS,
 		)) as ForexBar[];
 	} catch {
 		forexData.value = [];
@@ -320,18 +351,9 @@ function selectTicker(ticker: string) {
 	selectedTicker.value = ticker;
 }
 
-function selectPeriod(days: number) {
-	selectedPeriod.value = days;
-}
-
-function selectForexPeriod(days: number) {
-	forexPeriod.value = days;
-}
-
 // ── ウォッチ ──────────────────────────────────────────────────────────────────
 
-watch([selectedTicker, selectedPeriod], loadChart);
-watch(forexPeriod, loadForex);
+watch(selectedTicker, loadChart);
 
 // ── マウント ──────────────────────────────────────────────────────────────────
 

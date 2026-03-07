@@ -39,8 +39,18 @@
       </div>
       <button @click="loadPrices" class="btn-primary">表示</button>
 
-      <div class="ml-auto">
-        <PeriodSelector :periods="periods.map(p => ({ value: p.days, label: p.label }))" :model-value="activePeriod" @update:model-value="setPeriod($event as number)" />
+      <div class="flex gap-1 ml-auto">
+        <button
+          v-for="iv in TIMEFRAME_OPTIONS"
+          :key="iv.value"
+          class="px-2 py-1 text-sm rounded"
+          :class="candleInterval === iv.value
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+          @click="candleInterval = iv.value"
+        >
+          {{ iv.label }}
+        </button>
       </div>
     </div>
 
@@ -51,7 +61,7 @@
       <div class="card">
         <h2 class="font-semibold mb-2">{{ chartTitle }}</h2>
         <div class="h-96">
-          <PriceChart :prices="prices" />
+          <PriceChart :prices="chartPrices" />
         </div>
       </div>
 
@@ -98,8 +108,12 @@
 import { computed, onMounted, ref, watch } from "vue";
 import PriceChart from "../components/charts/PriceChart.vue";
 import LoadingState from "../components/shared/LoadingState.vue";
-import PeriodSelector from "../components/shared/PeriodSelector.vue";
 import { useApi } from "../composables/useApi";
+import {
+  TIMEFRAME_OPTIONS,
+  type Timeframe,
+  aggregateOHLCV,
+} from "../utils/aggregateOHLCV";
 import { useMarketStore } from "../stores/useMarketStore";
 import type { DailyPrice, Stock } from "../types";
 import { toDate } from "../utils/dateRange";
@@ -112,16 +126,10 @@ const selectedStock = ref<Stock | null>(null);
 const prices = ref<DailyPrice[]>([]);
 const loading = ref(false);
 const error = ref("");
-const activePeriod = ref(60);
+const candleInterval = ref<Timeframe>("daily");
+const FETCH_DAYS = 250;
 const showDropdown = ref(false);
 const selectedIndex = ref(-1);
-
-const periods = [
-	{ label: "1M", days: 20 },
-	{ label: "3M", days: 60 },
-	{ label: "6M", days: 120 },
-	{ label: "1Y", days: 250 },
-];
 
 const suggestions = computed(() => {
 	const q = searchInput.value.trim().toLowerCase();
@@ -137,6 +145,10 @@ const suggestions = computed(() => {
 watch(suggestions, () => {
 	selectedIndex.value = -1;
 });
+
+const chartPrices = computed<DailyPrice[]>(() =>
+	aggregateOHLCV(prices.value, candleInterval.value),
+);
 
 const chartTitle = computed(() => {
 	if (selectedStock.value) {
@@ -215,7 +227,7 @@ async function loadPrices() {
 	loading.value = true;
 	error.value = "";
 	try {
-		prices.value = await api.getPrices(code, toDate(activePeriod.value));
+		prices.value = await api.getPrices(code, toDate(FETCH_DAYS));
 	} catch (e: unknown) {
 		error.value = e instanceof Error ? e.message : "データ取得失敗";
 		prices.value = [];
@@ -224,10 +236,6 @@ async function loadPrices() {
 	}
 }
 
-async function setPeriod(days: number) {
-	activePeriod.value = days;
-	if (selectedCode.value || searchInput.value.trim()) await loadPrices();
-}
 </script>
 
 <style scoped>
