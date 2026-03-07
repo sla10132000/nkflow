@@ -11,6 +11,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5分
  * - summary: 最新の日次サマリ
  * - fearIndices: VIX / Fear & Greed
  * - stocks: 銘柄マスタ (検索・オートコンプリート用)
+ * - overviewSnapshot: 概要ページ事前計算スナップショット
  */
 export const useMarketStore = defineStore("market", () => {
 	const api = useApi();
@@ -20,10 +21,13 @@ export const useMarketStore = defineStore("market", () => {
 	const summaryHistory = ref<DailySummary[]>([]);
 	const fearIndices = ref<FearIndices | null>(null);
 	const stocks = ref<Stock[]>([]);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const overviewSnapshot = ref<any | null>(null);
 
 	const _summaryFetchedAt = ref(0);
 	const _fearIndicesFetchedAt = ref(0);
 	const _stocksFetchedAt = ref(0);
+	const _overviewSnapshotFetchedAt = ref(0);
 
 	// ── computed ─────────────────────────────────────
 	const regime = computed(() => summary.value?.regime ?? "neutral");
@@ -80,14 +84,41 @@ export const useMarketStore = defineStore("market", () => {
 		}
 	}
 
+	async function fetchOverviewSnapshot(force = false) {
+		if (
+			!force &&
+			Date.now() - _overviewSnapshotFetchedAt.value < CACHE_TTL &&
+			overviewSnapshot.value
+		) {
+			return;
+		}
+		const data = await api.getOverviewSnapshot();
+		overviewSnapshot.value = data;
+		// スナップショットから summary / fearIndices も同期する
+		if (data.summary) {
+			summary.value = data.summary;
+			_summaryFetchedAt.value = Date.now();
+		}
+		if (data.summary_history?.length) {
+			summaryHistory.value = data.summary_history;
+		}
+		if (data.fear_indices) {
+			fearIndices.value = data.fear_indices;
+			_fearIndicesFetchedAt.value = Date.now();
+		}
+		_overviewSnapshotFetchedAt.value = Date.now();
+	}
+
 	return {
 		summary,
 		summaryHistory,
 		fearIndices,
 		stocks,
+		overviewSnapshot,
 		regime,
 		fetchSummary,
 		fetchFearIndices,
 		fetchStocks,
+		fetchOverviewSnapshot,
 	};
 });

@@ -381,6 +381,12 @@ def init_sqlite(db_path: str = "/tmp/stocks.db") -> None:
                 nikkei_return_4w     REAL,
                 flow_regime          TEXT
             );
+
+            -- === 概要ページ事前計算スナップショット ===
+            CREATE TABLE IF NOT EXISTS overview_snapshot (
+                date          TEXT PRIMARY KEY,
+                snapshot_json TEXT NOT NULL
+            );
         """)
         conn.commit()
         print(f"SQLiteスキーマを初期化しました: {db_path}")

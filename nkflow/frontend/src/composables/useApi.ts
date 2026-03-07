@@ -121,6 +121,10 @@ export const useApi = () => ({
 			.get("/api/ytd-highs", { params: { limit, threshold_pct: thresholdPct } })
 			.then((r) => r.data),
 
+	// 概要ページ事前計算スナップショット
+	getOverviewSnapshot: () =>
+		api.get("/api/overview-snapshot").then((r) => r.data),
+
 	// Phase 20: 米国株価指数
 	getUsIndices: (ticker?: string, days = 90) =>
 		api

@@ -202,6 +202,13 @@ def handler(event: dict, context: Any) -> dict:
             logger.error(f"signals.generate 失敗 (処理は継続): {e}")
             errors.append(f"signals: {e}")
 
+        # ── 7.8. 概要ページ スナップショット生成 ─────────────────
+        try:
+            compute.generate_overview_snapshot(SQLITE_PATH, target_date)
+        except Exception as e:
+            logger.error(f"generate_overview_snapshot 失敗 (処理は継続): {e}")
+            errors.append(f"overview_snapshot: {e}")
+
     finally:
         conn.close()
 

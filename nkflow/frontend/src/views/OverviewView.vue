@@ -78,7 +78,7 @@
       <div class="grid gap-2" style="grid-template-columns: 2fr 3fr">
         <div class="card card-compact">
           <h2 class="text-xs font-semibold text-gray-500 mb-1">日経平均</h2>
-          <NikkeiAreaChart />
+          <NikkeiAreaChart :initial-data="marketStore.overviewSnapshot?.nikkei_ohlcv" />
         </div>
         <div v-if="jpSectorData.length" class="card" style="overflow: hidden">
           <SectorTrendBar :sectors="jpSectorData" :columns="4" />
@@ -249,7 +249,21 @@ const usSectorMaxAbs = computed(() => {
 	return max > 0 ? max : 1;
 });
 
+function applySnapshotSectorData(period: SectorPeriod) {
+	const snap = marketStore.overviewSnapshot;
+	if (!snap?.sector_performance) return false;
+	const jp = snap.sector_performance.jp?.[period];
+	const us = snap.sector_performance.us?.[period];
+	if (jp) jpSectorData.value = jp;
+	if (us) usSectorData.value = us;
+	return !!(jp || us);
+}
+
 async function fetchSectorData(period: SectorPeriod) {
+	// スナップショットに全期間のデータが含まれているので API コールは不要
+	if (applySnapshotSectorData(period)) return;
+
+	// フォールバック: スナップショット未取得時は従来の API を呼ぶ
 	sectorLoading.value = true;
 	try {
 		const [jpData, usData] = await Promise.all([
@@ -270,6 +284,22 @@ async function setSectorPeriod(period: SectorPeriod) {
 
 onMounted(async () => {
 	try {
+		// スナップショット 1 本で全データを取得 (DB クエリゼロ、HTTP 1 回)
+		await marketStore.fetchOverviewSnapshot();
+		const snap = marketStore.overviewSnapshot;
+		if (snap) {
+			topNews.value = Array.isArray(snap.news) ? snap.news.slice(0, 5) : [];
+			ytdHighs.value = Array.isArray(snap.ytd_highs) ? snap.ytd_highs : [];
+			applySnapshotSectorData(activeSectorPeriod.value);
+			loading.value = false;
+			return;
+		}
+	} catch {
+		// スナップショット未生成 (初回バッチ前) はフォールバックへ
+	}
+
+	// フォールバック: スナップショット取得失敗時は従来の個別 API
+	try {
 		const [, newsData, , ytdData] = await Promise.all([
 			marketStore.fetchSummary(30),
 			api.getNews({ limit: 5 }),
@@ -283,7 +313,6 @@ onMounted(async () => {
 	} finally {
 		loading.value = false;
 	}
-	// セクターデータ (日本 + 米国) は非同期で追加取得
 	fetchSectorData(activeSectorPeriod.value);
 });
 </script>

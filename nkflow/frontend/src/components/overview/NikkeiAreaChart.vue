@@ -14,6 +14,16 @@ import {
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useApi } from "../../composables/useApi";
 
+interface OhlcvRow {
+	date: string;
+	open: number | null;
+	high: number | null;
+	low: number | null;
+	close: number | null;
+}
+
+const props = defineProps<{ initialData?: OhlcvRow[] }>();
+
 const api = useApi();
 const chartContainer = ref<HTMLDivElement>();
 let chart: IChartApi | null = null;
@@ -75,7 +85,10 @@ function initChart() {
 
 async function loadData() {
 	try {
-		const data = await api.getUsIndices("^N225", 60);
+		// スナップショットに事前取得データがあればそれを使う (API コールなし)
+		const data = props.initialData?.length
+			? props.initialData
+			: await api.getUsIndices("^N225", 60);
 		if (!candleSeries || !data.length) return;
 		candleSeries.setData(
 			data
