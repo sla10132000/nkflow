@@ -36,7 +36,8 @@ const COLORS = [
 ];
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
-let chart: Chart | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let chart: Chart<any> | null = null;
 
 function buildChart() {
 	if (!canvasRef.value || !props.sectorReturns) return;
