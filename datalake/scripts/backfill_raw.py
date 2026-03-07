@@ -67,6 +67,16 @@ SOURCES = {
         "date_column": "week_date",
         "columns": ["code", "week_date", "margin_buy", "margin_sell", "margin_ratio"],
     },
+    "yahoo_finance/commodities": {
+        "category": "market",
+        "subcategory": "commodity",
+        "source": "yahoo_finance",
+        "data_type": "commodities",
+        "table": "us_indices",
+        "date_column": "date",
+        "columns": ["date", "ticker", "name", "open", "high", "low", "close", "volume"],
+        "filter": "ticker IN ('GC=F','CL=F','SI=F','HG=F','NG=F','ZW=F','ZC=F')",
+    },
 }
 
 
