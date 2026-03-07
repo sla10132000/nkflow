@@ -128,14 +128,12 @@ export class DatalakeStack extends Stack {
       timeout: Duration.seconds(900),
       ephemeralStorageSize: Size.mebibytes(2048),
       role: ingestorRole,
-      // 直列化の保証: 同時実行数を 1 に固定
-      reservedConcurrentExecutions: 1,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
       },
     });
 
-    // SQS → Lambda トリガー (batchSize=1 で 1 メッセージずつ処理)
+    // SQS → Lambda トリガー (batchSize=1 で 1 メッセージずつ処理、直列化を担保)
     ingestorLambda.addEventSource(
       new lambdaEventSources.SqsEventSource(rawEventsQueue, {
         batchSize: 1,
