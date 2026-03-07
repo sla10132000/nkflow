@@ -75,13 +75,26 @@ FEAR_INDEX_TICKERS: dict[str, str] = {
 
 # コモディティ先物 (Phase 26): us_indices テーブルに保存
 COMMODITY_TICKERS: dict[str, str] = {
-    "GC=F": "Gold Futures",        # 金
-    "CL=F": "WTI Crude Oil",       # WTI原油
-    "SI=F": "Silver Futures",      # 銀
-    "HG=F": "Copper Futures",      # 銅
-    "NG=F": "Natural Gas",         # 天然ガス
-    "ZW=F": "Wheat Futures",       # 小麦
-    "ZC=F": "Corn Futures",        # コーン
+    "GC=F": "Gold Futures",                        # 金
+    "CL=F": "WTI Crude Oil",                       # WTI原油
+    "SI=F": "Silver Futures",                      # 銀
+    "HG=F": "Copper Futures",                      # 銅
+    "NG=F": "Natural Gas",                         # 天然ガス
+    "ZW=F": "Wheat Futures",                       # 小麦
+    "ZC=F": "Corn Futures",                        # コーン
+    # Phase 27: スーパーサイクル分析用追加ティッカー
+    "URA":   "Global X Uranium ETF",               # ウラン (ETF代替)
+    "ALI=F": "Aluminum Futures",                   # アルミ先物 (COMEX)
+    "LIT":   "Global X Lithium & Battery Tech ETF", # リチウム (ETF代替)
+}
+
+# スーパーサイクル分析 (Phase 27): セクターグルーピング
+SUPERCYCLE_SECTORS: dict[str, dict] = {
+    "energy":          {"label": "エネルギー",     "tickers": ["CL=F", "NG=F", "URA"]},
+    "base_metals":     {"label": "ベースメタル",    "tickers": ["HG=F", "ALI=F"]},
+    "precious_metals": {"label": "貴金属",         "tickers": ["GC=F", "SI=F"]},
+    "battery_metals":  {"label": "バッテリー金属",  "tickers": ["LIT"]},
+    "agriculture":     {"label": "農産物",         "tickers": ["ZW=F", "ZC=F"]},
 }
 # BTC Fear & Greed Index
 ALTERNATIVE_ME_FNG_URL = "https://api.alternative.me/fng/"

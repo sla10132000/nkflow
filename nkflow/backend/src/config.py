@@ -62,6 +62,15 @@ REGIME_SHORT_WINDOW = 5
 REGIME_LONG_WINDOW = 20
 MAX_GRANGER_STOCKS = 100
 
+# スーパーサイクル セクター定義 (Phase 27)
+SUPERCYCLE_SECTORS: dict[str, dict] = {
+    "energy":          {"label": "エネルギー",     "tickers": ["CL=F", "NG=F", "URA"]},
+    "base_metals":     {"label": "ベースメタル",    "tickers": ["HG=F", "ALI=F"]},
+    "precious_metals": {"label": "貴金属",         "tickers": ["GC=F", "SI=F"]},
+    "battery_metals":  {"label": "バッテリー金属",  "tickers": ["LIT"]},
+    "agriculture":     {"label": "農産物",         "tickers": ["ZW=F", "ZC=F"]},
+}
+
 # 米国セクター ETF (Phase 23b): API ルーターで参照
 US_SECTOR_ETF_TICKERS: dict[str, dict[str, str]] = {
     "XLK":  {"name": "Technology Select Sector SPDR",              "sector": "テクノロジー"},
