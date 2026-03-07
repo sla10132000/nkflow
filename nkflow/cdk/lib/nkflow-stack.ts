@@ -39,27 +39,15 @@ export class NkflowStack extends Stack {
 
     // リソース名サフィックス: nkflow-*-{env} 形式で環境を末尾に明示
     const suffix = envName;
-    const bucketName = `senken-datalake-${envName}`;
     const domainName = isProd ? 'nkflow.senken.app' : `${envName}.nkflow.senken.app`;
     const ssmPrefix = `/nkflow/${envName}`;
 
     // ─────────────────────────────────────────────────────────────
-    // 1. S3 Bucket
+    // 1. S3 Bucket (データ) — DatalakeStack で管理、ここでは参照のみ
     // ─────────────────────────────────────────────────────────────
-    const dataBucket = new s3.Bucket(this, 'NkflowDataBucket', {
-      bucketName,
-      removalPolicy: RemovalPolicy.RETAIN,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      versioned: true,
-      lifecycleRules: [
-        {
-          // SQLite バックアップ: 非最新バージョンを7世代まで保持し、それ以上は削除
-          prefix: 'data/stocks.db',
-          noncurrentVersionExpiration: Duration.days(1),
-          noncurrentVersionsToRetain: 7,
-        },
-      ],
-    });
+    const dataBucket = s3.Bucket.fromBucketName(
+      this, 'DatalakeBucket', `senken-datalake-${envName}`,
+    );
 
     // フロントエンド配信用バケット (nkflow 専用)
     const frontendBucket = new s3.Bucket(this, 'NkflowFrontendBucket', {

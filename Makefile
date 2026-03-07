@@ -87,6 +87,7 @@ install-frontend:
 	cd nkflow/frontend && npm install
 
 install-cdk:
+	cd datalake/cdk && npm ci
 	cd nkflow/cdk && npm ci
 
 # -----------------------------------------------------------------------
@@ -135,6 +136,7 @@ build-frontend:
 	cd nkflow/frontend && npm run build
 
 build-cdk:
+	cd datalake/cdk && npm run build
 	cd nkflow/cdk && npm run build
 
 # -----------------------------------------------------------------------
@@ -151,6 +153,7 @@ diff-dev: build-cdk
 deploy-dev: deploy-cdk-dev deploy-frontend-dev
 
 deploy-cdk-dev: build-cdk
+	cd datalake/cdk && npx cdk deploy DatalakeStack-dev -c env=dev --require-approval never
 	cd nkflow/cdk && npx cdk deploy NkflowStack-dev -c env=dev --require-approval never
 
 deploy-frontend-dev:
@@ -161,6 +164,7 @@ deploy-frontend-dev:
 deploy-prod: deploy-cdk-prod deploy-frontend-prod
 
 deploy-cdk-prod: build-cdk
+	cd datalake/cdk && npx cdk deploy DatalakeStack-prod -c env=prod --require-approval never
 	cd nkflow/cdk && npx cdk deploy NkflowStack-prod -c env=prod --require-approval never
 
 deploy-frontend-prod:
