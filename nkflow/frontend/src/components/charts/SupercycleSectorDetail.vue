@@ -157,18 +157,16 @@ export default { name: "SupercycleSectorDetail" };
 			<table class="perf-table">
 				<thead>
 					<tr>
-						<th>Ticker</th>
 						<th>銘柄</th>
 						<th v-for="h in HORIZONS" :key="h">{{ h.toUpperCase() }}</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr v-for="item in filteredPerformance" :key="item.ticker">
-						<td class="font-mono text-xs font-semibold">
-							{{ item.ticker }}
+						<td class="text-xs text-gray-600 max-w-28 truncate">
+							{{ item.label }}
 							<span v-if="item.is_etf" class="etf-badge">ETF</span>
 						</td>
-						<td class="text-xs text-gray-600 max-w-28 truncate">{{ item.label }}</td>
 						<td
 							v-for="h in HORIZONS"
 							:key="h"
@@ -179,7 +177,7 @@ export default { name: "SupercycleSectorDetail" };
 						</td>
 					</tr>
 					<tr v-if="filteredPerformance.length === 0">
-						<td :colspan="2 + HORIZONS.length" class="text-center text-xs text-gray-400 py-4">
+						<td :colspan="1 + HORIZONS.length" class="text-center text-xs text-gray-400 py-4">
 							データなし
 						</td>
 					</tr>
