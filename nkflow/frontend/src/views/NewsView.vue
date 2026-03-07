@@ -156,7 +156,7 @@ async function load() {
 			api.getNews(params),
 			api.getNewsSummary(filterDate.value || undefined),
 		]);
-		articles.value = [...arts].sort((a, b) => b.published_at.localeCompare(a.published_at));
+		articles.value = [...arts].sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
 		summary.value = sum;
 	} finally {
 		loading.value = false;

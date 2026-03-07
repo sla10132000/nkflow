@@ -382,7 +382,7 @@ onMounted(async () => {
 		const snap = marketStore.overviewSnapshot;
 		if (snap) {
 			topNews.value = Array.isArray(snap.news)
-				? [...snap.news].sort((a, b) => b.published_at.localeCompare(a.published_at)).slice(0, 5)
+				? [...snap.news].sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()).slice(0, 5)
 				: [];
 			ytdHighs.value = Array.isArray(snap.ytd_highs) ? snap.ytd_highs : [];
 			applySnapshotSectorData(activeSectorPeriod.value);
@@ -402,7 +402,7 @@ onMounted(async () => {
 			api.getYtdHighs(10).catch(() => []),
 		]);
 		topNews.value = Array.isArray(newsData)
-			? [...newsData].sort((a, b) => b.published_at.localeCompare(a.published_at)).slice(0, 5)
+			? [...newsData].sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()).slice(0, 5)
 			: [];
 		ytdHighs.value = Array.isArray(ytdData) ? ytdData : [];
 	} catch (e: unknown) {
