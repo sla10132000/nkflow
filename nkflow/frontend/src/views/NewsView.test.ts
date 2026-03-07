@@ -135,6 +135,20 @@ describe("NewsView", () => {
 		expect(wrapper.text()).toContain("0.5");
 	});
 
+	it("記事が published_at 降順で表示される", async () => {
+		mockApi.getNews.mockResolvedValue([
+			{ ...mockArticle, id: "a1", published_at: "2026-03-07T14:49:00Z", title_ja: "古いニュース" },
+			{ ...mockArticle, id: "a2", published_at: "2026-03-07T21:30:00Z", title_ja: "新しいニュース" },
+		]);
+		const wrapper = mountView();
+		await flushPromises();
+
+		const text = wrapper.text();
+		const oldIdx = text.indexOf("古いニュース");
+		const newIdx = text.indexOf("新しいニュース");
+		expect(newIdx).toBeLessThan(oldIdx);
+	});
+
 	it("記事なしの場合にメッセージを表示する", async () => {
 		const wrapper = mountView();
 		await flushPromises();
