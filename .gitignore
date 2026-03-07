@@ -31,7 +31,7 @@ node_modules/
 # Build outputs
 frontend/dist/
 cdk/dist/
-cdk/cdk.out/
+cdk.out/
 
 # Environment (local overrides)
 .env.local
