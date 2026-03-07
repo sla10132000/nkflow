@@ -60,12 +60,19 @@ async def serve_frontend(path: str) -> Response:
     """S3 からフロントエンドの静的ファイルを配信する。
     ファイルが存在しない場合は SPA ルーティング用に index.html を返す。
     """
-    bucket = os.environ.get("S3_BUCKET", "")
+    frontend_bucket = os.environ.get("FRONTEND_BUCKET", "")
+    if frontend_bucket:
+        # フロントエンド専用バケット: プレフィックスなし
+        bucket = frontend_bucket
+        key = path if path else "index.html"
+    else:
+        # フォールバック: データバケットの frontend/ プレフィックス
+        bucket = os.environ.get("S3_BUCKET", "")
+        key = f"frontend/{path}" if path else "frontend/index.html"
     if not bucket:
         return Response(content="S3_BUCKET not configured", status_code=500)
 
     s3 = boto3.client("s3")
-    key = f"frontend/{path}" if path else "frontend/index.html"
 
     suffix = "." + key.rsplit(".", 1)[-1] if "." in key.split("/")[-1] else ""
     content_type = _EXT_CONTENT_TYPE.get(suffix, "application/octet-stream")
@@ -84,7 +91,8 @@ async def serve_frontend(path: str) -> Response:
     except Exception:
         # SPA フォールバック: Vue Router のクライアントサイドルーティング用
         try:
-            obj = s3.get_object(Bucket=bucket, Key="frontend/index.html")
+            index_key = "index.html" if frontend_bucket else "frontend/index.html"
+            obj = s3.get_object(Bucket=bucket, Key=index_key)
             return Response(
                 content=obj["Body"].read(),
                 media_type="text/html; charset=utf-8",
