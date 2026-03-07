@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SupercycleSector, SupercyclePhase } from "../../types";
+import type { SupercyclePhase, SupercycleSector } from "../../types";
 
 const props = defineProps<{
 	phases: Record<string, SupercyclePhase>;
@@ -22,7 +22,7 @@ function positionToPercent(position: number): number {
 	return Math.min(Math.max(pct, 1), 99);
 }
 
-// セクター内の全コモディティを position でソート
+// セクター内の全コモディティを position でソート（近いドットは行を分けて重なり防止）
 interface DotItem {
 	ticker: string;
 	label: string;
@@ -30,10 +30,11 @@ interface DotItem {
 	position: number;
 	phase: number;
 	isEtf: boolean;
+	row: number;
 }
 
 const dots = computed<DotItem[]>(() => {
-	const items: DotItem[] = [];
+	const items: Omit<DotItem, "row">[] = [];
 	for (const sector of props.sectors) {
 		for (const c of sector.commodities) {
 			items.push({
@@ -46,8 +47,24 @@ const dots = computed<DotItem[]>(() => {
 			});
 		}
 	}
-	return items;
+	items.sort((a, b) => a.position - b.position);
+	const MIN_GAP = 0.4;
+	const result: DotItem[] = [];
+	for (const item of items) {
+		let row = 0;
+		while (
+			result.some(
+				(d) => d.row === row && Math.abs(d.position - item.position) < MIN_GAP,
+			)
+		) {
+			row++;
+		}
+		result.push({ ...item, row });
+	}
+	return result;
 });
+
+const maxRow = computed(() => Math.max(0, ...dots.value.map((d) => d.row)));
 
 const phaseEntries = computed(() =>
 	Object.entries(props.phases).map(([id, p]) => ({ id, ...p })),
@@ -77,12 +94,12 @@ export default { name: "SupercyclePhaseChart" };
 		</div>
 
 		<!-- ドットレイヤー -->
-		<div class="dots-layer">
+		<div class="dots-layer" :style="{ height: (maxRow + 1) * 28 + 8 + 'px' }">
 			<div
 				v-for="dot in dots"
 				:key="dot.ticker"
 				class="dot-wrapper"
-				:style="{ left: positionToPercent(dot.position) + '%' }"
+				:style="{ left: positionToPercent(dot.position) + '%', top: dot.row * 28 + 'px' }"
 				:title="`${dot.label} (${dot.ticker}) — Phase ${dot.phase} pos:${dot.position}`"
 			>
 				<div
@@ -157,7 +174,6 @@ export default { name: "SupercyclePhaseChart" };
 /* ドット配置レイヤー */
 .dots-layer {
 	position: relative;
-	height: 56px;
 	margin-top: 8px;
 }
 
