@@ -34,7 +34,6 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-require("source-map-support/register");
 const cdk = __importStar(require("aws-cdk-lib"));
 const datalake_stack_1 = require("../lib/datalake-stack");
 const app = new cdk.App();
