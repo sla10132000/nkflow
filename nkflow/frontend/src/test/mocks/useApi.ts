@@ -69,6 +69,11 @@ export function createMockApi() {
 		// Phase 26: コモディティ
 		getCommodities: vi.fn().mockResolvedValue([]),
 		getCommoditiesSummary: vi.fn().mockResolvedValue([]),
+		// Phase 27: スーパーサイクル
+		getSupercycleOverview: vi.fn().mockResolvedValue(null),
+		getSupercycleSectorReturns: vi.fn().mockResolvedValue(null),
+		getSupercyclePerformance: vi.fn().mockResolvedValue([]),
+		getOverviewSnapshot: vi.fn().mockResolvedValue(null),
 	};
 }
 

@@ -3,6 +3,9 @@ import type {
 	InvestorFlowIndicator,
 	InvestorFlowLatest,
 	InvestorFlowWeekly,
+	SupercycleOverview,
+	SupercycleSectorReturns,
+	SupercyclePerformanceItem,
 } from "../types";
 
 const api = axios.create({
@@ -185,4 +188,20 @@ export const useApi = () => ({
 
 	getCommoditiesSummary: () =>
 		api.get("/api/commodities/summary").then((r) => r.data),
+
+	// Phase 27: スーパーサイクル分析
+	getSupercycleOverview: () =>
+		api.get<SupercycleOverview>("/api/supercycle/overview").then((r) => r.data),
+
+	getSupercycleSectorReturns: (sector: string, days = 1825) =>
+		api
+			.get<SupercycleSectorReturns>("/api/supercycle/sector-returns", {
+				params: { sector, days },
+			})
+			.then((r) => r.data),
+
+	getSupercyclePerformance: () =>
+		api
+			.get<SupercyclePerformanceItem[]>("/api/supercycle/performance")
+			.then((r) => r.data),
 });

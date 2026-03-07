@@ -377,3 +377,82 @@ export interface CommoditySummary {
 	close: number;
 	change_pct: number | null;
 }
+
+// ─── Phase 27: スーパーサイクル分析 ──────────────────────────────────────────
+
+export interface SupercyclePhase {
+	name: string;
+	name_en: string;
+	color: string;
+}
+
+export interface SupercycleCommodity {
+	ticker: string;
+	label: string;
+	close: number | null;
+	date: string | null;
+	change_pct: number | null;
+	phase: number;
+	position: number;
+	is_etf: boolean;
+}
+
+export interface SupercycleSector {
+	id: string;
+	label: string;
+	phase: number;
+	position: number;
+	commodities: SupercycleCommodity[];
+}
+
+export interface SupercycleScenario {
+	id: string;
+	name: string;
+	probability: number;
+	peak: string;
+	description: string;
+}
+
+export interface SupercycleCorrelation {
+	from_sector: string;
+	to_sector: string;
+	description: string;
+}
+
+export interface SupercycleOverview {
+	phases: Record<string, SupercyclePhase>;
+	sectors: SupercycleSector[];
+	scenarios: SupercycleScenario[];
+	correlations: SupercycleCorrelation[];
+	updated: string;
+}
+
+export interface SupercycleSectorReturnPoint {
+	date: string;
+	value: number;
+}
+
+export interface SupercycleSectorReturnSeries {
+	ticker: string;
+	label: string;
+	is_etf: boolean;
+	data: SupercycleSectorReturnPoint[];
+}
+
+export interface SupercycleSectorReturns {
+	sector: string;
+	label: string;
+	base_date: string | null;
+	series: SupercycleSectorReturnSeries[];
+}
+
+export interface SupercyclePerformanceItem {
+	ticker: string;
+	label: string;
+	sector_id: string;
+	sector_label: string;
+	is_etf: boolean;
+	latest_close: number | null;
+	latest_date: string | null;
+	returns: Record<string, number | null>;
+}
