@@ -381,7 +381,9 @@ onMounted(async () => {
 		await marketStore.fetchOverviewSnapshot();
 		const snap = marketStore.overviewSnapshot;
 		if (snap) {
-			topNews.value = Array.isArray(snap.news) ? snap.news.slice(0, 5) : [];
+			topNews.value = Array.isArray(snap.news)
+				? [...snap.news].sort((a, b) => b.published_at.localeCompare(a.published_at)).slice(0, 5)
+				: [];
 			ytdHighs.value = Array.isArray(snap.ytd_highs) ? snap.ytd_highs : [];
 			applySnapshotSectorData(activeSectorPeriod.value);
 			loading.value = false;
@@ -399,7 +401,9 @@ onMounted(async () => {
 			marketStore.fetchFearIndices(),
 			api.getYtdHighs(10).catch(() => []),
 		]);
-		topNews.value = Array.isArray(newsData) ? newsData.slice(0, 5) : [];
+		topNews.value = Array.isArray(newsData)
+			? [...newsData].sort((a, b) => b.published_at.localeCompare(a.published_at)).slice(0, 5)
+			: [];
 		ytdHighs.value = Array.isArray(ytdData) ? ytdData : [];
 	} catch (e: unknown) {
 		error.value = e instanceof Error ? e.message : "データ取得失敗";

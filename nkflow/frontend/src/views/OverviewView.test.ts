@@ -133,6 +133,49 @@ describe("OverviewView", () => {
 		expect(wrapper.text()).toContain("Reuters");
 	});
 
+	it("ニュースが published_at 降順で表示される", async () => {
+		mockApi.getNews.mockResolvedValue([
+			{
+				id: "n1",
+				published_at: "2026-03-07T14:49:00Z",
+				source: "reuters",
+				source_name: "Reuters",
+				title: "Old news",
+				title_ja: "古いニュース",
+				url: "https://example.com/1",
+				language: "ja",
+				image_url: null,
+				sentiment: null,
+			},
+			{
+				id: "n2",
+				published_at: "2026-03-07T21:30:00Z",
+				source: "nikkei_asia",
+				source_name: "Nikkei Asia",
+				title: "New news",
+				title_ja: "新しいニュース",
+				url: "https://example.com/2",
+				language: "ja",
+				image_url: null,
+				sentiment: null,
+			},
+		]);
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		const items = wrapper.findAll("li");
+		const newsItems = items.filter((li) =>
+			li.text().includes("Reuters") || li.text().includes("Nikkei Asia"),
+		);
+		expect(newsItems.length).toBeGreaterThanOrEqual(2);
+		// 新しいニュース (21:30) が古いニュース (14:49) より先に来ること
+		const firstText = newsItems[0].text();
+		const secondText = newsItems[1].text();
+		expect(firstText).toContain("新しいニュース");
+		expect(secondText).toContain("古いニュース");
+	});
+
 	it("読み込み中の表示", () => {
 		mockApi.getSummary.mockReturnValue(new Promise(() => {})); // never resolves
 		const wrapper = mountView();
