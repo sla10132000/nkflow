@@ -20,22 +20,38 @@ import {
 import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import { Construct } from 'constructs';
 
-const DOMAIN_NAME = 'nkflow.senken.app';
 const HOSTED_ZONE_DOMAIN = 'senken.app';
 
 const BACKEND = path.join(__dirname, '../../backend');
 // datalake is a shared module at repo root, not under nkflow/
 const DATALAKE = path.join(__dirname, '../../../datalake');
 
+export interface NkflowStackProps extends StackProps {
+  envName: 'dev' | 'prod';
+}
+
 export class NkflowStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: NkflowStackProps) {
     super(scope, id, props);
+
+    const { envName } = props;
+    const isProd = envName === 'prod';
+
+    // リソース名プレフィックス
+    // prod: 既存名を維持 (破壊的変更なし)
+    // dev:  nkflow-dev-* プレフィックス
+    const prefix = isProd ? 'nkflow' : `nkflow-${envName}`;
+    const bucketName = isProd
+      ? `nkflow-data-${this.account}`
+      : `nkflow-data-${envName}-${this.account}`;
+    const domainName = isProd ? 'nkflow.senken.app' : `${envName}.nkflow.senken.app`;
+    const ssmPrefix = isProd ? '/nkflow' : `/nkflow/${envName}`;
 
     // ─────────────────────────────────────────────────────────────
     // 1. S3 Bucket
     // ─────────────────────────────────────────────────────────────
     const dataBucket = new s3.Bucket(this, 'NkflowDataBucket', {
-      bucketName: `nkflow-data-${this.account}`,
+      bucketName,
       removalPolicy: RemovalPolicy.RETAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       versioned: true,
@@ -53,30 +69,37 @@ export class NkflowStack extends Stack {
     // 2. SSM Parameter Store (枠のみ — 値は手動で SecureString に上書き)
     // ─────────────────────────────────────────────────────────────
     new ssm.StringParameter(this, 'JQuantsApiKeyParam', {
-      parameterName: '/nkflow/jquants-api-key',
+      parameterName: `${ssmPrefix}/jquants-api-key`,
       stringValue: 'PLACEHOLDER_SET_MANUALLY',
     });
 
-    // Phase 12: 通知先パラメータ (枠のみ — 値は手動で SecureString に上書き)
-    new ssm.StringParameter(this, 'SlackWebhookUrlParam', {
-      parameterName: '/nkflow/slack-webhook-url',
-      stringValue: 'PLACEHOLDER_SET_MANUALLY',
-      description: 'Slack Incoming Webhook URL (Phase 12)',
-    });
+    // prod のみ通知パラメータを作成 (dev では通知なし)
+    if (isProd) {
+      new ssm.StringParameter(this, 'SlackWebhookUrlParam', {
+        parameterName: `${ssmPrefix}/slack-webhook-url`,
+        stringValue: 'PLACEHOLDER_SET_MANUALLY',
+        description: 'Slack Incoming Webhook URL (Phase 12)',
+      });
 
-    new ssm.StringParameter(this, 'LineNotifyTokenParam', {
-      parameterName: '/nkflow/line-notify-token',
-      stringValue: 'PLACEHOLDER_SET_MANUALLY',
-      description: 'LINE Notify アクセストークン (Phase 12)',
-    });
+      new ssm.StringParameter(this, 'LineNotifyTokenParam', {
+        parameterName: `${ssmPrefix}/line-notify-token`,
+        stringValue: 'PLACEHOLDER_SET_MANUALLY',
+        description: 'LINE Notify アクセストークン (Phase 12)',
+      });
+    }
 
     // ─────────────────────────────────────────────────────────────
-    // 3. SNS トピック (Phase 12)
+    // 3. SNS トピック + 通知 Lambda (prod のみ)
+    // dev では通知なし (バッチ結果はログで確認)
     // ─────────────────────────────────────────────────────────────
-    const notificationTopic = new sns.Topic(this, 'NkflowNotificationTopic', {
-      topicName: 'nkflow-notifications',
-      displayName: 'nkflow 日次レポート通知',
-    });
+    let notificationTopic: sns.Topic | undefined;
+
+    if (isProd) {
+      notificationTopic = new sns.Topic(this, 'NkflowNotificationTopic', {
+        topicName: `${prefix}-notifications`,
+        displayName: 'nkflow 日次レポート通知',
+      });
+    }
 
     // ─────────────────────────────────────────────────────────────
     // 4. IAM ロール (バッチ)
@@ -90,23 +113,25 @@ export class NkflowStack extends Stack {
     dataBucket.grantReadWrite(batchRole);
     batchRole.addToPolicy(new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
-      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/nkflow/*`],
+      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${ssmPrefix}/*`],
     }));
     // Phase 18: ニュース raw データ読み取り権限 (fetch_news.normalize_news で使用)
     batchRole.addToPolicy(new iam.PolicyStatement({
       actions: ['s3:GetObject'],
       resources: [`${dataBucket.bucketArn}/news/raw/*`],
     }));
-    // Phase 12: SNS publish 権限
-    batchRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['sns:Publish'],
-      resources: [notificationTopic.topicArn],
-    }));
     // Phase 18: AWS Translate 翻訳権限
     batchRole.addToPolicy(new iam.PolicyStatement({
       actions: ['translate:TranslateText'],
       resources: ['*'],
     }));
+    // Phase 12: SNS publish 権限 (prod のみ)
+    if (notificationTopic) {
+      batchRole.addToPolicy(new iam.PolicyStatement({
+        actions: ['sns:Publish'],
+        resources: [notificationTopic.topicArn],
+      }));
+    }
 
     // ─────────────────────────────────────────────────────────────
     // 5. IAM ロール (API)
@@ -120,27 +145,53 @@ export class NkflowStack extends Stack {
     dataBucket.grantRead(apiRole);
 
     // ─────────────────────────────────────────────────────────────
-    // 6. IAM ロール (通知 Lambda) — Phase 12
+    // 6. IAM ロール / Lambda (通知) — prod のみ (Phase 12)
     // ─────────────────────────────────────────────────────────────
-    const notificationRole = new iam.Role(this, 'NkflowNotificationRole', {
-      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
-      ],
-    });
-    notificationRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['ssm:GetParameter'],
-      resources: [
-        `arn:aws:ssm:${this.region}:${this.account}:parameter/nkflow/slack-webhook-url`,
-        `arn:aws:ssm:${this.region}:${this.account}:parameter/nkflow/line-notify-token`,
-      ],
-    }));
+    if (isProd && notificationTopic) {
+      const notificationRole = new iam.Role(this, 'NkflowNotificationRole', {
+        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+        managedPolicies: [
+          iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+        ],
+      });
+      notificationRole.addToPolicy(new iam.PolicyStatement({
+        actions: ['ssm:GetParameter'],
+        resources: [
+          `arn:aws:ssm:${this.region}:${this.account}:parameter${ssmPrefix}/slack-webhook-url`,
+          `arn:aws:ssm:${this.region}:${this.account}:parameter${ssmPrefix}/line-notify-token`,
+        ],
+      }));
+
+      const notificationLambda = new lambda.DockerImageFunction(this, 'NkflowNotificationLambda', {
+        functionName: `${prefix}-notification`,
+        code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
+          file: 'Dockerfile.notification',
+          platform: Platform.LINUX_AMD64,
+        }),
+        memorySize: 256,
+        timeout: Duration.seconds(30),
+        role: notificationRole,
+      });
+
+      // SNS → Notification Lambda サブスクリプション
+      notificationTopic.addSubscription(
+        new snsSubscriptions.LambdaSubscription(notificationLambda)
+      );
+    }
 
     // ─────────────────────────────────────────────────────────────
     // 7. Lambda (バッチ) — Apple Silicon 対応で linux/amd64 を指定
     // ─────────────────────────────────────────────────────────────
+    const batchEnv: Record<string, string> = {
+      S3_BUCKET: dataBucket.bucketName,
+      JQUANTS_PLAN: 'standard',
+    };
+    if (notificationTopic) {
+      batchEnv.SNS_TOPIC_ARN = notificationTopic.topicArn;
+    }
+
     const batchLambda = new lambda.DockerImageFunction(this, 'NkflowBatchLambda', {
-      functionName: 'nkflow-batch',
+      functionName: `${prefix}-batch`,
       code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
         file: 'Dockerfile.batch',
         platform: Platform.LINUX_AMD64,
@@ -152,18 +203,14 @@ export class NkflowStack extends Stack {
       // Claude Code はこの値を削減しないこと。
       ephemeralStorageSize: cdk.Size.mebibytes(2048),
       role: batchRole,
-      environment: {
-        S3_BUCKET: dataBucket.bucketName,
-        JQUANTS_PLAN: 'standard',
-        SNS_TOPIC_ARN: notificationTopic.topicArn,
-      },
+      environment: batchEnv,
     });
 
     // ─────────────────────────────────────────────────────────────
     // 8. Lambda (API) + Function URL
     // ─────────────────────────────────────────────────────────────
     const apiLambda = new lambda.DockerImageFunction(this, 'NkflowApiLambda', {
-      functionName: 'nkflow-api',
+      functionName: `${prefix}-api`,
       code: lambda.DockerImageCode.fromImageAsset(BACKEND, {
         file: 'Dockerfile.api',
         platform: Platform.LINUX_AMD64,
@@ -215,14 +262,23 @@ export class NkflowStack extends Stack {
       actions: ['translate:TranslateText'],
       resources: ['*'],
     }));
-    // 全クエリ失敗時の SNS 通知
-    newsFetchRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['sns:Publish'],
-      resources: [notificationTopic.topicArn],
-    }));
+    // 全クエリ失敗時の SNS 通知 (prod のみ)
+    if (notificationTopic) {
+      newsFetchRole.addToPolicy(new iam.PolicyStatement({
+        actions: ['sns:Publish'],
+        resources: [notificationTopic.topicArn],
+      }));
+    }
+
+    const newsFetchEnv: Record<string, string> = {
+      S3_BUCKET: dataBucket.bucketName,
+    };
+    if (notificationTopic) {
+      newsFetchEnv.SNS_TOPIC_ARN = notificationTopic.topicArn;
+    }
 
     const newsFetchLambda = new lambda.DockerImageFunction(this, 'NkflowNewsFetchLambda', {
-      functionName: 'nkflow-news-fetch',
+      functionName: `${prefix}-news-fetch`,
       code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
         file: 'Dockerfile.news',
         platform: Platform.LINUX_AMD64,
@@ -233,10 +289,7 @@ export class NkflowStack extends Stack {
       // 3072MB 未満に減らすと "No space left on device" で正規化が失敗する。
       ephemeralStorageSize: cdk.Size.mebibytes(3072),
       role: newsFetchRole,
-      environment: {
-        S3_BUCKET: dataBucket.bucketName,
-        SNS_TOPIC_ARN: notificationTopic.topicArn,
-      },
+      environment: newsFetchEnv,
     });
 
     // EventBridge Scheduler: 毎時 30 分 (バッチ UTC 09:00 との競合を避けるため :30)
@@ -246,7 +299,7 @@ export class NkflowStack extends Stack {
     newsFetchLambda.grantInvoke(newsFetchSchedulerRole);
 
     new scheduler.CfnSchedule(this, 'NkflowNewsFetchSchedule', {
-      name: 'nkflow-news-fetch',
+      name: `${prefix}-news-fetch`,
       scheduleExpression: 'cron(30 * ? * * *)',
       scheduleExpressionTimezone: 'UTC',
       flexibleTimeWindow: { mode: 'OFF' },
@@ -258,39 +311,19 @@ export class NkflowStack extends Stack {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 10. Lambda (通知) — Phase 12
-    // ─────────────────────────────────────────────────────────────
-
-    const notificationLambda = new lambda.DockerImageFunction(this, 'NkflowNotificationLambda', {
-      functionName: 'nkflow-notification',
-      code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
-        file: 'Dockerfile.notification',
-        platform: Platform.LINUX_AMD64,
-      }),
-      memorySize: 256,
-      timeout: Duration.seconds(30),
-      role: notificationRole,
-    });
-
-    // SNS → Notification Lambda サブスクリプション
-    notificationTopic.addSubscription(
-      new snsSubscriptions.LambdaSubscription(notificationLambda)
-    );
-
-    // ─────────────────────────────────────────────────────────────
     // 10. API Gateway REST API — フロントエンド + API を1つの URL で公開
     // ─────────────────────────────────────────────────────────────
     const restApi = new apigateway.LambdaRestApi(this, 'NkflowApiGateway', {
       handler: apiLambda,
       proxy: true,
-      restApiName: 'nkflow',
+      restApiName: prefix,
       binaryMediaTypes: ['*/*'],
       deployOptions: { stageName: 'prod' },
       endpointTypes: [apigateway.EndpointType.REGIONAL],
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 12. カスタムドメイン (nkflow.senken.app) — Route 53 + ACM + API GW
+    // 11. カスタムドメイン — Route 53 + ACM + API GW
     // ─────────────────────────────────────────────────────────────
 
     // senken.app の Hosted Zone を参照
@@ -300,13 +333,13 @@ export class NkflowStack extends Stack {
 
     // ACM 証明書 (REGIONAL エンドポイントなので同じリージョンで発行)
     const certificate = new acm.Certificate(this, 'NkflowCertificate', {
-      domainName: DOMAIN_NAME,
+      domainName,
       validation: acm.CertificateValidation.fromDns(hostedZone),
     });
 
     // API Gateway カスタムドメイン
     const customDomain = new apigateway.DomainName(this, 'NkflowCustomDomain', {
-      domainName: DOMAIN_NAME,
+      domainName,
       certificate,
       endpointType: apigateway.EndpointType.REGIONAL,
       securityPolicy: apigateway.SecurityPolicy.TLS_1_2,
@@ -319,17 +352,17 @@ export class NkflowStack extends Stack {
       stage: restApi.deploymentStage,
     });
 
-    // Route 53: nkflow.senken.app → API GW カスタムドメイン
+    // Route 53: {domainName} → API GW カスタムドメイン
     new route53.ARecord(this, 'NkflowARecord', {
       zone: hostedZone,
-      recordName: DOMAIN_NAME,
+      recordName: domainName,
       target: route53.RecordTarget.fromAlias(
         new route53Targets.ApiGatewayDomain(customDomain)
       ),
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 11. EventBridge Scheduler (毎営業日 UTC 09:00 = JST 18:00)
+    // 12. EventBridge Scheduler (毎営業日 UTC 09:00 = JST 18:00)
     // ─────────────────────────────────────────────────────────────
     const schedulerRole = new iam.Role(this, 'NkflowSchedulerRole', {
       assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
@@ -337,7 +370,7 @@ export class NkflowStack extends Stack {
     batchLambda.grantInvoke(schedulerRole);
 
     new scheduler.CfnSchedule(this, 'NkflowDailySchedule', {
-      name: 'nkflow-daily-batch',
+      name: `${prefix}-daily-batch`,
       scheduleExpression: 'cron(0 9 ? * MON-FRI *)',
       scheduleExpressionTimezone: 'UTC',
       flexibleTimeWindow: { mode: 'OFF' },
@@ -358,12 +391,14 @@ export class NkflowStack extends Stack {
       description: 'フロントエンド + API の公開 URL (API Gateway)',
     });
     new cdk.CfnOutput(this, 'CustomDomainUrl', {
-      value: `https://${DOMAIN_NAME}`,
+      value: `https://${domainName}`,
       description: 'カスタムドメイン URL',
     });
-    new cdk.CfnOutput(this, 'NotificationTopicArn', {
-      value: notificationTopic.topicArn,
-      description: 'SNS 通知トピック ARN (Phase 12)',
-    });
+    if (notificationTopic) {
+      new cdk.CfnOutput(this, 'NotificationTopicArn', {
+        value: notificationTopic.topicArn,
+        description: 'SNS 通知トピック ARN (Phase 12)',
+      });
+    }
   }
 }

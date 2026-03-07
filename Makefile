@@ -1,12 +1,18 @@
-S3_BUCKET := nkflow-data-268914462689
-HB_S3_BUCKET := hazardbrief-data-$(shell aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "000000000000")
+ACCOUNT := $(shell aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "000000000000")
+S3_BUCKET := nkflow-data-$(ACCOUNT)
+S3_BUCKET_DEV := nkflow-data-dev-$(ACCOUNT)
+HB_S3_BUCKET := hazardbrief-data-$(ACCOUNT)
 
 .PHONY: help \
         install install-backend install-datalake install-frontend install-cdk \
         dev \
         test test-datalake test-frontend lint lint-datalake lint-frontend \
         build build-frontend build-cdk \
-        diff deploy deploy-cdk deploy-frontend \
+        diff diff-dev deploy deploy-cdk deploy-frontend \
+        deploy-dev deploy-prod \
+        deploy-cdk-dev deploy-cdk-prod \
+        deploy-frontend-dev deploy-frontend-prod \
+        sync-db-to-dev \
         pull push push-db \
         migrate \
         deploy-hazardbrief deploy-hazardbrief-cdk deploy-hazardbrief-frontend \
@@ -43,10 +49,16 @@ help:
 	@echo "  build-cdk          tsc (CDK TypeScript コンパイル)"
 	@echo ""
 	@echo "--- Deploy ---"
-	@echo "  deploy             CDK + frontend を両方デプロイ (通常はこれ)"
-	@echo "  deploy-cdk         CDK のみデプロイ (backend/Lambda/インフラ変更時)"
-	@echo "  deploy-frontend    frontend のみビルド&S3同期 (Vue変更時)"
-	@echo "  diff               cdk diff NkflowStack"
+	@echo "  deploy-dev         dev 環境に CDK + frontend をデプロイ"
+	@echo "  deploy-prod        prod 環境に CDK + frontend をデプロイ"
+	@echo "  deploy             deploy-prod のエイリアス (後方互換)"
+	@echo "  deploy-cdk         CDK のみ prod デプロイ (後方互換)"
+	@echo "  deploy-frontend    frontend のみ prod デプロイ (後方互換)"
+	@echo "  diff               cdk diff NkflowStack-prod"
+	@echo "  diff-dev           cdk diff NkflowStack-dev"
+	@echo ""
+	@echo "--- DB ---"
+	@echo "  sync-db-to-dev     prod DB を dev バケットにコピー (初回 / リフレッシュ時)"
 	@echo ""
 	@echo "--- Git ---"
 	@echo "  push               git push origin main (GitHub Actions deploy をトリガー)"
@@ -126,19 +138,41 @@ build-cdk:
 # -----------------------------------------------------------------------
 
 diff: build-cdk
-	cd nkflow/cdk && npx cdk diff NkflowStack
+	cd nkflow/cdk && npx cdk diff NkflowStack-prod -c env=prod
 
-# CDK + frontend を両方デプロイ (通常はこれを使う)
-deploy: deploy-cdk deploy-frontend
+diff-dev: build-cdk
+	cd nkflow/cdk && npx cdk diff NkflowStack-dev -c env=dev
 
-# CDK のみ (backend/Lambda/インフラ変更時)
-deploy-cdk: build-cdk
-	cd nkflow/cdk && npx cdk deploy NkflowStack --require-approval never
+# ── dev 環境デプロイ ──────────────────────────────────────────────
+deploy-dev: deploy-cdk-dev deploy-frontend-dev
 
-# frontend のみ: ビルドして S3 へ同期
-# ⚠️ GitHub Actions は frontend/ を自動デプロイしない — Vue 変更後は必ずこれを実行
-deploy-frontend: build-frontend
+deploy-cdk-dev: build-cdk
+	cd nkflow/cdk && npx cdk deploy NkflowStack-dev -c env=dev --require-approval never
+
+deploy-frontend-dev:
+	cd nkflow/frontend && npm run build -- --mode development
+	aws s3 sync nkflow/frontend/dist/ s3://$(S3_BUCKET_DEV)/frontend/ --delete
+
+# ── prod 環境デプロイ ─────────────────────────────────────────────
+deploy-prod: deploy-cdk-prod deploy-frontend-prod
+
+deploy-cdk-prod: build-cdk
+	cd nkflow/cdk && npx cdk deploy NkflowStack-prod -c env=prod --require-approval never
+
+deploy-frontend-prod:
+	cd nkflow/frontend && npm run build
 	aws s3 sync nkflow/frontend/dist/ s3://$(S3_BUCKET)/frontend/ --delete
+
+# ── 後方互換エイリアス ────────────────────────────────────────────
+# CDK + frontend を両方デプロイ (通常はこれを使う → deploy-prod のエイリアス)
+deploy: deploy-prod
+
+# CDK のみ (backend/Lambda/インフラ変更時) → prod
+deploy-cdk: deploy-cdk-prod
+
+# frontend のみ: ビルドして S3 へ同期 → prod
+# ⚠️ GitHub Actions は frontend/ を自動デプロイしない — Vue 変更後は必ずこれを実行
+deploy-frontend: deploy-frontend-prod
 
 # -----------------------------------------------------------------------
 # Git
@@ -171,6 +205,11 @@ push-db:
 	sqlite3 $(SQLITE_LOCAL) "PRAGMA wal_checkpoint(TRUNCATE);"
 	aws s3 cp $(SQLITE_LOCAL) s3://$(S3_BUCKET)/data/stocks.db
 	@echo "Uploaded from: $(SQLITE_LOCAL)"
+
+# prod の stocks.db を dev バケットにコピー (初回セットアップ / リフレッシュ時)
+sync-db-to-dev:
+	aws s3 cp s3://$(S3_BUCKET)/data/stocks.db s3://$(S3_BUCKET_DEV)/data/stocks.db
+	@echo "Synced prod DB to dev bucket: s3://$(S3_BUCKET_DEV)/data/stocks.db"
 
 # -----------------------------------------------------------------------
 # HazardBrief
