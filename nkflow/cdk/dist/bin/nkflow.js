@@ -38,9 +38,11 @@ require("source-map-support/register");
 const cdk = __importStar(require("aws-cdk-lib"));
 const nkflow_stack_1 = require("../lib/nkflow-stack");
 const app = new cdk.App();
-new nkflow_stack_1.NkflowStack(app, 'NkflowStack', {
+const envName = app.node.tryGetContext('env') || 'prod';
+new nkflow_stack_1.NkflowStack(app, `NkflowStack-${envName}`, {
     env: {
         account: process.env.CDK_DEFAULT_ACCOUNT,
         region: process.env.CDK_DEFAULT_REGION ?? 'ap-northeast-1',
     },
+    envName,
 });

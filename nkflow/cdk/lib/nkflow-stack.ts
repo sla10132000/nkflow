@@ -37,15 +37,11 @@ export class NkflowStack extends Stack {
     const { envName } = props;
     const isProd = envName === 'prod';
 
-    // リソース名プレフィックス
-    // prod: 既存名を維持 (破壊的変更なし)
-    // dev:  nkflow-dev-* プレフィックス
-    const prefix = isProd ? 'nkflow' : `nkflow-${envName}`;
-    const bucketName = isProd
-      ? `nkflow-data-${this.account}`
-      : `nkflow-data-${envName}-${this.account}`;
+    // リソース名プレフィックス: nkflow-{env}-* 形式で環境を明示
+    const prefix = `nkflow-${envName}`;
+    const bucketName = `nkflow-data-${envName}-${this.account}`;
     const domainName = isProd ? 'nkflow.senken.app' : `${envName}.nkflow.senken.app`;
-    const ssmPrefix = isProd ? '/nkflow' : `/nkflow/${envName}`;
+    const ssmPrefix = `/nkflow/${envName}`;
 
     // ─────────────────────────────────────────────────────────────
     // 1. S3 Bucket
@@ -171,6 +167,9 @@ export class NkflowStack extends Stack {
         memorySize: 256,
         timeout: Duration.seconds(30),
         role: notificationRole,
+        environment: {
+          SSM_PREFIX: ssmPrefix,
+        },
       });
 
       // SNS → Notification Lambda サブスクリプション
@@ -185,6 +184,7 @@ export class NkflowStack extends Stack {
     const batchEnv: Record<string, string> = {
       S3_BUCKET: dataBucket.bucketName,
       JQUANTS_PLAN: 'standard',
+      SSM_PREFIX: ssmPrefix,
     };
     if (notificationTopic) {
       batchEnv.SNS_TOPIC_ARN = notificationTopic.topicArn;
@@ -272,6 +272,7 @@ export class NkflowStack extends Stack {
 
     const newsFetchEnv: Record<string, string> = {
       S3_BUCKET: dataBucket.bucketName,
+      SSM_PREFIX: ssmPrefix,
     };
     if (notificationTopic) {
       newsFetchEnv.SNS_TOPIC_ARN = notificationTopic.topicArn;

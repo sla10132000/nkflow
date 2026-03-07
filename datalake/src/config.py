@@ -39,6 +39,9 @@ def _resolve_local_path(env_key: str, default_path: str) -> str:
 SQLITE_PATH = _resolve_local_path("SQLITE_PATH", "/tmp/stocks.db")
 KUZU_PATH = _resolve_local_path("KUZU_PATH", "/tmp/kuzu_db")
 
+# SSM プレフィックス (環境ごとに異なる: /nkflow/prod, /nkflow/dev)
+SSM_PREFIX = os.environ.get("SSM_PREFIX", "/nkflow")
+
 # SNS (Phase 12)
 SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
 

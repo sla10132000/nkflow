@@ -13,6 +13,7 @@ SSM パラメータ (SecureString):
 """
 import json
 import logging
+import os
 import sys
 import urllib.parse
 import urllib.request
@@ -20,6 +21,8 @@ from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
+
+_SSM_PREFIX = os.environ.get("SSM_PREFIX", "/nkflow")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,13 +107,13 @@ def handler(event: dict, context: Any) -> dict:
         logger.warning("SNS Records が空です")
         return {"statusCode": 200, "body": "no records"}
 
-    slack_url = _get_ssm("/nkflow/slack-webhook-url")
-    line_token = _get_ssm("/nkflow/line-notify-token")
+    slack_url = _get_ssm(f"{_SSM_PREFIX}/slack-webhook-url")
+    line_token = _get_ssm(f"{_SSM_PREFIX}/line-notify-token")
 
     if not slack_url and not line_token:
         logger.warning(
             "通知先が設定されていません。"
-            "SSM に /nkflow/slack-webhook-url または /nkflow/line-notify-token を設定してください。"
+            f"SSM に {_SSM_PREFIX}/slack-webhook-url または {_SSM_PREFIX}/line-notify-token を設定してください。"
         )
         return {"statusCode": 200, "body": "no destination configured"}
 

@@ -7,7 +7,7 @@ import tarfile
 import boto3
 from botocore.exceptions import ClientError
 
-from src.config import JQUANTS_API_KEY, KUZU_PATH, S3_BUCKET, S3_KUZU_KEY, S3_SQLITE_KEY, SQLITE_PATH
+from src.config import JQUANTS_API_KEY, KUZU_PATH, S3_BUCKET, S3_KUZU_KEY, S3_SQLITE_KEY, SQLITE_PATH, SSM_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def get_api_key() -> str:
 
     try:
         api_key = ssm.get_parameter(
-            Name="/nkflow/jquants-api-key", WithDecryption=True
+            Name=f"{SSM_PREFIX}/jquants-api-key", WithDecryption=True
         )["Parameter"]["Value"]
     except ClientError as e:
         raise RuntimeError(f"SSM API キー取得失敗: {e}") from e
