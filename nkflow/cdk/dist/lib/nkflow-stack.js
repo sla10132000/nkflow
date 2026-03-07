@@ -49,7 +49,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         const isProd = envName === 'prod';
         // リソース名プレフィックス: nkflow-{env}-* 形式で環境を明示
         const prefix = `nkflow-${envName}`;
-        const bucketName = `nkflow-data-${envName}-${this.account}`;
+        const bucketName = `senken-datalake-${envName}`;
         const domainName = isProd ? 'nkflow.senken.app' : `${envName}.nkflow.senken.app`;
         const ssmPrefix = `/nkflow/${envName}`;
         // ─────────────────────────────────────────────────────────────
@@ -68,6 +68,12 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
                     noncurrentVersionsToRetain: 7,
                 },
             ],
+        });
+        // フロントエンド配信用バケット (nkflow 専用)
+        const frontendBucket = new aws_cdk_lib_1.aws_s3.Bucket(this, 'NkflowFrontendBucket', {
+            bucketName: `senken-nkflow-${envName}-frontend`,
+            removalPolicy: aws_cdk_lib_1.RemovalPolicy.RETAIN,
+            blockPublicAccess: aws_cdk_lib_1.aws_s3.BlockPublicAccess.BLOCK_ALL,
         });
         // ─────────────────────────────────────────────────────────────
         // 2. SSM Parameter Store (枠のみ — 値は手動で SecureString に上書き)
@@ -141,6 +147,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
             ],
         });
         dataBucket.grantRead(apiRole);
+        frontendBucket.grantRead(apiRole);
         // ─────────────────────────────────────────────────────────────
         // 6. IAM ロール / Lambda (通知) — prod のみ (Phase 12)
         // ─────────────────────────────────────────────────────────────
@@ -218,6 +225,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
             role: apiRole,
             environment: {
                 S3_BUCKET: dataBucket.bucketName,
+                FRONTEND_BUCKET: frontendBucket.bucketName,
                 // CACHE_BUST: Lambda 環境変数を手動更新する際に S3_BUCKET が消えるのを防ぐためここで管理する。
                 // キャッシュを強制破棄したい場合はこの値を変更して cdk deploy する。
                 CACHE_BUST: '1',
@@ -362,6 +370,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         // Outputs
         // ─────────────────────────────────────────────────────────────
         new cdk.CfnOutput(this, 'DataBucketName', { value: dataBucket.bucketName });
+        new cdk.CfnOutput(this, 'FrontendBucketName', { value: frontendBucket.bucketName });
         new cdk.CfnOutput(this, 'ApiLambdaUrl', { value: apiUrl.url });
         new cdk.CfnOutput(this, 'FrontendUrl', {
             value: restApi.url,

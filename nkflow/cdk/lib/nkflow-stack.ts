@@ -39,7 +39,7 @@ export class NkflowStack extends Stack {
 
     // リソース名プレフィックス: nkflow-{env}-* 形式で環境を明示
     const prefix = `nkflow-${envName}`;
-    const bucketName = `nkflow-data-${envName}-${this.account}`;
+    const bucketName = `senken-datalake-${envName}`;
     const domainName = isProd ? 'nkflow.senken.app' : `${envName}.nkflow.senken.app`;
     const ssmPrefix = `/nkflow/${envName}`;
 
@@ -59,6 +59,13 @@ export class NkflowStack extends Stack {
           noncurrentVersionsToRetain: 7,
         },
       ],
+    });
+
+    // フロントエンド配信用バケット (nkflow 専用)
+    const frontendBucket = new s3.Bucket(this, 'NkflowFrontendBucket', {
+      bucketName: `senken-nkflow-${envName}-frontend`,
+      removalPolicy: RemovalPolicy.RETAIN,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     });
 
     // ─────────────────────────────────────────────────────────────
@@ -139,6 +146,7 @@ export class NkflowStack extends Stack {
       ],
     });
     dataBucket.grantRead(apiRole);
+    frontendBucket.grantRead(apiRole);
 
     // ─────────────────────────────────────────────────────────────
     // 6. IAM ロール / Lambda (通知) — prod のみ (Phase 12)
@@ -224,6 +232,7 @@ export class NkflowStack extends Stack {
       role: apiRole,
       environment: {
         S3_BUCKET: dataBucket.bucketName,
+        FRONTEND_BUCKET: frontendBucket.bucketName,
         // CACHE_BUST: Lambda 環境変数を手動更新する際に S3_BUCKET が消えるのを防ぐためここで管理する。
         // キャッシュを強制破棄したい場合はこの値を変更して cdk deploy する。
         CACHE_BUST: '1',
@@ -386,6 +395,7 @@ export class NkflowStack extends Stack {
     // Outputs
     // ─────────────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'DataBucketName', { value: dataBucket.bucketName });
+    new cdk.CfnOutput(this, 'FrontendBucketName', { value: frontendBucket.bucketName });
     new cdk.CfnOutput(this, 'ApiLambdaUrl', { value: apiUrl.url });
     new cdk.CfnOutput(this, 'FrontendUrl', {
       value: restApi.url,
