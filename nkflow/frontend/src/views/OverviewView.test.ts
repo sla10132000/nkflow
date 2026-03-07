@@ -37,6 +37,7 @@ describe("OverviewView", () => {
 		mockApi.getYtdHighs.mockResolvedValue([]);
 		mockApi.getJpSectorPerformance.mockResolvedValue([]);
 		mockApi.getUsSectorPerformance.mockResolvedValue({});
+		mockApi.getCommoditiesSummary.mockResolvedValue([]);
 	});
 
 	it("日本語の見出しが表示される", async () => {
@@ -313,6 +314,76 @@ describe("OverviewView", () => {
 		expect(wrapper.find("[data-testid='sector-trend-bar-stub']").exists()).toBe(
 			true,
 		);
+	});
+
+	it("コモディティパネルがデータありで表示される", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [],
+		});
+		mockApi.getCommoditiesSummary.mockResolvedValue([
+			{ symbol: "GC=F", label: "金", change_pct: 1.23 },
+			{ symbol: "NG=F", label: "天然ガス", change_pct: -0.5 },
+			{ symbol: "CL=F", label: "原油 (WTI)", change_pct: 0.8 },
+		]);
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.text()).toContain("コモディティ");
+		expect(wrapper.text()).toContain("金");
+		expect(wrapper.text()).toContain("+1.23%");
+		expect(wrapper.text()).toContain("-0.50%");
+	});
+
+	it("市場温度が regime に応じて表示される", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [],
+		});
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.text()).toContain("市場温度");
+		expect(wrapper.text()).toContain("Risk ON");
+		expect(wrapper.text()).toContain("Risk OFF");
+	});
+
+	it("今日の資金フローが日本セクターデータありで表示される", async () => {
+		mockApi.getSummary.mockResolvedValue({
+			date: "2026-03-04",
+			nikkei_close: 38000,
+			nikkei_return: 0.012,
+			regime: "risk_on",
+			active_signals: 0,
+			top_gainers: [],
+			top_losers: [],
+			sector_rotation: [],
+		});
+		mockApi.getJpSectorPerformance.mockResolvedValue([
+			{ sector: "電気機器", avg_return: 0.025 },
+			{ sector: "銀行業", avg_return: -0.015 },
+		]);
+
+		const wrapper = mountView();
+		await flushPromises();
+
+		expect(wrapper.text()).toContain("今日の資金フロー");
+		expect(wrapper.text()).toContain("電気機器");
+		expect(wrapper.text()).toContain("銀行業");
 	});
 
 	it("米国セクターの期間ボタンをクリックすると再取得する", async () => {
