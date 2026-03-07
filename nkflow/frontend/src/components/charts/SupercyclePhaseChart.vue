@@ -109,7 +109,7 @@ export default { name: "SupercyclePhaseChart" };
 			</div>
 			<div class="legend-item ml-4">
 				<span class="legend-dot-etf" />
-				<span class="legend-text">ETF代替</span>
+				<span class="legend-text">ETF（四角）</span>
 			</div>
 		</div>
 	</div>
