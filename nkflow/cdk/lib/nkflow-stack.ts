@@ -37,8 +37,8 @@ export class NkflowStack extends Stack {
     const { envName } = props;
     const isProd = envName === 'prod';
 
-    // リソース名プレフィックス: nkflow-{env}-* 形式で環境を明示
-    const prefix = `nkflow-${envName}`;
+    // リソース名サフィックス: nkflow-*-{env} 形式で環境を末尾に明示
+    const suffix = envName;
     const bucketName = `senken-datalake-${envName}`;
     const domainName = isProd ? 'nkflow.senken.app' : `${envName}.nkflow.senken.app`;
     const ssmPrefix = `/nkflow/${envName}`;
@@ -63,7 +63,7 @@ export class NkflowStack extends Stack {
 
     // フロントエンド配信用バケット (nkflow 専用)
     const frontendBucket = new s3.Bucket(this, 'NkflowFrontendBucket', {
-      bucketName: `senken-nkflow-${envName}-frontend`,
+      bucketName: `senken-nkflow-frontend-${envName}`,
       removalPolicy: RemovalPolicy.RETAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     });
@@ -99,7 +99,7 @@ export class NkflowStack extends Stack {
 
     if (isProd) {
       notificationTopic = new sns.Topic(this, 'NkflowNotificationTopic', {
-        topicName: `${prefix}-notifications`,
+        topicName: `nkflow-notifications-${suffix}`,
         displayName: 'nkflow 日次レポート通知',
       });
     }
@@ -167,7 +167,7 @@ export class NkflowStack extends Stack {
       }));
 
       const notificationLambda = new lambda.DockerImageFunction(this, 'NkflowNotificationLambda', {
-        functionName: `${prefix}-notification`,
+        functionName: `nkflow-notification-${suffix}`,
         code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
           file: 'Dockerfile.notification',
           platform: Platform.LINUX_AMD64,
@@ -199,7 +199,7 @@ export class NkflowStack extends Stack {
     }
 
     const batchLambda = new lambda.DockerImageFunction(this, 'NkflowBatchLambda', {
-      functionName: `${prefix}-batch`,
+      functionName: `nkflow-batch-${suffix}`,
       code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
         file: 'Dockerfile.batch',
         platform: Platform.LINUX_AMD64,
@@ -218,7 +218,7 @@ export class NkflowStack extends Stack {
     // 8. Lambda (API) + Function URL
     // ─────────────────────────────────────────────────────────────
     const apiLambda = new lambda.DockerImageFunction(this, 'NkflowApiLambda', {
-      functionName: `${prefix}-api`,
+      functionName: `nkflow-api-${suffix}`,
       code: lambda.DockerImageCode.fromImageAsset(BACKEND, {
         file: 'Dockerfile.api',
         platform: Platform.LINUX_AMD64,
@@ -288,7 +288,7 @@ export class NkflowStack extends Stack {
     }
 
     const newsFetchLambda = new lambda.DockerImageFunction(this, 'NkflowNewsFetchLambda', {
-      functionName: `${prefix}-news-fetch`,
+      functionName: `nkflow-news-fetch-${suffix}`,
       code: lambda.DockerImageCode.fromImageAsset(DATALAKE, {
         file: 'Dockerfile.news',
         platform: Platform.LINUX_AMD64,
@@ -309,7 +309,7 @@ export class NkflowStack extends Stack {
     newsFetchLambda.grantInvoke(newsFetchSchedulerRole);
 
     new scheduler.CfnSchedule(this, 'NkflowNewsFetchSchedule', {
-      name: `${prefix}-news-fetch`,
+      name: `nkflow-news-fetch-${suffix}`,
       scheduleExpression: 'cron(30 * ? * * *)',
       scheduleExpressionTimezone: 'UTC',
       flexibleTimeWindow: { mode: 'OFF' },
@@ -326,7 +326,7 @@ export class NkflowStack extends Stack {
     const restApi = new apigateway.LambdaRestApi(this, 'NkflowApiGateway', {
       handler: apiLambda,
       proxy: true,
-      restApiName: prefix,
+      restApiName: `nkflow-${suffix}`,
       binaryMediaTypes: ['*/*'],
       deployOptions: { stageName: 'prod' },
       endpointTypes: [apigateway.EndpointType.REGIONAL],
@@ -380,7 +380,7 @@ export class NkflowStack extends Stack {
     batchLambda.grantInvoke(schedulerRole);
 
     new scheduler.CfnSchedule(this, 'NkflowDailySchedule', {
-      name: `${prefix}-daily-batch`,
+      name: `nkflow-daily-batch-${suffix}`,
       scheduleExpression: 'cron(0 9 ? * MON-FRI *)',
       scheduleExpressionTimezone: 'UTC',
       flexibleTimeWindow: { mode: 'OFF' },

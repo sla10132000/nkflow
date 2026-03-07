@@ -47,8 +47,8 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         super(scope, id, props);
         const { envName } = props;
         const isProd = envName === 'prod';
-        // リソース名プレフィックス: nkflow-{env}-* 形式で環境を明示
-        const prefix = `nkflow-${envName}`;
+        // リソース名サフィックス: nkflow-*-{env} 形式で環境を末尾に明示
+        const suffix = envName;
         const bucketName = `senken-datalake-${envName}`;
         const domainName = isProd ? 'nkflow.senken.app' : `${envName}.nkflow.senken.app`;
         const ssmPrefix = `/nkflow/${envName}`;
@@ -71,7 +71,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         });
         // フロントエンド配信用バケット (nkflow 専用)
         const frontendBucket = new aws_cdk_lib_1.aws_s3.Bucket(this, 'NkflowFrontendBucket', {
-            bucketName: `senken-nkflow-${envName}-frontend`,
+            bucketName: `senken-nkflow-frontend-${envName}`,
             removalPolicy: aws_cdk_lib_1.RemovalPolicy.RETAIN,
             blockPublicAccess: aws_cdk_lib_1.aws_s3.BlockPublicAccess.BLOCK_ALL,
         });
@@ -102,7 +102,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         let notificationTopic;
         if (isProd) {
             notificationTopic = new aws_cdk_lib_1.aws_sns.Topic(this, 'NkflowNotificationTopic', {
-                topicName: `${prefix}-notifications`,
+                topicName: `nkflow-notifications-${suffix}`,
                 displayName: 'nkflow 日次レポート通知',
             });
         }
@@ -166,7 +166,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
                 ],
             }));
             const notificationLambda = new aws_cdk_lib_1.aws_lambda.DockerImageFunction(this, 'NkflowNotificationLambda', {
-                functionName: `${prefix}-notification`,
+                functionName: `nkflow-notification-${suffix}`,
                 code: aws_cdk_lib_1.aws_lambda.DockerImageCode.fromImageAsset(DATALAKE, {
                     file: 'Dockerfile.notification',
                     platform: aws_ecr_assets_1.Platform.LINUX_AMD64,
@@ -193,7 +193,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
             batchEnv.SNS_TOPIC_ARN = notificationTopic.topicArn;
         }
         const batchLambda = new aws_cdk_lib_1.aws_lambda.DockerImageFunction(this, 'NkflowBatchLambda', {
-            functionName: `${prefix}-batch`,
+            functionName: `nkflow-batch-${suffix}`,
             code: aws_cdk_lib_1.aws_lambda.DockerImageCode.fromImageAsset(DATALAKE, {
                 file: 'Dockerfile.batch',
                 platform: aws_ecr_assets_1.Platform.LINUX_AMD64,
@@ -211,7 +211,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         // 8. Lambda (API) + Function URL
         // ─────────────────────────────────────────────────────────────
         const apiLambda = new aws_cdk_lib_1.aws_lambda.DockerImageFunction(this, 'NkflowApiLambda', {
-            functionName: `${prefix}-api`,
+            functionName: `nkflow-api-${suffix}`,
             code: aws_cdk_lib_1.aws_lambda.DockerImageCode.fromImageAsset(BACKEND, {
                 file: 'Dockerfile.api',
                 platform: aws_ecr_assets_1.Platform.LINUX_AMD64,
@@ -277,7 +277,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
             newsFetchEnv.SNS_TOPIC_ARN = notificationTopic.topicArn;
         }
         const newsFetchLambda = new aws_cdk_lib_1.aws_lambda.DockerImageFunction(this, 'NkflowNewsFetchLambda', {
-            functionName: `${prefix}-news-fetch`,
+            functionName: `nkflow-news-fetch-${suffix}`,
             code: aws_cdk_lib_1.aws_lambda.DockerImageCode.fromImageAsset(DATALAKE, {
                 file: 'Dockerfile.news',
                 platform: aws_ecr_assets_1.Platform.LINUX_AMD64,
@@ -296,7 +296,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         });
         newsFetchLambda.grantInvoke(newsFetchSchedulerRole);
         new aws_cdk_lib_1.aws_scheduler.CfnSchedule(this, 'NkflowNewsFetchSchedule', {
-            name: `${prefix}-news-fetch`,
+            name: `nkflow-news-fetch-${suffix}`,
             scheduleExpression: 'cron(30 * ? * * *)',
             scheduleExpressionTimezone: 'UTC',
             flexibleTimeWindow: { mode: 'OFF' },
@@ -312,7 +312,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         const restApi = new aws_cdk_lib_1.aws_apigateway.LambdaRestApi(this, 'NkflowApiGateway', {
             handler: apiLambda,
             proxy: true,
-            restApiName: prefix,
+            restApiName: `nkflow-${suffix}`,
             binaryMediaTypes: ['*/*'],
             deployOptions: { stageName: 'prod' },
             endpointTypes: [aws_cdk_lib_1.aws_apigateway.EndpointType.REGIONAL],
@@ -356,7 +356,7 @@ class NkflowStack extends aws_cdk_lib_1.Stack {
         });
         batchLambda.grantInvoke(schedulerRole);
         new aws_cdk_lib_1.aws_scheduler.CfnSchedule(this, 'NkflowDailySchedule', {
-            name: `${prefix}-daily-batch`,
+            name: `nkflow-daily-batch-${suffix}`,
             scheduleExpression: 'cron(0 9 ? * MON-FRI *)',
             scheduleExpressionTimezone: 'UTC',
             flexibleTimeWindow: { mode: 'OFF' },

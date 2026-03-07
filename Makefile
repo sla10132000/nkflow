@@ -2,8 +2,8 @@ ACCOUNT := $(shell aws sts get-caller-identity --query Account --output text 2>/
 # nkflow: datalake (データ) + frontend (静的ファイル) の 2 バケット
 DATALAKE_BUCKET_PROD := senken-datalake-prod
 DATALAKE_BUCKET_DEV  := senken-datalake-dev
-FRONTEND_BUCKET_PROD := senken-nkflow-prod-frontend
-FRONTEND_BUCKET_DEV  := senken-nkflow-dev-frontend
+FRONTEND_BUCKET_PROD := senken-nkflow-frontend-prod
+FRONTEND_BUCKET_DEV  := senken-nkflow-frontend-dev
 # hazardbrief
 HB_S3_BUCKET := hazardbrief-data-$(ACCOUNT)
 
